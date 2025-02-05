@@ -23,7 +23,7 @@ inputs:
     default: '.'
   file_pattern:
     description: 'File pattern to add'
-    required: false
+    required: true
     default: '.'
 
 runs:

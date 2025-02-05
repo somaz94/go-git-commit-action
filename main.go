@@ -22,7 +22,7 @@ func main() {
 		UserName:      os.Getenv("INPUT_USER_NAME"),
 		CommitMessage: os.Getenv("INPUT_COMMIT_MESSAGE"),
 		Branch:        os.Getenv("INPUT_BRANCH"),
-		RepoPath:      os.Getenv("INPUT_REPOSITORY_PATH"),
+		RepoPath:      getEnvWithDefault("INPUT_REPOSITORY_PATH", "."),
 		FilePattern:   os.Getenv("INPUT_FILE_PATTERN"),
 	}
 
@@ -31,11 +31,29 @@ func main() {
 	}
 }
 
+// 기본값을 처리하는 헬퍼 함수
+func getEnvWithDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 func runGitCommit(config GitConfig) error {
 	// Debug information
 	currentDir, _ := os.Getwd()
+	// Confirm Git Config
+	gitConfig := exec.Command("git", "config", "--global", "user.email")
+	gitConfig.Stdout = os.Stdout
+	gitConfig.Stderr = os.Stderr
+	if err := gitConfig.Run(); err != nil {
+		return fmt.Errorf("failed to execute git config: %v", err)
+	}
+	fmt.Printf("Commit message: %s\n", config.CommitMessage)
+	fmt.Printf("Branch: %s\n", config.Branch)
 	fmt.Printf("Current directory: %s\n", currentDir)
 	fmt.Printf("Repository path: %s\n", config.RepoPath)
+	fmt.Printf("File pattern: %s\n", config.FilePattern)
 
 	// List directory contents
 	files, _ := os.ReadDir(".")

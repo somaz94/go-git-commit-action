@@ -60,12 +60,12 @@ jobs:
           FILE_PATTERN: .
         run: |
           docker run \
-          --env USER_EMAIL="${{ env.USER_EMAIL }}" \
-          --env USER_NAME="${{ env.USER_NAME }}" \
-          --env COMMIT_MESSAGE="${{ env.COMMIT_MESSAGE }}" \
-          --env BRANCH="${{ env.BRANCH }}" \
-          --env REPOSITORY_PATH="${{ env.REPOSITORY_PATH }}" \
-          --env FILE_PATTERN="${{ env.FILE_PATTERN }}" \
+          --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
+          --env INPUT_USER_NAME="${{ env.USER_NAME }}" \
+          --env INPUT_COMMIT_MESSAGE="${{ env.COMMIT_MESSAGE }}" \
+          --env INPUT_BRANCH="${{ env.BRANCH }}" \
+          --env INPUT_REPOSITORY_PATH="${{ env.REPOSITORY_PATH }}" \
+          --env INPUT_FILE_PATTERN="${{ env.FILE_PATTERN }}" \
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
