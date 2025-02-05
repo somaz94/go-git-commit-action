@@ -9,7 +9,7 @@ on:
         default: 'true'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   acton-module:
