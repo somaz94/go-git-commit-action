@@ -28,6 +28,9 @@ Below is an example of how to use the **Go Git Commit Action** in your GitHub Ac
 name: Auto Commit Workflow
 on: [push]
 
+permissions:
+  contents: write
+
 jobs:
   commit:
     runs-on: ubuntu-latest
