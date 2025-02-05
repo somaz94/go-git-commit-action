@@ -1,0 +1,30 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - "v*" # Push events to matching v*, i.e. v1.0, v20.15.10
+
+jobs:
+  build:
+    name: "🚀 Release"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "📥 Check-out"
+        uses: actions/checkout@v4
+      - name: "✏️ Generate release changelog"
+        id: generate-release-changelog
+        uses: ./
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          onlyLastTag: "true"
+          stripHeaders: "true"
+          stripGeneratorNotice: "true"
+      - name: "🚀 Create GitHub release"
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ${{ github.ref }}
+          body: ${{ steps.generate-release-changelog.outputs.changelog }}
