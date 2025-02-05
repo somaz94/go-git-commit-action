@@ -20,10 +20,10 @@ func main() {
 	config := GitConfig{
 		UserEmail:     os.Getenv("INPUT_USER_EMAIL"),
 		UserName:      os.Getenv("INPUT_USER_NAME"),
-		CommitMessage: os.Getenv("INPUT_COMMIT_MESSAGE"),
-		Branch:        os.Getenv("INPUT_BRANCH"),
+		CommitMessage: getEnvWithDefault("INPUT_COMMIT_MESSAGE", "Auto commit by Go Git Commit Action"),
+		Branch:        getEnvWithDefault("INPUT_BRANCH", "main"),
 		RepoPath:      getEnvWithDefault("INPUT_REPOSITORY_PATH", "."),
-		FilePattern:   os.Getenv("INPUT_FILE_PATTERN"),
+		FilePattern:   getEnvWithDefault("INPUT_FILE_PATTERN", "."),
 	}
 
 	if err := runGitCommit(config); err != nil {
