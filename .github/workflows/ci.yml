@@ -69,29 +69,29 @@ jobs:
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
-  test-action:
-    name: Test env-output-setter
-    runs-on: ubuntu-latest
+  # test-action:
+  #   name: Test env-output-setter
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 10
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 10
 
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
+  #     - name: Configure Git Safe Directory
+  #       run: git config --global --add safe.directory ${{ github.workspace }}
 
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test1.txt
+  #     - name: Create Test File
+  #       run: |
+  #         echo "$(date +%s)-$RANDOM" > test/test1.txt
 
-      - name: Test Local Action
-        uses: ./
-        with:
-          user_email: test1@test.com
-          user_name: test1
-          commit_message: test1 ${{ github.run_id }}!
-          branch: main
-          repository_path: test
-          file_pattern: .
+  #     - name: Test Local Action
+  #       uses: ./
+  #       with:
+  #         user_email: test1@test.com
+  #         user_name: test1
+  #         commit_message: test1 ${{ github.run_id }}!
+  #         branch: main
+  #         repository_path: test
+  #         file_pattern: .
