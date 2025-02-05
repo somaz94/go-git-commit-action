@@ -1,11 +1,10 @@
-# Set the base image to use for subsequent instructions
-FROM alpine:3.21
+FROM golang:1.23-alpine
 
-# Set the working directory inside the container
-WORKDIR /usr/src
+RUN apk add --no-cache git
 
-# Copy any source file(s) required for the action
-COPY entrypoint.sh .
+WORKDIR /app
+COPY . .
 
-# Configure the container to be run as an executable
-ENTRYPOINT ["/usr/src/entrypoint.sh"]
+RUN go build -o /go-git-commit-action main.go
+
+ENTRYPOINT ["/go-git-commit-action"]

@@ -1,21 +1,38 @@
-name: 'The name of your action here'
-description: 'Provide a description here'
-author: 'Your name or organization here'
+name: 'Go Git Commit Action'
+description: 'Automatically commit and push changes using Go'
+author: 'somaz'
 
-# Define your inputs here.
 inputs:
-  who-to-greet:
-    description: 'Your input description here'
+  user_email:
+    description: 'Git user email'
     required: true
-    default: 'World'
-
-# Define your outputs here.
-outputs:
-  greeting:
-    description: 'Your output description here'
+  user_name:
+    description: 'Git user name'
+    required: true
+  commit_message:
+    description: 'Commit message'
+    required: true
+    default: 'Auto commit by Go Git Commit Action'
+  branch:
+    description: 'Branch to push to'
+    required: true
+    default: 'main'
+  repository_path:
+    description: 'Path to the repository'
+    required: false
+    default: '.'
+  file_pattern:
+    description: 'File pattern to add'
+    required: false
+    default: '.'
 
 runs:
-  using: docker
-  image: Dockerfile
+  using: 'docker'
+  image: 'Dockerfile'
   env:
-    INPUT_WHO_TO_GREET: ${{ inputs.who-to-greet }}
+    USER_EMAIL: ${{ inputs.user_email }}
+    USER_NAME: ${{ inputs.user_name }}
+    COMMIT_MESSAGE: ${{ inputs.commit_message }}
+    BRANCH: ${{ inputs.branch }}
+    REPOSITORY_PATH: ${{ inputs.repository_path }}
+    FILE_PATTERN: ${{ inputs.file_pattern }}

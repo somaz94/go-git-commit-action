@@ -5,69 +5,93 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.github/workflows/**'
+      - '**/*.md'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  test-docker:
-    name: Docker Tests
+  build-and-push-docker:
+    name: Build and Push Docker
     runs-on: ubuntu-latest
-
-    # Run a local registry to push to
     services:
       registry:
         image: registry:2
         ports:
           - 5001:5000
-
     env:
-      TEST_TAG: localhost:5001/actions/container-action:latest
-
+      TEST_TAG: localhost:5001/actions/go-git-commit-action:latest
     steps:
       - name: Checkout
-        id: checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory ${{ github.workspace }}
 
       - name: Setup Docker BuildX
-        id: setup-buildx
         uses: docker/setup-buildx-action@v3
         with:
           install: true
           driver-opts: network=host
 
       - name: Build the Container
-        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ env.TEST_TAG }}
 
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/test1.txt
+
       - name: Run the Container
-        id: run
         env:
-          INPUT_WHO_TO_GREET: Mona Lisa Octocat
+          USER_EMAIL: test1@test.com
+          USER_NAME: test1
+          COMMIT_MESSAGE: test1 ${{ github.run_id }}!
+          BRANCH: main
+          REPOSITORY_PATH: test
+          FILE_PATTERN: test/*
         run: |
           docker run \
-            --env INPUT_WHO_TO_GREET="${{ env.INPUT_WHO_TO_GREET }}" \
-            --rm ${{ env.TEST_TAG }}
+          --env USER_EMAIL="${{ env.USER_EMAIL }}" \
+          --env USER_NAME="${{ env.USER_NAME }}" \
+          --env COMMIT_MESSAGE="${{ env.COMMIT_MESSAGE }}" \
+          --env BRANCH="${{ env.BRANCH }}" \
+          --env REPOSITORY_PATH="${{ env.REPOSITORY_PATH }}" \
+          --env FILE_PATTERN="${{ env.FILE_PATTERN }}" \
+          --volume ${{ github.workspace }}:/app \
+          --rm ${{ env.TEST_TAG }}
 
   test-action:
-    name: GitHub Actions Test
+    name: Test env-output-setter
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
-        id: checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 10
+
+      - name: Configure Git Safe Directory
+        run: git config --global --add safe.directory ${{ github.workspace }}
+
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/test1.txt
 
       - name: Test Local Action
-        id: test-action
+        id: set_variables
         uses: ./
         with:
-          who-to-greet: Mona Lisa Octocat
-
-      - name: Print Output
-        id: output
-        run: echo "${{ steps.test-action.outputs.greeting }}"
+          user_email: test1@test.com
+          user_name: test1
+          commit_message: test1 ${{ github.run_id }}!
+          branch: test1
+          repository_path: test
+          file_pattern: test/*
