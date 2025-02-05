@@ -15,10 +15,10 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit and pu
 |-------------------|----------|--------------------------------|-----------------------------------|
 | `user_email`      | Yes      | Git user email                 | -                                 |
 | `user_name`       | Yes      | Git user name                  | -                                 |
-| `commit_message`  | No      | Commit message                 | 'Auto commit by Go Git Commit Action' |
-| `branch`          | No      | Branch to push to              | 'main'                           |
-| `repository_path` | No       | Path to the repository         | '.'                              |
-| `file_pattern`    | No      | File pattern to add            | '.'                              |
+| `commit_message`  | No      | Commit message                  | Auto commit by Go Git Commit Action |
+| `branch`          | No      | Branch to push to               | main                           |
+| `repository_path` | No       | Path to the repository         | .                              |
+| `file_pattern`    | No      | File pattern to add             | .                              |
 
 ## Example Workflow
 
