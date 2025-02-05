@@ -3,7 +3,7 @@
 [![License](https://img.shields.io/github/license/somaz94/go-git-commit-action)](https://github.com/somaz94/go-git-commit-action)
 ![Latest Tag](https://img.shields.io/github/v/tag/somaz94/go-git-commit-action)
 ![Top Language](https://img.shields.io/github/languages/top/somaz94/go-git-commit-action?color=green&logo=go&logoColor=b)
-[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Git%20Commit%20Action-blue?logo=github)](https://github.com/marketplace/actions/git-commit-action)
+[![GitHub Marketplace](https://img.shields.io/badge/Marketplace-Go%20Git%20Commit%20Action-blue?logo=github)](https://github.com/marketplace/actions/go-git-commit-action)
 
 ## Overview
 
