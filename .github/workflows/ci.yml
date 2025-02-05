@@ -92,6 +92,6 @@ jobs:
           user_email: test1@test.com
           user_name: test1
           commit_message: test1 ${{ github.run_id }}!
-          branch: test1
+          branch: main
           repository_path: test
           file_pattern: .
