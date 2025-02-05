@@ -87,7 +87,6 @@ jobs:
           echo "$(date +%s)-$RANDOM" > test/test1.txt
 
       - name: Test Local Action
-        id: set_variables
         uses: ./
         with:
           user_email: test1@test.com

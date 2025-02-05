@@ -74,6 +74,7 @@ func runGitCommit(config GitConfig) error {
 		args []string
 	}{
 		{"git", []string{"config", "--global", "--add", "safe.directory", "/app"}},
+		{"git", []string{"config", "--global", "--add", "safe.directory", "/github/workspace"}},
 		{"git", []string{"config", "--global", "user.email", config.UserEmail}},
 		{"git", []string{"config", "--global", "user.name", config.UserName}},
 		// git config 설정 후 확인
