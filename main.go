@@ -32,11 +32,27 @@ func main() {
 }
 
 func runGitCommit(config GitConfig) error {
+	// Debug information
+	currentDir, _ := os.Getwd()
+	fmt.Printf("Current directory: %s\n", currentDir)
+	fmt.Printf("Repository path: %s\n", config.RepoPath)
+
+	// List directory contents
+	files, _ := os.ReadDir(".")
+	fmt.Println("Contents of current directory:")
+	for _, file := range files {
+		fmt.Printf("- %s\n", file.Name())
+	}
+
 	// Change to repository directory if specified
 	if config.RepoPath != "." {
 		if err := os.Chdir(config.RepoPath); err != nil {
 			return fmt.Errorf("failed to change directory: %v", err)
 		}
+
+		// Print new directory after change
+		newDir, _ := os.Getwd()
+		fmt.Printf("New directory after change: %s\n", newDir)
 	}
 
 	// Set git configurations

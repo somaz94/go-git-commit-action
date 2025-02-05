@@ -95,4 +95,4 @@ jobs:
           commit_message: test1 ${{ github.run_id }}!
           branch: test1
           repository_path: test
-          file_pattern: test/*
+          file_pattern: .
