@@ -42,6 +42,13 @@ func getEnvWithDefault(key, defaultValue string) string {
 func runGitCommit(config GitConfig) error {
 	// Debug information
 	currentDir, _ := os.Getwd()
+	fmt.Printf("Current directory: %s\n", currentDir)
+	fmt.Printf("User Email: %s\n", config.UserEmail)
+	fmt.Printf("User Name: %s\n", config.UserName)
+	fmt.Printf("Commit message: %s\n", config.CommitMessage)
+	fmt.Printf("Branch: %s\n", config.Branch)
+	fmt.Printf("Repository path: %s\n", config.RepoPath)
+	fmt.Printf("File pattern: %s\n", config.FilePattern)
 
 	// List directory contents
 	files, _ := os.ReadDir(".")
@@ -61,30 +68,19 @@ func runGitCommit(config GitConfig) error {
 		fmt.Printf("New directory after change: %s\n", newDir)
 	}
 
-	// Set git configurations
+	// Set git configurations first
 	commands := []struct {
 		name string
 		args []string
 	}{
 		{"git", []string{"config", "--global", "user.email", config.UserEmail}},
 		{"git", []string{"config", "--global", "user.name", config.UserName}},
+		// git config 설정 후 확인
+		{"git", []string{"config", "--global", "--list"}},
 		{"git", []string{"add", config.FilePattern}},
 		{"git", []string{"commit", "-m", config.CommitMessage}},
 		{"git", []string{"push", "origin", config.Branch}},
 	}
-
-	// Confirm Git Config
-	gitConfig := exec.Command("git", "config", "--global", "user.email")
-	gitConfig.Stdout = os.Stdout
-	gitConfig.Stderr = os.Stderr
-	if err := gitConfig.Run(); err != nil {
-		return fmt.Errorf("failed to execute git config: %v", err)
-	}
-	fmt.Printf("Commit message: %s\n", config.CommitMessage)
-	fmt.Printf("Branch: %s\n", config.Branch)
-	fmt.Printf("Current directory: %s\n", currentDir)
-	fmt.Printf("Repository path: %s\n", config.RepoPath)
-	fmt.Printf("File pattern: %s\n", config.FilePattern)
 
 	// Execute git commands
 	for _, cmd := range commands {
