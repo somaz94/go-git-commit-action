@@ -56,7 +56,7 @@ jobs:
           COMMIT_MESSAGE: test1 ${{ github.run_id }}!
           BRANCH: main
           REPOSITORY_PATH: test
-          FILE_PATTERN: test/*
+          FILE_PATTERN: .
         run: |
           docker run \
           --env USER_EMAIL="${{ env.USER_EMAIL }}" \
