@@ -36,3 +36,7 @@ runs:
     BRANCH: ${{ inputs.branch }}
     REPOSITORY_PATH: ${{ inputs.repository_path }}
     FILE_PATTERN: ${{ inputs.file_pattern }}
+
+branding:
+  icon: 'git-commit'
+  color: 'blue'
