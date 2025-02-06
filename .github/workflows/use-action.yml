@@ -37,6 +37,11 @@ jobs:
           tag_message: 'test1 ${{ github.run_id }}'
           tag_reference: 'v1.0.0'
 
+      - name: Confirm Tag Reference
+        run: |
+          git show -1 v1.0.0
+          git show -1 test1-${{ github.run_id }}
+
       - name: Delete Tag
         uses: somaz94/go-git-commit-action@v1
         with:
