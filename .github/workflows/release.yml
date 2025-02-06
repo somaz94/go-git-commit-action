@@ -19,22 +19,23 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get first tag
-        id: get_first_tag
+      - name: Get previous tag
+        id: previoustag
         run: |
-          # 시맨틱 버전 태그 중 가장 최신 버전 찾기 (v1 제외)
-          latest_tag="${{ github.ref_name }}"
-          echo "LATEST_TAG=${latest_tag}" >> "$GITHUB_ENV"
-          # 첫 번째 태그는 v1.0.0으로 고정
-          echo "FIRST_TAG=v1.0.0" >> "$GITHUB_ENV"
+          # 현재 태그 이전의 가장 최신 태그 찾기
+          CURRENT_TAG="${{ github.ref_name }}"
+          PREVIOUS_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | grep -B1 "^${CURRENT_TAG}$" | head -n1)
+          echo "PREVIOUS_TAG=${PREVIOUS_TAG}" >> "$GITHUB_ENV"
+          echo "CURRENT_TAG=${CURRENT_TAG}" >> "$GITHUB_ENV"
 
       - name: Generate changelog for release
         id: changelog
         uses: janheinrichmerker/action-github-changelog-generator@v2.4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          futureRelease: ${{ env.LATEST_TAG }}
-          sinceTag: ${{ env.FIRST_TAG }}
+          futureRelease: ${{ env.CURRENT_TAG }}
+          sinceTag: ${{ env.PREVIOUS_TAG }}  # 이전 태그부터
+          unreleased: false
           excludeTagsRegex: "^v[0-9]$"
           output: RELEASE.md
 
