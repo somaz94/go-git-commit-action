@@ -73,6 +73,7 @@ jobs:
           --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
           --env INPUT_TAG_MESSAGE="${{ env.TAG_MESSAGE }}" \
           --env INPUT_TAG_REFERENCE="${{ env.TAG_REFERENCE }}" \
+          --env GITHUB_TOKEN="${{ env.GITHUB_TOKEN }}" \
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
