@@ -166,6 +166,22 @@ jobs:
 - Use `tag_message` to create annotated tags
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
 - Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
+- When working with workflow files, you need to use a Personal Access Token (PAT) with appropriate permissions:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+    with:
+      token: ${{ secrets.PAT_TOKEN }}  # Use PAT instead of GITHUB_TOKEN
+
+  - name: Create Git Tag
+    uses: somaz94/go-git-commit-action@v1
+    with:
+      user_email: 'github-actions@github.com'
+      user_name: 'GitHub Actions'
+      tag_name: 'v1.0.0'
+      tag_reference: 'main'
+```
 
 ## License
 

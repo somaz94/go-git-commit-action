@@ -33,6 +33,7 @@ jobs:
           file_pattern: '.'
           tag_name: 'test1-${{ github.run_id }}'
           tag_message: 'test1 ${{ github.run_id }}'
+          tag_reference: 'v1.0.0'
 
       - name: Delete Tag
         uses: somaz94/go-git-commit-action@v1
