@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create Test File
         run: |
