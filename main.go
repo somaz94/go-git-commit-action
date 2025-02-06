@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 type GitConfig struct {
@@ -127,8 +128,8 @@ func runGitCommit(config GitConfig) error {
 func handleGitTag(config GitConfig) error {
 	fmt.Println("\n🏷️  Handling Git Tag:")
 
-	// Fetch all tags first
-	fetchCmd := exec.Command("git", "fetch", "--tags", "--force")
+	// Fetch all tags and refs
+	fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
 	if err := fetchCmd.Run(); err != nil {
 		return fmt.Errorf("failed to fetch tags: %v", err)
 	}
@@ -157,26 +158,34 @@ func handleGitTag(config GitConfig) error {
 			fmt.Println("✅ Done")
 		}
 	} else {
-		// Validate reference if provided
+		var targetCommit string
 		if config.TagReference != "" {
 			// Check if reference exists
 			cmd := exec.Command("git", "rev-parse", "--verify", config.TagReference)
 			if err := cmd.Run(); err != nil {
 				return fmt.Errorf("invalid git reference '%s': %v", config.TagReference, err)
 			}
+
+			// Get commit SHA for the reference
+			cmd = exec.Command("git", "rev-list", "-n1", config.TagReference)
+			output, err := cmd.Output()
+			if err != nil {
+				return fmt.Errorf("failed to get commit SHA for '%s': %v", config.TagReference, err)
+			}
+			targetCommit = strings.TrimSpace(string(output))
 		}
 
 		// Create tag
 		var tagArgs []string
 		if config.TagMessage != "" {
-			if config.TagReference != "" {
-				tagArgs = []string{"tag", "-f", "-a", config.TagName, config.TagReference, "-m", config.TagMessage}
+			if targetCommit != "" {
+				tagArgs = []string{"tag", "-f", "-a", config.TagName, targetCommit, "-m", config.TagMessage}
 			} else {
 				tagArgs = []string{"tag", "-f", "-a", config.TagName, "-m", config.TagMessage}
 			}
 		} else {
-			if config.TagReference != "" {
-				tagArgs = []string{"tag", "-f", config.TagName, config.TagReference}
+			if targetCommit != "" {
+				tagArgs = []string{"tag", "-f", config.TagName, targetCommit}
 			} else {
 				tagArgs = []string{"tag", "-f", config.TagName}
 			}
@@ -185,7 +194,11 @@ func handleGitTag(config GitConfig) error {
 		// 설명 메시지 생성
 		desc := "Creating local tag " + config.TagName
 		if config.TagReference != "" {
-			desc += fmt.Sprintf(" pointing to %s", config.TagReference)
+			if targetCommit != config.TagReference {
+				desc += fmt.Sprintf(" pointing to %s (%s)", config.TagReference, targetCommit[:8])
+			} else {
+				desc += fmt.Sprintf(" pointing to %s", targetCommit[:8])
+			}
 		}
 
 		commands := []struct {
@@ -194,7 +207,7 @@ func handleGitTag(config GitConfig) error {
 			desc string
 		}{
 			{"git", tagArgs, desc},
-			{"git", []string{"push", "origin", config.TagName}, "Pushing tag to remote"},
+			{"git", []string{"push", "-f", "origin", config.TagName}, "Pushing tag to remote"},
 		}
 
 		for _, cmd := range commands {
