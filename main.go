@@ -127,6 +127,12 @@ func runGitCommit(config GitConfig) error {
 func handleGitTag(config GitConfig) error {
 	fmt.Println("\n🏷️  Handling Git Tag:")
 
+	// Fetch all tags first
+	fetchCmd := exec.Command("git", "fetch", "--tags", "--force")
+	if err := fetchCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch tags: %v", err)
+	}
+
 	if config.DeleteTag {
 		// Delete tag
 		commands := []struct {
@@ -151,6 +157,15 @@ func handleGitTag(config GitConfig) error {
 			fmt.Println("✅ Done")
 		}
 	} else {
+		// Validate reference if provided
+		if config.TagReference != "" {
+			// Check if reference exists
+			cmd := exec.Command("git", "rev-parse", "--verify", config.TagReference)
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("invalid git reference '%s': %v", config.TagReference, err)
+			}
+		}
+
 		// Create tag
 		var tagArgs []string
 		if config.TagMessage != "" {
