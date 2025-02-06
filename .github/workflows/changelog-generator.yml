@@ -2,8 +2,6 @@ name: Generate changelog
 on:
   release:
     types: [created, edited]
-    tags-ignore:
-      - 'v[0-9]'  # v1, v2, v3 등의 major 버전 태그 무시
   pull_request:
     types: [closed]
   workflow_dispatch:  
