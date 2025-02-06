@@ -22,6 +22,7 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `tag_name`        | No       | Tag name to create or delete   | -                                 |
 | `tag_message`     | No       | Tag message (for annotated tags)| -                                |
 | `delete_tag`      | No       | Whether to delete the tag      | false                            |
+| `tag_reference`   | No       | Git reference for the tag      | -                                |
 
 ## Example Workflows
 
@@ -99,6 +100,48 @@ jobs:
           tag_name: 'v1.0.0'
           delete_tag: 'true'
 
+### Creating a Tag with Reference
+
+```yaml
+name: Create Tag with Reference
+on: [workflow_dispatch]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      # Create tag pointing to specific commit
+      - name: Create Git Tag at Commit
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'github-actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'v1'
+          tag_reference: ${{ github.sha }}  # Points to specific commit SHA
+          
+      # Create tag pointing to another tag
+      - name: Create Git Tag from Tag
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'github-actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'latest'
+          tag_reference: 'v1.0.2'  # Points to existing tag
+          
+      # Create tag pointing to branch
+      - name: Create Git Tag from Branch
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'github-actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'stable'
+          tag_reference: 'main'  # Points to branch
+
 ## Features
 
 - Written in Go for better performance and reliability
@@ -110,6 +153,8 @@ jobs:
 - Git tag management (create and delete)
 - Support for both lightweight and annotated tags
 - Automatic tag pushing to remote
+- Support for creating tags pointing to specific commits, tags, or branches
+- Flexible tag reference system
 
 ## Notes
 
@@ -120,6 +165,7 @@ jobs:
 - Tag operations are optional and only executed when `tag_name` is provided
 - Use `tag_message` to create annotated tags
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
+- Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
 
 ## License
 

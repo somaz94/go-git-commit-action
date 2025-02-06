@@ -37,6 +37,10 @@ inputs:
     description: 'Whether to delete the tag (true/false)'
     required: false
     default: 'false'
+  tag_reference:
+    description: 'Git reference for the tag (can be commit SHA, tag name, or branch name)'
+    required: false
+    default: ''
 
 runs:
   using: 'docker'
@@ -51,7 +55,7 @@ runs:
     TAG_NAME: ${{ inputs.tag_name }}
     TAG_MESSAGE: ${{ inputs.tag_message }}
     DELETE_TAG: ${{ inputs.delete_tag }}
-
+    TAG_REFERENCE: ${{ inputs.tag_reference }}
 branding:
   icon: 'git-commit'
   color: 'blue'

@@ -17,6 +17,7 @@ type GitConfig struct {
 	TagName       string
 	TagMessage    string
 	DeleteTag     bool
+	TagReference  string
 }
 
 func main() {
@@ -30,6 +31,7 @@ func main() {
 		TagName:       os.Getenv("INPUT_TAG_NAME"),
 		TagMessage:    os.Getenv("INPUT_TAG_MESSAGE"),
 		DeleteTag:     os.Getenv("INPUT_DELETE_TAG") == "true",
+		TagReference:  os.Getenv("INPUT_TAG_REFERENCE"),
 	}
 
 	if err := runGitCommit(config); err != nil {
@@ -152,9 +154,23 @@ func handleGitTag(config GitConfig) error {
 		// Create tag
 		var tagArgs []string
 		if config.TagMessage != "" {
-			tagArgs = []string{"tag", "-a", config.TagName, "-m", config.TagMessage}
+			if config.TagReference != "" {
+				tagArgs = []string{"tag", "-f", "-a", config.TagName, config.TagReference, "-m", config.TagMessage}
+			} else {
+				tagArgs = []string{"tag", "-f", "-a", config.TagName, "-m", config.TagMessage}
+			}
 		} else {
-			tagArgs = []string{"tag", config.TagName}
+			if config.TagReference != "" {
+				tagArgs = []string{"tag", "-f", config.TagName, config.TagReference}
+			} else {
+				tagArgs = []string{"tag", "-f", config.TagName}
+			}
+		}
+
+		// 설명 메시지 생성
+		desc := "Creating local tag " + config.TagName
+		if config.TagReference != "" {
+			desc += fmt.Sprintf(" pointing to %s", config.TagReference)
 		}
 
 		commands := []struct {
@@ -162,7 +178,7 @@ func handleGitTag(config GitConfig) error {
 			args []string
 			desc string
 		}{
-			{"git", tagArgs, "Creating local tag"},
+			{"git", tagArgs, desc},
 			{"git", []string{"push", "origin", config.TagName}, "Pushing tag to remote"},
 		}
 

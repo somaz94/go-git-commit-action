@@ -60,6 +60,7 @@ jobs:
           FILE_PATTERN: .
           TAG_NAME: test1-${{ github.run_id }}
           TAG_MESSAGE: test1 ${{ github.run_id }}
+          TAG_REFERENCE: v1.0.0
         run: |
           docker run \
           --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
@@ -70,8 +71,14 @@ jobs:
           --env INPUT_FILE_PATTERN="${{ env.FILE_PATTERN }}" \
           --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
           --env INPUT_TAG_MESSAGE="${{ env.TAG_MESSAGE }}" \
+          --env INPUT_TAG_REFERENCE="${{ env.TAG_REFERENCE }}" \
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
+
+      - name: Confirm Tag Reference
+        run: |
+          git show -1 ${TAG_REFERENCE}
+          git show -1 ${TAG_NAME}
 
       - name: Delete Tag
         env:
