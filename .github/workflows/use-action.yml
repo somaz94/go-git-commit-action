@@ -30,5 +30,15 @@ jobs:
           commit_message: 'test1 ${{ github.run_id }}!'
           branch: 'main'
           repository_path: 'test'
-          # file_pattern: '.'
+          file_pattern: '.'
+          tag_name: 'test1-${{ github.run_id }}'
+          tag_message: 'test1 ${{ github.run_id }}'
+
+      - name: Delete Tag
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'test1-${{ github.run_id }}'
+          delete_tag: 'true'
 

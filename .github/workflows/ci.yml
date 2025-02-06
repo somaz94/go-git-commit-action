@@ -73,22 +73,22 @@ jobs:
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
-      # - name: Delete Tag
-      #   env:
-      #     USER_EMAIL: actions@github.com
-      #     USER_NAME: GitHub Actions
-      #     BRANCH: main
-      #     TAG_NAME: test1-${{ github.run_id }}
-      #     TAG_MESSAGE: test1 ${{ github.run_id }}
-      #   run: |
-      #     docker run \
-      #     --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
-      #     --env INPUT_USER_NAME="${{ env.USER_NAME }}" \
-      #     --env INPUT_BRANCH="${{ env.BRANCH }}" \
-      #     --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
-      #     --env INPUT_DELETE_TAG="true" \
-      #     --volume ${{ github.workspace }}:/app \
-      #     --rm ${{ env.TEST_TAG }}
+      - name: Delete Tag
+        env:
+          USER_EMAIL: actions@github.com
+          USER_NAME: GitHub Actions
+          BRANCH: main
+          TAG_NAME: test1-${{ github.run_id }}
+          TAG_MESSAGE: test1 ${{ github.run_id }}
+        run: |
+          docker run \
+          --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
+          --env INPUT_USER_NAME="${{ env.USER_NAME }}" \
+          --env INPUT_BRANCH="${{ env.BRANCH }}" \
+          --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
+          --env INPUT_DELETE_TAG="true" \
+          --volume ${{ github.workspace }}:/app \
+          --rm ${{ env.TEST_TAG }}
 
   # test-action:
   #   name: Test env-output-setter
