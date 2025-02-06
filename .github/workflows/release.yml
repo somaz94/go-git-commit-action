@@ -3,7 +3,7 @@ name: Create release
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"  # v1.0.1, v1.0.2 등만 매칭, v1, v2는 제외
+      - "v[0-9]+.[0-9]+.[0-9]+"  # v1.0.1, v1.0.2 등만 매칭
 
 jobs:
   build:
@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: "📥 Check-out"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 전체 히스토리 필요
       - name: "✏️ Generate release changelog"
         id: generate-release-changelog
         uses: ./
@@ -28,3 +30,24 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           body: ${{ steps.generate-release-changelog.outputs.changelog }}
+      - name: "🏷️ Update major version tag"
+        run: |
+          # Get the current tag (e.g., v1.2.3)
+          CURRENT_TAG=${GITHUB_REF#refs/tags/}
+          
+          # Extract major version (e.g., v1)
+          MAJOR_VERSION="v${CURRENT_TAG#v}"
+          MAJOR_VERSION="v${MAJOR_VERSION%%.*}"
+          
+          git config --global user.name 'GitHub Action'
+          git config --global user.email 'action@github.com'
+          
+          # Delete existing major version tag (local and remote) if it exists
+          git tag -d $MAJOR_VERSION || true
+          git push origin :refs/tags/$MAJOR_VERSION || true
+          
+          # Create new major version tag pointing to the current commit
+          git tag -a $MAJOR_VERSION -m "Update major version tag to ${CURRENT_TAG}"
+          git push origin $MAJOR_VERSION --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
