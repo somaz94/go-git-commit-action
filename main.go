@@ -14,6 +14,9 @@ type GitConfig struct {
 	Branch        string
 	RepoPath      string
 	FilePattern   string
+	TagName       string
+	TagMessage    string
+	DeleteTag     bool
 }
 
 func main() {
@@ -24,10 +27,19 @@ func main() {
 		Branch:        getEnvWithDefault("INPUT_BRANCH", "main"),
 		RepoPath:      getEnvWithDefault("INPUT_REPOSITORY_PATH", "."),
 		FilePattern:   getEnvWithDefault("INPUT_FILE_PATTERN", "."),
+		TagName:       os.Getenv("INPUT_TAG_NAME"),
+		TagMessage:    os.Getenv("INPUT_TAG_MESSAGE"),
+		DeleteTag:     os.Getenv("INPUT_DELETE_TAG") == "true",
 	}
 
 	if err := runGitCommit(config); err != nil {
 		log.Fatalf("Error executing git commands: %v", err)
+	}
+
+	if config.TagName != "" {
+		if err := handleGitTag(config); err != nil {
+			log.Fatalf("Error handling git tag: %v", err)
+		}
 	}
 }
 
@@ -107,5 +119,66 @@ func runGitCommit(config GitConfig) error {
 
 	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +
 		"=========================================")
+	return nil
+}
+
+func handleGitTag(config GitConfig) error {
+	fmt.Println("\n🏷️  Handling Git Tag:")
+
+	if config.DeleteTag {
+		// Delete tag
+		commands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"tag", "-d", config.TagName}, "Deleting local tag"},
+			{"git", []string{"push", "origin", ":refs/tags/" + config.TagName}, "Deleting remote tag"},
+		}
+
+		for _, cmd := range commands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
+	} else {
+		// Create tag
+		var tagArgs []string
+		if config.TagMessage != "" {
+			tagArgs = []string{"tag", "-a", config.TagName, "-m", config.TagMessage}
+		} else {
+			tagArgs = []string{"tag", config.TagName}
+		}
+
+		commands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", tagArgs, "Creating local tag"},
+			{"git", []string{"push", "origin", config.TagName}, "Pushing tag to remote"},
+		}
+
+		for _, cmd := range commands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
+	}
+
 	return nil
 }

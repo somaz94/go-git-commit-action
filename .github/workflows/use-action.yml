@@ -25,8 +25,8 @@ jobs:
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'test1@test.com'
-          user_name: 'test1'
+          user_email: 'actions@github.com'
+          user_name: 'GitHub Actions'
           commit_message: 'test1 ${{ github.run_id }}!'
           branch: 'main'
           repository_path: 'test'

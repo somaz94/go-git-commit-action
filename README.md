@@ -7,7 +7,7 @@
 
 ## Overview
 
-The **Go Git Commit Action** is a GitHub Action that automates git commit and push operations. Written in Go, it provides a reliable and efficient way to commit changes in your GitHub Actions workflows. This action is particularly useful for workflows that need to automatically commit and push changes to repositories.
+The **Go Git Commit Action** is a GitHub Action that automates git commit, push, and tag operations. Written in Go, it provides a reliable and efficient way to commit changes and manage tags in your GitHub Actions workflows. This action is particularly useful for workflows that need to automatically commit changes and manage tags in repositories.
 
 ## Inputs
 
@@ -15,12 +15,17 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit and pu
 |-------------------|----------|--------------------------------|-----------------------------------|
 | `user_email`      | Yes      | Git user email                 | -                                 |
 | `user_name`       | Yes      | Git user name                  | -                                 |
-| `commit_message`  | No      | Commit message                  | Auto commit by Go Git Commit Action |
-| `branch`          | No      | Branch to push to               | main                           |
-| `repository_path` | No       | Path to the repository         | .                              |
-| `file_pattern`    | No      | File pattern to add             | .                              |
+| `commit_message`  | No       | Commit message                 | Auto commit by Go Git Commit Action |
+| `branch`          | No       | Branch to push to              | main                              |
+| `repository_path` | No       | Path to the repository         | .                                 |
+| `file_pattern`    | No       | File pattern to add            | .                                 |
+| `tag_name`        | No       | Tag name to create or delete   | -                                 |
+| `tag_message`     | No       | Tag message (for annotated tags)| -                                |
+| `delete_tag`      | No       | Whether to delete the tag      | false                            |
 
-## Example Workflow
+## Example Workflows
+
+### Basic Commit Example
 
 Below is an example of how to use the **Go Git Commit Action** in your GitHub Actions workflow:
 
@@ -47,7 +52,52 @@ jobs:
           branch: 'main'
           repository_path: 'path/to/repo'  # Optional
           file_pattern: '*.md'             # Example: commit only markdown files
-```
+
+### Creating a Tag
+
+```yaml
+name: Create Tag
+on: [workflow_dispatch]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Git Tag
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'github-actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'v1.0.0'
+          tag_message: 'Release version 1.0.0'  # Optional for annotated tags
+
+### Deleting a Tag
+
+```yaml
+name: Delete Tag
+on: [workflow_dispatch]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Delete Git Tag
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: 'github-actions@github.com'
+          user_name: 'GitHub Actions'
+          tag_name: 'v1.0.0'
+          delete_tag: 'true'
 
 ## Features
 
@@ -57,6 +107,9 @@ jobs:
 - Optional repository path specification
 - Automatic branch pushing
 - Detailed error reporting
+- Git tag management (create and delete)
+- Support for both lightweight and annotated tags
+- Automatic tag pushing to remote
 
 ## Notes
 
@@ -64,6 +117,9 @@ jobs:
 - If `repository_path` is not specified, it uses the current directory
 - `file_pattern` supports standard git pattern matching
 - The action will skip the commit if there are no changes to commit
+- Tag operations are optional and only executed when `tag_name` is provided
+- Use `tag_message` to create annotated tags
+- Set `delete_tag: 'true'` to delete a tag both locally and remotely
 
 ## License
 

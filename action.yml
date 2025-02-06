@@ -25,6 +25,18 @@ inputs:
     description: 'File pattern to add'
     required: false    # default 값이 있으므로 false로 변경
     default: '.'
+  tag_name:
+    description: 'Tag name to create or delete'
+    required: false
+    default: ''
+  tag_message:
+    description: 'Tag message (for annotated tags)'
+    required: false
+    default: ''
+  delete_tag:
+    description: 'Whether to delete the tag (true/false)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -36,6 +48,9 @@ runs:
     BRANCH: ${{ inputs.branch }}
     REPOSITORY_PATH: ${{ inputs.repository_path }}
     FILE_PATTERN: ${{ inputs.file_pattern }}
+    TAG_NAME: ${{ inputs.tag_name }}
+    TAG_MESSAGE: ${{ inputs.tag_message }}
+    DELETE_TAG: ${{ inputs.delete_tag }}
 
 branding:
   icon: 'git-commit'
