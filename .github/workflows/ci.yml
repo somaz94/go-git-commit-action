@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: write
-  statuses: write
 
 jobs:
   build-and-push-docker:
@@ -62,6 +61,7 @@ jobs:
           TAG_NAME: test1-${{ github.run_id }}
           TAG_MESSAGE: test1 ${{ github.run_id }}
           TAG_REFERENCE: v1.0.0
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           docker run \
           --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
