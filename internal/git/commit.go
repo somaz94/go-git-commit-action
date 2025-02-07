@@ -54,6 +54,7 @@ func RunGitCommit(config *config.GitConfig) error {
 		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
 		{"git", []string{"add", config.FilePattern}, "Adding files"},
 		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+		{"git", []string{"pull", "--rebase", "origin", config.Branch}, "Pulling latest changes"},
 		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
 	}
 
