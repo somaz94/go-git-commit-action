@@ -53,6 +53,7 @@ jobs:
           branch: 'main'
           repository_path: 'path/to/repo'  # Optional
           file_pattern: '*.md'             # Example: commit only markdown files
+```
 
 ### Creating a Tag
 
@@ -76,6 +77,7 @@ jobs:
           user_name: 'GitHub Actions'
           tag_name: 'v1.0.0'
           tag_message: 'Release version 1.0.0'  # Optional for annotated tags
+```
 
 ### Deleting a Tag
 
@@ -99,6 +101,7 @@ jobs:
           user_name: 'GitHub Actions'
           tag_name: 'v1.0.0'
           delete_tag: 'true'
+```
 
 ### Creating a Tag with Reference
 
@@ -141,6 +144,7 @@ jobs:
           user_name: 'GitHub Actions'
           tag_name: 'stable'
           tag_reference: 'main'  # Points to branch
+```
 
 ## Features
 
