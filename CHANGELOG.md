@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.1.4](https://github.com/somaz94/go-git-commit-action/tree/v1.1.4) (2025-02-07)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.1.3...v1.1.4)
+
+## [v1.1.3](https://github.com/somaz94/go-git-commit-action/tree/v1.1.3) (2025-02-07)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.1.2...v1.1.3)
+
 ## [v1.1.2](https://github.com/somaz94/go-git-commit-action/tree/v1.1.2) (2025-02-07)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.1.1...v1.1.2)
