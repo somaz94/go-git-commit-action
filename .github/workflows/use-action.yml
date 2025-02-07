@@ -7,6 +7,10 @@ on:
         description: 'workflow run'
         required: true
         default: 'true'
+  workflow_run:
+    workflows: ["Generate changelog"] 
+    types:
+      - completed
 
 permissions:
   contents: write
