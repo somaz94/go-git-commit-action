@@ -43,11 +43,14 @@ func CreatePullRequest(config *config.GitConfig) error {
 		sourceBranch = config.Branch
 	}
 
-	// git push 명령어로 PR 생성
-	prCommand := exec.Command("git", "push", "origin",
-		fmt.Sprintf("%s:refs/pull/%s/head", sourceBranch, config.PRBase))
-
+	// GitHub CLI를 사용하여 PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
+	prCommand := exec.Command("gh", "pr", "create",
+		"--base", config.PRBase,
+		"--head", sourceBranch,
+		"--title", config.PRTitle,
+		"--fill") // 자동으로 PR 내용 채우기
+
 	if err := prCommand.Run(); err != nil {
 		fmt.Println("❌ Failed")
 		return fmt.Errorf("failed to create pull request: %v", err)
