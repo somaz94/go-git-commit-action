@@ -1,14 +1,14 @@
 name: Generate changelog
 on:
-  release:
-    types: [created, edited, published]
+  # release:
+  #   types: [created, edited, published]
   pull_request:
     types: [closed]
   workflow_run:
     workflows: ["Create release"]  # release.yml의 name과 일치해야 함
     types:
       - completed
-  workflow_dispatch:  
+  workflow_dispatch:   
 
 permissions: 
   contents: write
