@@ -23,6 +23,10 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `tag_message`     | No       | Tag message (for annotated tags)| -                                |
 | `delete_tag`      | No       | Whether to delete the tag      | false                            |
 | `tag_reference`   | No       | Git reference for the tag      | -                                |
+| `create_pr`      | No       | Whether to create a pull request | false                            |
+| `auto_branch`     | No       | Whether to create an automatic branch | true                            |
+| `pr_base`         | No       | Base branch for the pull request | main                            |
+| `delete_source_branch` | No       | Whether to delete the source branch after creating a pull request | false                            |
 
 ## Example Workflows
 
@@ -144,6 +148,44 @@ jobs:
           user_name: 'GitHub Actions'
           tag_name: 'stable'
           tag_reference: 'main'  # Points to branch
+```
+
+### Create Pull Request
+
+#### Auto Branch
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: 'github-actions@github.com'
+    user_name: 'GitHub Actions'
+    create_pr: 'true'
+    auto_branch: 'true'  # Or skip (default)
+    pr_base: 'main'
+```
+
+#### User Branch
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: 'github-actions@github.com'
+    user_name: 'GitHub Actions'
+    create_pr: 'true'
+    auto_branch: 'false'
+    branch: 'feature/my-branch'  # Create PR from this branch
+    pr_base: 'main'
+```
+
+#### Delete Source Branch
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: 'github-actions@github.com'
+    user_name: 'GitHub Actions'
+    create_pr: 'true'
+    auto_branch: 'false'
+    branch: 'feature/my-branch'  # Create PR from this branch
+    pr_base: 'main'
+    delete_source_branch: 'true'
 ```
 
 ## Features

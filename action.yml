@@ -41,6 +41,26 @@ inputs:
     description: 'Git reference for the tag (can be commit SHA, tag name, or branch name)'
     required: false
     default: ''
+  create_pr:
+    description: 'Whether to create a pull request'
+    required: false
+    default: 'false'
+  auto_branch:
+    description: 'Whether to create automatic branch name'
+    required: false
+    default: 'true'
+  pr_title:
+    description: 'Pull request title'
+    required: false
+    default: 'Auto PR by Go Git Commit Action'
+  pr_base:
+    description: 'Base branch for pull request'
+    required: false
+    default: 'main'
+  delete_source_branch:
+    description: 'Whether to delete source branch after PR creation'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -56,6 +76,10 @@ runs:
     TAG_MESSAGE: ${{ inputs.tag_message }}
     DELETE_TAG: ${{ inputs.delete_tag }}
     TAG_REFERENCE: ${{ inputs.tag_reference }}
+    CREATE_PR: ${{ inputs.create_pr }}
+    AUTO_BRANCH: ${{ inputs.auto_branch }}
+    PR_TITLE: ${{ inputs.pr_title }}
+    PR_BASE: ${{ inputs.pr_base }}
 branding:
   icon: 'git-commit'
   color: 'blue'

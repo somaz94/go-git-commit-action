@@ -74,6 +74,13 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// PR 생성 로직
+	if config.CreatePR == true {
+		if err := CreatePullRequest(config); err != nil {
+			return fmt.Errorf("failed to create pull request: %v", err)
+		}
+	}
+
 	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +
 		"=========================================")
 	return nil
