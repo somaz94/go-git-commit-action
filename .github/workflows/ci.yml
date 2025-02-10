@@ -57,7 +57,7 @@ jobs:
           USER_EMAIL: actions@github.com
           USER_NAME: GitHub Actions
           COMMIT_MESSAGE: test1 ${{ github.run_id }}!
-          BRANCH: main
+          BRANCH: test
           REPOSITORY_PATH: test
           FILE_PATTERN: .
           TAG_NAME: test1-${{ github.run_id }}

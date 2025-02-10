@@ -14,12 +14,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
-		// 먼저 변경사항을 스테이징
-		addCommand := exec.Command("git", "add", config.FilePattern)
-		if err := addCommand.Run(); err != nil {
-			return fmt.Errorf("failed to stage changes: %v", err)
-		}
-
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 
@@ -33,6 +27,12 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
 		fmt.Println("✅ Done")
+
+		// 변경사항 스테이징 및 커밋
+		addCommand := exec.Command("git", "add", config.FilePattern)
+		if err := addCommand.Run(); err != nil {
+			return fmt.Errorf("failed to stage changes: %v", err)
+		}
 	} else {
 		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch

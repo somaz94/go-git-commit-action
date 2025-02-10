@@ -68,13 +68,40 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// 브랜치 존재 여부 확인 및 생성
+	checkBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
+	if err := checkBranch.Run(); err != nil {
+		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
+		createCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
+			{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
+		}
+
+		for _, cmd := range createCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
+	}
+
 	// PR 생성이 필요한 경우 새 브랜치에서 작업
 	if config.CreatePR {
 		if err := CreatePullRequest(config); err != nil {
 			return fmt.Errorf("failed to create pull request: %v", err)
 		}
 	} else {
-		// PR이 필요없는 경우 직접 main에 커밋
+		// PR이 필요없는 경우 직접 브랜치에 커밋
 		commitCommands := []struct {
 			name string
 			args []string
