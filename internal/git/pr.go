@@ -44,6 +44,14 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
+		// test 브랜치의 변경사항을 새 브랜치에 적용
+		fmt.Printf("  • Applying changes... ")
+		if err := exec.Command("git", "reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to apply changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
 		// 새 브랜치 푸시
 		fmt.Printf("  • Pushing new branch with changes... ")
 		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
@@ -69,16 +77,21 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	// GitHub CLI로 PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
+
 	prCmd := exec.Command("gh", "pr", "create",
 		"--title", config.PRTitle,
 		"--body", fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s", sourceBranch, config.PRBase),
 		"--base", config.PRBase,
-		"--head", sourceBranch)
+		"--head", sourceBranch,
+		"--repo", os.Getenv("GITHUB_REPOSITORY"))
 
-	if err := prCmd.Run(); err != nil {
-		fmt.Println("⚠️  Manual PR creation required")
+	if output, err := prCmd.CombinedOutput(); err != nil {
+		fmt.Println("⚠️  Failed to create PR automatically")
+		fmt.Printf("Error: %s\n", string(output))
+		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 	} else {
-		fmt.Println("✅ Done")
+		fmt.Printf("✅ Done\n")
+		fmt.Printf("PR created successfully: %s\n", string(output))
 	}
 
 	// 소스 브랜치 삭제 (옵션이 활성화된 경우와 auto_branch가 true인 경우에만)
@@ -91,6 +104,9 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 	}
+
+	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +
+		"=========================================")
 
 	return nil
 }
