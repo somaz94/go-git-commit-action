@@ -38,9 +38,33 @@ func CreatePullRequest(config *config.GitConfig) error {
 			}
 			fmt.Println("✅ Done")
 		}
+
+		// PR 생성을 위한 메시지 출력
+		fmt.Printf("\n✅ Branch '%s' has been created and pushed.\n", sourceBranch)
+		fmt.Printf("✅ You can create a pull request by visiting:\n")
+		fmt.Printf("   https://github.com/%s/compare/%s...%s\n",
+			os.Getenv("GITHUB_REPOSITORY"),
+			config.PRBase,
+			sourceBranch)
+
+		// 소스 브랜치 삭제 (옵션이 활성화된 경우)
+		if config.DeleteSourceBranch {
+			fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
+			deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
+			if err := deleteCommand.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to delete source branch: %v", err)
+			}
+			fmt.Println("✅ Done")
+		}
 	} else {
 		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch
+		fmt.Printf("\n✅ You can create a pull request by visiting:\n")
+		fmt.Printf("   https://github.com/%s/compare/%s...%s\n",
+			os.Getenv("GITHUB_REPOSITORY"),
+			config.PRBase,
+			sourceBranch)
 	}
 
 	// GitHub CLI를 사용하여 PR 생성
