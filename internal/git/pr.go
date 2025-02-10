@@ -14,17 +14,6 @@ import (
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
-	// PRBase와 현재 브랜치(Branch)의 차이점 확인 - 파일 목록만
-	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.Branch)
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch), "--name-status")
-	filesOutput, _ := diffFiles.Output()
-	if len(filesOutput) > 0 {
-		fmt.Printf("%s\n", string(filesOutput))
-	} else {
-		fmt.Println("No changes detected")
-		return fmt.Errorf("no changes to create PR")
-	}
-
 	var sourceBranch string
 	if config.AutoBranch {
 		// 자동 브랜치 생성
@@ -40,46 +29,9 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 		// 원본 브랜치로 체크아웃
 		fmt.Printf("  • Checking out source branch %s... ", config.Branch)
-		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
+		if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to checkout source branch: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 최신 상태로 업데이트
-		fmt.Printf("  • Pulling latest changes... ")
-		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to pull latest changes: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 새 브랜치 생성
-		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
-		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to create new branch: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 변경사항 커밋
-		fmt.Printf("  • Adding changes... ")
-		if err := exec.Command("git", "add", ".").Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to add changes: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 커밋
-		fmt.Printf("  • Committing changes... ")
-		commitCmd := exec.Command("git", "commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch))
-		if output, err := commitCmd.CombinedOutput(); err != nil {
-			if strings.Contains(string(output), "nothing to commit") {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				return fmt.Errorf("no changes to commit")
-			}
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to commit: %v", err)
 		}
 		fmt.Println("✅ Done")
 
@@ -96,6 +48,17 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false")
 		}
 		sourceBranch = config.PRBranch
+	}
+
+	// 여기서 변경사항 체크 (sourceBranch가 결정된 후)
+	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
+	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
+	filesOutput, _ := diffFiles.Output()
+	if len(filesOutput) > 0 {
+		fmt.Printf("%s\n", string(filesOutput))
+	} else {
+		fmt.Println("No changes detected")
+		return fmt.Errorf("no changes to create PR")
 	}
 
 	// PR URL 생성 및 출력
