@@ -99,10 +99,26 @@ func RunGitCommit(config *config.GitConfig) error {
 	} else if checkLocalBranch.Run() != nil {
 		// 리모트에는 있지만 로컬에는 없는 경우
 		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+
+		// 먼저 리모트 브랜치 정보를 가져옴
+		fetchCommand := exec.Command("git", "fetch", "origin", config.Branch)
+		fmt.Printf("  • Fetching remote branch... ")
+		if err := fetchCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to fetch remote branch: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 리모트 브랜치를 로컬로 체크아웃
+		fmt.Printf("  • Checking out branch... ")
 		checkoutCommand := exec.Command("git", "checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch))
+		checkoutCommand.Stdout = os.Stdout
+		checkoutCommand.Stderr = os.Stderr
 		if err := checkoutCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to checkout remote branch: %v", err)
 		}
+		fmt.Println("✅ Done")
 	}
 
 	// PR 생성이 필요한 경우 새 브랜치에서 작업
