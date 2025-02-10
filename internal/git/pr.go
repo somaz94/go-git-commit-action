@@ -27,15 +27,31 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 원본 브랜치로 체크아웃
+		// test 브랜치 체크아웃
 		fmt.Printf("  • Checking out source branch %s... ", config.Branch)
-		if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
+		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to checkout source branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// 새 브랜치 푸시
+		// test 브랜치 최신화
+		fmt.Printf("  • Pulling latest changes... ")
+		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to pull latest changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 생성
+		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
+		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to create branch: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 푸시 (test 브랜치의 변경사항 포함)
 		fmt.Printf("  • Pushing new branch... ")
 		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -50,7 +66,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		sourceBranch = config.PRBranch
 	}
 
-	// 여기서 변경사항 체크 (sourceBranch가 결정된 후)
+	// 변경사항 체크
 	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
 	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
 	filesOutput, _ := diffFiles.Output()
