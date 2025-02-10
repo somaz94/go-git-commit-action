@@ -32,22 +32,22 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 		// 브랜치 생성 및 변경사항 적용
 		fmt.Printf("  • Fetching latest changes... ")
-		if err := exec.Command("git", "fetch", "origin", config.Branch).Run(); err != nil {
+		if err := exec.Command("git", "fetch", "--all").Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to fetch branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// config.Branch 브랜치로 체크아웃
-		fmt.Printf("  • Checking out %s branch... ", config.Branch)
+		// 원본 브랜치로 체크아웃
+		fmt.Printf("  • Checking out source branch %s... ", config.Branch)
 		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to checkout branch: %v", err)
+			return fmt.Errorf("failed to checkout source branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// config.Branch 브랜치의 최신 상태로 업데이트
-		fmt.Printf("  • Updating to latest state... ")
+		// 최신 상태로 업데이트
+		fmt.Printf("  • Pulling latest changes... ")
 		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to pull latest changes: %v", err)
@@ -62,8 +62,29 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
+		// 변경사항 커밋
+		fmt.Printf("  • Adding changes... ")
+		if err := exec.Command("git", "add", ".").Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to add changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 커밋
+		fmt.Printf("  • Committing changes... ")
+		commitCmd := exec.Command("git", "commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch))
+		if output, err := commitCmd.CombinedOutput(); err != nil {
+			if strings.Contains(string(output), "nothing to commit") {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
+				return fmt.Errorf("no changes to commit")
+			}
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to commit: %v", err)
+		}
+		fmt.Println("✅ Done")
+
 		// 새 브랜치 푸시
-		fmt.Printf("  • Pushing new branch with changes... ")
+		fmt.Printf("  • Pushing new branch... ")
 		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to push branch: %v", err)
