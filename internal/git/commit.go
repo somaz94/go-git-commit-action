@@ -200,40 +200,40 @@ func RunGitCommit(config *config.GitConfig) error {
 			}
 		}
 		fmt.Println("✅ Done")
+	}
 
-		// PR 생성 여부에 따라 다른 처리
-		if config.CreatePR {
-			if err := CreatePullRequest(config); err != nil {
-				return fmt.Errorf("failed to create pull request: %v", err)
-			}
-		} else {
-			// PR을 생성하지 않는 경우에만 직접 커밋 및 푸시
-			commitCommands := []struct {
-				name string
-				args []string
-				desc string
-			}{
-				{"git", []string{"add", config.FilePattern}, "Adding files"},
-				{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-				{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
-			}
+	// PR 생성 여부에 따라 다른 처리
+	if config.CreatePR {
+		if err := CreatePullRequest(config); err != nil {
+			return fmt.Errorf("failed to create pull request: %v", err)
+		}
+	} else {
+		// PR을 생성하지 않는 경우에만 직접 커밋 및 푸시
+		commitCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"add", config.FilePattern}, "Adding files"},
+			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+			{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
+		}
 
-			for _, cmd := range commitCommands {
-				fmt.Printf("  • %s... ", cmd.desc)
-				command := exec.Command(cmd.name, cmd.args...)
-				command.Stdout = os.Stdout
-				command.Stderr = os.Stderr
+		for _, cmd := range commitCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
 
-				if err := command.Run(); err != nil {
-					if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-						fmt.Println("⚠️  Nothing to commit, skipping...")
-						continue
-					}
-					fmt.Println("❌ Failed")
-					return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			if err := command.Run(); err != nil {
+				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+					fmt.Println("⚠️  Nothing to commit, skipping...")
+					continue
 				}
-				fmt.Println("✅ Done")
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 			}
+			fmt.Println("✅ Done")
 		}
 	}
 
