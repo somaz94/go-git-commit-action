@@ -61,6 +61,10 @@ inputs:
     description: 'Whether to delete source branch after PR creation'
     required: false
     default: 'false'
+  pr_branch:
+    description: 'Branch to create pull request from'
+    required: false
+    default: ''
 
 runs:
   using: 'docker'
@@ -81,6 +85,8 @@ runs:
     PR_TITLE: ${{ inputs.pr_title }}
     PR_BASE: ${{ inputs.pr_base }}
     DELETE_SOURCE_BRANCH: ${{ inputs.delete_source_branch }}
+    PR_BRANCH: ${{ inputs.pr_branch }}
+
 branding:
   icon: 'git-commit'
   color: 'blue'

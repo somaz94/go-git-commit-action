@@ -118,7 +118,21 @@ jobs:
       #   run: |
       #     echo "$(date +%s)-$RANDOM" > test/test2.txt
 
-      - name: Test Auto Branch Local Action
+      - name: Test Auto Branch Local Action (auto_branch false)
+        uses: ./
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: test
+          create_pr: true
+          auto_branch: false
+          pr_base: main
+          pr_branch: test
+          repository_path: test
+          file_pattern: .
+          delete_source_branch: true
+
+      - name: Test Auto Branch Local Action (auto_branch true)
         uses: ./
         with:
           user_email: actions@github.com

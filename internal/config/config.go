@@ -17,6 +17,7 @@ type GitConfig struct {
 	AutoBranch         bool
 	PRTitle            string
 	PRBase             string
+	PRBranch           string
 	DeleteSourceBranch bool
 }
 
@@ -43,6 +44,7 @@ func NewGitConfig() *GitConfig {
 		AutoBranch:         os.Getenv("INPUT_AUTO_BRANCH") != "false",
 		PRTitle:            getEnvWithDefault("INPUT_PR_TITLE", "Auto PR by Go Git Commit Action"),
 		PRBase:             getEnvWithDefault("INPUT_PR_BASE", "main"),
+		PRBranch:           getEnvWithDefault("INPUT_PR_BRANCH", ""),
 		DeleteSourceBranch: os.Getenv("INPUT_DELETE_SOURCE_BRANCH") == "true",
 	}
 }
