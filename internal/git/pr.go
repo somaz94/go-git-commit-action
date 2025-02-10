@@ -36,7 +36,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// test 브랜치로 체크아웃
+		// config.Branch 브랜치로 체크아웃
 		fmt.Printf("  • Checking out %s branch... ", config.Branch)
 		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -44,7 +44,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// test 브랜치의 최신 상태로 업데이트
+		// config.Branch 브랜치의 최신 상태로 업데이트
 		fmt.Printf("  • Updating to latest state... ")
 		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -83,25 +83,27 @@ func CreatePullRequest(config *config.GitConfig) error {
 		sourceBranch)
 	fmt.Printf("✅ You can create a pull request by visiting:\n   %s\n", prURL)
 
-	// GitHub CLI로 PR 생성
+	// PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
 
-	prCmd := exec.Command("gh", "pr", "create",
-		"--title", config.PRTitle,
-		"--body", fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s", sourceBranch, config.PRBase),
-		"--base", config.PRBase,
-		"--head", sourceBranch,
-		"--repo", os.Getenv("GITHUB_REPOSITORY"))
+	prTitle := fmt.Sprintf("Auto PR: %s to %s", sourceBranch, config.PRBase)
+	prBody := fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s", sourceBranch, config.PRBase)
 
-	prCmd.Env = append(os.Environ(), fmt.Sprintf("GH_TOKEN=%s", os.Getenv("GITHUB_TOKEN")))
+	// GitHub API를 통해 PR 생성
+	curlCmd := exec.Command("curl", "-s", "-X", "POST",
+		"-H", fmt.Sprintf("Authorization: token %s", os.Getenv("GITHUB_TOKEN")),
+		"-H", "Accept: application/vnd.github+json",
+		fmt.Sprintf("https://api.github.com/repos/%s/pulls", os.Getenv("GITHUB_REPOSITORY")),
+		"-d", fmt.Sprintf(`{"title":"%s", "head":"%s", "base":"%s", "body":"%s"}`,
+			prTitle, sourceBranch, config.PRBase, prBody))
 
-	if output, err := prCmd.CombinedOutput(); err != nil {
+	if output, err := curlCmd.CombinedOutput(); err != nil {
 		fmt.Println("⚠️  Failed to create PR automatically")
 		fmt.Printf("Error: %s\n", string(output))
 		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 	} else {
 		fmt.Printf("✅ Done\n")
-		fmt.Printf("PR created successfully: %s\n", string(output))
+		fmt.Printf("PR created successfully\n")
 	}
 
 	// 소스 브랜치 삭제 (옵션이 활성화된 경우와 auto_branch가 true인 경우에만)
