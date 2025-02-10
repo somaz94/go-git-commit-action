@@ -43,11 +43,30 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 새 브랜치 생성
-		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
+		// 새 브랜치 생성 (test 브랜치의 내용을 복사)
+		fmt.Printf("  • Creating new branch %s from %s... ", sourceBranch, config.Branch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to create branch: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 모든 변경사항 추가
+		fmt.Printf("  • Adding all changes... ")
+		if err := exec.Command("git", "add", ".").Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to add changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 변경사항 커밋
+		fmt.Printf("  • Committing changes... ")
+		commitCmd := exec.Command("git", "commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch))
+		if output, err := commitCmd.CombinedOutput(); err != nil {
+			if !strings.Contains(string(output), "nothing to commit") {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to commit: %v", err)
+			}
 		}
 		fmt.Println("✅ Done")
 
