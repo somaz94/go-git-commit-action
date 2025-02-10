@@ -100,34 +100,47 @@ func RunGitCommit(config *config.GitConfig) error {
 		// 리모트에는 있지만 로컬에는 없는 경우
 		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
 
-		// 먼저 리모트 브랜치 정보를 가져옴
-		fetchCommand := exec.Command("git", "fetch", "origin", config.Branch)
-		fmt.Printf("  • Fetching remote branch... ")
-		if err := fetchCommand.Run(); err != nil {
+		// 현재 변경사항을 임시 저장
+		fmt.Printf("  • Saving current changes... ")
+		stashCommand := exec.Command("git", "stash", "save", "temporary")
+		stashCommand.Stdout = os.Stdout
+		stashCommand.Stderr = os.Stderr
+		if err := stashCommand.Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to fetch remote branch: %v", err)
+			return fmt.Errorf("failed to stash changes: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// 리모트 브랜치를 로컬로 체크아웃하고 변경사항 적용
-		fmt.Printf("  • Setting up branch... ")
-		setupCommands := []struct {
+		// 리모트 브랜치 체크아웃
+		checkoutCommands := []struct {
 			name string
 			args []string
+			desc string
 		}{
-			{"git", []string{"branch", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}},
-			{"git", []string{"checkout", config.Branch}},
-			{"git", []string{"pull", "origin", config.Branch}},
+			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
+			{"git", []string{"checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}, "Checking out branch"},
 		}
 
-		for _, cmd := range setupCommands {
+		for _, cmd := range checkoutCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
 			command := exec.Command(cmd.name, cmd.args...)
 			command.Stdout = os.Stdout
 			command.Stderr = os.Stderr
 			if err := command.Run(); err != nil {
 				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to setup branch: %v", err)
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 			}
+			fmt.Println("✅ Done")
+		}
+
+		// 임시 저장한 변경사항 적용
+		fmt.Printf("  • Applying saved changes... ")
+		popCommand := exec.Command("git", "stash", "pop")
+		popCommand.Stdout = os.Stdout
+		popCommand.Stderr = os.Stderr
+		if err := popCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to apply stashed changes: %v", err)
 		}
 		fmt.Println("✅ Done")
 	}
