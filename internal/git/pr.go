@@ -27,6 +27,30 @@ func CreatePullRequest(config *config.GitConfig) error {
 	if config.AutoBranch {
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
+
+		// 브랜치 생성 및 변경사항 적용
+		fmt.Printf("  • Fetching latest changes... ")
+		if err := exec.Command("git", "fetch", "origin", config.Branch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to fetch branch: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 생성 (origin/test의 상태에서 시작)
+		fmt.Printf("  • Creating new branch %s from origin/%s... ", sourceBranch, config.Branch)
+		if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to create new branch: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 푸시
+		fmt.Printf("  • Pushing new branch with changes... ")
+		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to push branch: %v", err)
+		}
+		fmt.Println("✅ Done")
 	} else {
 		// PRBranch가 지정되어 있는지 확인
 		if config.PRBranch == "" {
@@ -35,40 +59,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		sourceBranch = config.PRBranch
 	}
 
-	// 브랜치 생성 및 변경사항 적용
-	fmt.Printf("  • Fetching latest changes... ")
-	if err := exec.Command("git", "fetch", "origin", config.Branch).Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to fetch branch: %v", err)
-	}
-	fmt.Println("✅ Done")
-
-	// 새 브랜치 생성 (origin/test의 상태에서 시작)
-	fmt.Printf("  • Creating new branch %s from origin/%s... ", sourceBranch, config.Branch)
-	if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to create new branch: %v", err)
-	}
-	fmt.Println("✅ Done")
-
-	// test 브랜치의 변경사항을 새 브랜치에 적용
-	fmt.Printf("  • Applying changes from test branch... ")
-	if err := exec.Command("git", "cherry-pick", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch)).Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to apply changes: %v", err)
-	}
-	fmt.Println("✅ Done")
-
-	// 새 브랜치 푸시
-	fmt.Printf("  • Pushing new branch with changes... ")
-	if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to push branch: %v", err)
-	}
-	fmt.Println("✅ Done")
-
 	// PR URL 생성 및 출력
-	fmt.Printf("\n✅ Branch '%s' has been created and pushed.\n", sourceBranch)
+	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", sourceBranch)
 	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
 		os.Getenv("GITHUB_REPOSITORY"),
 		config.PRBase,
@@ -89,8 +81,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
-	// 소스 브랜치 삭제 (옵션이 활성화된 경우)
-	if config.DeleteSourceBranch {
+	// 소스 브랜치 삭제 (옵션이 활성화된 경우와 auto_branch가 true인 경우에만)
+	if config.DeleteSourceBranch && config.AutoBranch {
 		fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
 		deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
 		if err := deleteCommand.Run(); err != nil {
