@@ -126,16 +126,25 @@ func RunGitCommit(config *config.GitConfig) error {
 			}
 			// 상태 코드와 파일 경로 분리
 			status := line[:2]
-			path := strings.TrimSpace(line[3:])
+			fullPath := strings.TrimSpace(line[3:])
+
+			// config.RepoPath를 기준으로 상대 경로 계산
+			relPath := fullPath
+			if config.RepoPath != "." {
+				relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
+			}
+
+			// 디버그 정보 출력
+			fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
 
 			// 삭제된 파일이 아닌 경우에만 백업
 			if status != " D" && status != "D " {
-				content, err := os.ReadFile(path)
+				content, err := os.ReadFile(relPath)
 				if err != nil {
 					fmt.Println("❌ Failed")
-					return fmt.Errorf("failed to read file %s: %v", path, err)
+					return fmt.Errorf("failed to read file %s: %v", relPath, err)
 				}
-				backups = append(backups, FileBackup{path: path, content: content})
+				backups = append(backups, FileBackup{path: relPath, content: content})
 			}
 		}
 		fmt.Println("✅ Done")
