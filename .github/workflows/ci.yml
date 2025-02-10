@@ -62,7 +62,7 @@ jobs:
           FILE_PATTERN: .
           TAG_NAME: test1-${{ github.run_id }}
           TAG_MESSAGE: test1 ${{ github.run_id }}
-          TAG_REFERENCE: v1.0.0
+          TAG_REFERENCE: v1.0.1
         run: |
           docker run \
           --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \

@@ -69,8 +69,11 @@ func RunGitCommit(config *config.GitConfig) error {
 	}
 
 	// 브랜치 존재 여부 확인 및 생성
-	checkBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
-	if err := checkBranch.Run(); err != nil {
+	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
+	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
+
+	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
+		// 로컬과 리모트 모두에 브랜치가 없는 경우에만 새로 생성
 		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
 		createCommands := []struct {
 			name string
@@ -92,6 +95,13 @@ func RunGitCommit(config *config.GitConfig) error {
 				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 			}
 			fmt.Println("✅ Done")
+		}
+	} else if checkLocalBranch.Run() != nil {
+		// 리모트에는 있지만 로컬에는 없는 경우
+		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+		checkoutCommand := exec.Command("git", "checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch))
+		if err := checkoutCommand.Run(); err != nil {
+			return fmt.Errorf("failed to checkout remote branch: %v", err)
 		}
 	}
 
