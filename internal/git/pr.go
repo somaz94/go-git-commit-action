@@ -12,10 +12,21 @@ import (
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
+	// PRBase와 현재 브랜치(Branch)의 차이점 확인
+	fmt.Printf("\n📊 Checking differences between %s and %s:\n", config.PRBase, config.Branch)
+	diffWithBase := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch))
+	diffOutput, _ := diffWithBase.Output()
+	fmt.Printf("Diff between branches:\n%s\n", string(diffOutput))
+
+	// 변경된 파일 목록 확인
+	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch), "--name-status")
+	filesOutput, _ := diffFiles.Output()
+	fmt.Printf("Changed files between branches:\n%s\n", string(filesOutput))
+
 	// 현재 변경사항 확인
-	diffCommand := exec.Command("git", "status", "--porcelain")
-	diffOutput, _ := diffCommand.Output()
-	fmt.Printf("\n📝 Changes to be committed:\n%s\n", string(diffOutput))
+	statusCommand := exec.Command("git", "status", "--porcelain")
+	statusOutput, _ := statusCommand.Output()
+	fmt.Printf("\n📝 Current working tree status:\n%s\n", string(statusOutput))
 
 	var sourceBranch string
 	if config.AutoBranch {
@@ -57,7 +68,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 
 		// 스테이징된 변경사항 확인
-		diffCommand = exec.Command("git", "diff", "--cached", "--name-status")
+		diffCommand := exec.Command("git", "diff", "--cached", "--name-status")
 		diffOutput, _ = diffCommand.Output()
 		fmt.Printf("\n📝 Staged changes:\n%s\n", string(diffOutput))
 	} else {
