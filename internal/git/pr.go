@@ -28,34 +28,25 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 
-		// 현재 브랜치의 변경사항을 새 브랜치로 복사
-		fmt.Printf("  • Creating new branch %s from %s... ", sourceBranch, config.Branch)
-		// 먼저 현재 브랜치의 최신 상태를 가져옴
-		fetchCmd := exec.Command("git", "fetch", "origin", config.Branch)
-		if err := fetchCmd.Run(); err != nil {
-			fmt.Println("❌ Failed to fetch")
+		// test 브랜치의 최신 상태를 가져옴
+		fmt.Printf("  • Fetching latest changes... ")
+		if err := exec.Command("git", "fetch", "origin", config.Branch).Run(); err != nil {
+			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to fetch branch: %v", err)
 		}
+		fmt.Println("✅ Done")
 
-		// 새 브랜치 생성
-		createBranch := exec.Command("git", "branch", sourceBranch, fmt.Sprintf("origin/%s", config.Branch))
-		if err := createBranch.Run(); err != nil {
+		// 새 브랜치 생성 (origin/test의 상태에서 시작)
+		fmt.Printf("  • Creating new branch %s from origin/%s... ", sourceBranch, config.Branch)
+		if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to create branch: %v", err)
-		}
-
-		// 새 브랜치로 체크아웃
-		checkoutCmd := exec.Command("git", "checkout", sourceBranch)
-		if err := checkoutCmd.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to checkout branch: %v", err)
+			return fmt.Errorf("failed to create new branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
 		// 새 브랜치 푸시
 		fmt.Printf("  • Pushing new branch with changes... ")
-		pushCmd := exec.Command("git", "push", "-u", "origin", sourceBranch)
-		if err := pushCmd.Run(); err != nil {
+		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to push branch: %v", err)
 		}
