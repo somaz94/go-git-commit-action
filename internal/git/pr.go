@@ -59,11 +59,21 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
+		// 잠시 대기 (원격 저장소 반영 대기)
+		time.Sleep(2 * time.Second)
+
 		// 새 브랜치와 PRBase 간의 변경사항 확인
 		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..%s", config.PRBase, sourceBranch), "--name-status")
+		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
 		filesOutput, _ := diffFiles.Output()
 		if len(filesOutput) == 0 {
+			// 변경사항이 없으면 브랜치 삭제하고 종료
+			if config.DeleteSourceBranch {
+				fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
+				deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
+				deleteCommand.Run()
+				fmt.Println("✅ Done")
+			}
 			fmt.Println("No changes detected")
 			return fmt.Errorf("no changes to create PR")
 		}
@@ -140,7 +150,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 	}
 
-	// 소스 브랜치 삭제 (옵션이 활성화된 경우와 auto_branch가 true인 경우에만)
+	// 소스 브랜치 삭제는 PR 생성 성공 후에만 수행
 	if config.DeleteSourceBranch && config.AutoBranch {
 		fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
 		deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
