@@ -87,16 +87,21 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
 
-	prTitle := fmt.Sprintf("Auto PR: %s to %s", sourceBranch, config.PRBase)
-	prBody := fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s", sourceBranch, config.PRBase)
+	// JSON 데이터 준비
+	jsonData := fmt.Sprintf(`{
+		"title": "Auto PR: %s to %s",
+		"head": "%s",
+		"base": "%s",
+		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s"
+	}`, sourceBranch, config.PRBase, sourceBranch, config.PRBase, sourceBranch, config.PRBase)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
 		"-H", fmt.Sprintf("Authorization: Bearer %s", os.Getenv("GITHUB_TOKEN")),
 		"-H", "Accept: application/vnd.github+json",
+		"-H", "Content-Type: application/json",
 		fmt.Sprintf("https://api.github.com/repos/%s/pulls", os.Getenv("GITHUB_REPOSITORY")),
-		"-d", fmt.Sprintf(`{"title":"%s", "head":"%s", "base":"%s", "body":"%s"}`,
-			prTitle, sourceBranch, config.PRBase, prBody))
+		"-d", jsonData)
 
 	output, err := curlCmd.CombinedOutput()
 	if err != nil {
