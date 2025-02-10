@@ -114,9 +114,9 @@ jobs:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
 
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test2.txt
+      # - name: Create Test File
+      #   run: |
+      #     echo "$(date +%s)-$RANDOM" > test/test2.txt
 
       - name: Test Auto Branch Local Action
         uses: ./
