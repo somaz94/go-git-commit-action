@@ -72,6 +72,33 @@ func RunGitCommit(config *config.GitConfig) error {
 	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
 	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
 
+	// 먼저 변경사항을 스테이징하고 커밋
+	fmt.Println("\n📦 Preparing changes...")
+	stageCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"add", config.FilePattern}, "Staging changes"},
+		{"git", []string{"commit", "-m", config.CommitMessage}, "Creating temporary commit"},
+	}
+
+	for _, cmd := range stageCommands {
+		fmt.Printf("  • %s... ", cmd.desc)
+		command := exec.Command(cmd.name, cmd.args...)
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+		if err := command.Run(); err != nil {
+			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
+				continue
+			}
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+		}
+		fmt.Println("✅ Done")
+	}
+
 	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
 		// 로컬과 리모트 모두에 브랜치가 없는 경우에만 새로 생성
 		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
@@ -119,6 +146,15 @@ func RunGitCommit(config *config.GitConfig) error {
 			return fmt.Errorf("failed to checkout remote branch: %v", err)
 		}
 		fmt.Println("✅ Done")
+
+		// 이전 커밋을 현재 브랜치에 적용
+		cherryPickCommand := exec.Command("git", "cherry-pick", "HEAD@{1}")
+		fmt.Printf("  • Applying changes to branch... ")
+		if err := cherryPickCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to apply changes to branch: %v", err)
+		}
+		fmt.Println("✅ Done")
 	}
 
 	// PR 생성이 필요한 경우 새 브랜치에서 작업
@@ -127,34 +163,14 @@ func RunGitCommit(config *config.GitConfig) error {
 			return fmt.Errorf("failed to create pull request: %v", err)
 		}
 	} else {
-		// PR이 필요없는 경우 직접 브랜치에 커밋
-		commitCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"add", config.FilePattern}, "Adding files"},
-			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-			{"git", []string{"pull", "--rebase", "origin", config.Branch}, "Pulling latest changes"},
-			{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
+		// 변경사항 푸시
+		pushCommand := exec.Command("git", "push", "origin", config.Branch)
+		fmt.Printf("  • Pushing changes... ")
+		if err := pushCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to push changes: %v", err)
 		}
-
-		for _, cmd := range commitCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-					fmt.Println("⚠️  Nothing to commit, skipping...")
-					continue
-				}
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
+		fmt.Println("✅ Done")
 	}
 
 	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +
