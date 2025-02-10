@@ -65,6 +65,9 @@ inputs:
     description: 'Branch to create pull request from'
     required: false
     default: ''
+  github_token:
+    description: 'GitHub token'
+    required: true
 
 runs:
   using: 'docker'
@@ -86,7 +89,7 @@ runs:
     PR_BASE: ${{ inputs.pr_base }}
     DELETE_SOURCE_BRANCH: ${{ inputs.delete_source_branch }}
     PR_BRANCH: ${{ inputs.pr_branch }}
-
+    GITHUB_TOKEN: ${{ inputs.github_token }}
 branding:
   icon: 'git-commit'
   color: 'blue'
