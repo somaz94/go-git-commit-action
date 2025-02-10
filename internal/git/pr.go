@@ -20,12 +20,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Printf("%s\n", string(filesOutput))
 	} else {
 		fmt.Println("No changes detected")
+		return fmt.Errorf("no changes to create PR")
 	}
-
-	// 현재 변경사항 확인
-	statusCommand := exec.Command("git", "status", "--porcelain")
-	statusOutput, _ := statusCommand.Output()
-	fmt.Printf("\n📝 Current working tree status:\n%s\n", string(statusOutput))
 
 	var sourceBranch string
 	if config.AutoBranch {
@@ -41,71 +37,35 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항 스테이징 및 커밋
-		fmt.Printf("  • Staging changes... ")
-		addCommand := exec.Command("git", "add", config.FilePattern)
-		if err := addCommand.Run(); err != nil {
+		// 새 브랜치 푸시
+		fmt.Printf("  • Pushing new branch... ")
+		pushCmd := exec.Command("git", "push", "-u", "origin", sourceBranch)
+		if err := pushCmd.Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to stage changes: %v", err)
+			return fmt.Errorf("failed to push branch: %v", err)
 		}
 		fmt.Println("✅ Done")
-
-		// 커밋 생성
-		fmt.Printf("  • Creating commit... ")
-		commitCmd := exec.Command("git", "commit", "-m", config.CommitMessage)
-		if err := commitCmd.Run(); err != nil {
-			if err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing new to commit")
-			} else {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to create commit: %v", err)
-			}
-		} else {
-			fmt.Println("✅ Done")
-		}
 	} else {
-		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch
-	}
-
-	// 커밋 및 푸시
-	commitCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
-		{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
-	}
-
-	for _, cmd := range commitCommands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stderr
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				continue
-			}
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-		fmt.Println("✅ Done")
 	}
 
 	// PR URL 생성 및 출력
 	fmt.Printf("\n✅ Branch '%s' has been created and pushed.\n", sourceBranch)
-	fmt.Printf("✅ You can create a pull request by visiting:\n")
-	fmt.Printf("   https://github.com/%s/compare/%s...%s\n",
+	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
 		os.Getenv("GITHUB_REPOSITORY"),
 		config.PRBase,
 		sourceBranch)
+	fmt.Printf("✅ You can create a pull request by visiting:\n   %s\n", prURL)
 
-	// git request-pull 명령어로 PR 생성
+	// GitHub CLI로 PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
-	prCommand := exec.Command("git", "request-pull", config.PRBase, "origin", sourceBranch)
-	if err := prCommand.Run(); err != nil {
+	prCmd := exec.Command("gh", "pr", "create",
+		"--title", config.PRTitle,
+		"--body", fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s", sourceBranch, config.PRBase),
+		"--base", config.PRBase,
+		"--head", sourceBranch)
+
+	if err := prCmd.Run(); err != nil {
 		fmt.Println("⚠️  Manual PR creation required")
 	} else {
 		fmt.Println("✅ Done")
