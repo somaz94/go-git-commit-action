@@ -72,27 +72,23 @@ func RunGitCommit(config *config.GitConfig) error {
 	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
 	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
 
-	// 먼저 변경사항을 스테이징하고 커밋
+	// 변경사항을 스태시에 저장
 	fmt.Println("\n📦 Preparing changes...")
-	stageCommands := []struct {
+	stashCommands := []struct {
 		name string
 		args []string
 		desc string
 	}{
 		{"git", []string{"add", config.FilePattern}, "Staging changes"},
-		{"git", []string{"commit", "-m", config.CommitMessage}, "Creating temporary commit"},
+		{"git", []string{"stash", "push", "-m", "temporary stash"}, "Stashing changes"},
 	}
 
-	for _, cmd := range stageCommands {
+	for _, cmd := range stashCommands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
 		if err := command.Run(); err != nil {
-			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				continue
-			}
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 		}
@@ -146,14 +142,32 @@ func RunGitCommit(config *config.GitConfig) error {
 			return fmt.Errorf("failed to checkout remote branch: %v", err)
 		}
 		fmt.Println("✅ Done")
+	}
 
-		// 이전 커밋을 현재 브랜치에 적용
-		cherryPickCommand := exec.Command("git", "cherry-pick", "HEAD@{1}")
-		fmt.Printf("  • Applying changes to branch... ")
-		if err := cherryPickCommand.Run(); err != nil {
+	// 스태시에서 변경사항 복원
+	fmt.Printf("  • Applying stashed changes... ")
+	stashApplyCommand := exec.Command("git", "stash", "pop")
+	stashApplyCommand.Stdout = os.Stdout
+	stashApplyCommand.Stderr = os.Stderr
+	if err := stashApplyCommand.Run(); err != nil {
+		fmt.Println("❌ Failed")
+		return fmt.Errorf("failed to apply stashed changes: %v", err)
+	}
+	fmt.Println("✅ Done")
+
+	// 변경사항 커밋
+	fmt.Printf("  • Committing changes... ")
+	commitCommand := exec.Command("git", "commit", "-am", config.CommitMessage)
+	commitCommand.Stdout = os.Stdout
+	commitCommand.Stderr = os.Stderr
+	if err := commitCommand.Run(); err != nil {
+		if err.Error() == "exit status 1" {
+			fmt.Println("⚠️  Nothing to commit, skipping...")
+		} else {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to apply changes to branch: %v", err)
+			return fmt.Errorf("failed to commit changes: %v", err)
 		}
+	} else {
 		fmt.Println("✅ Done")
 	}
 
