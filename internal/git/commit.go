@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
@@ -100,14 +102,41 @@ func RunGitCommit(config *config.GitConfig) error {
 		// 리모트에는 있지만 로컬에는 없는 경우
 		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
 
-		// 현재 변경사항을 임시 저장
-		fmt.Printf("  • Saving current changes... ")
-		stashCommand := exec.Command("git", "stash", "save", "temporary")
-		stashCommand.Stdout = os.Stdout
-		stashCommand.Stderr = os.Stderr
-		if err := stashCommand.Run(); err != nil {
+		// 변경된 파일 목록 가져오기
+		fmt.Printf("  • Checking modified files... ")
+		statusCmd := exec.Command("git", "status", "--porcelain")
+		statusOutput, err := statusCmd.Output()
+		if err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to stash changes: %v", err)
+			return fmt.Errorf("failed to get modified files: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 변경된 파일들의 내용 백업
+		type FileBackup struct {
+			path    string
+			content []byte
+		}
+		var backups []FileBackup
+
+		fmt.Printf("  • Backing up changes... ")
+		for _, line := range strings.Split(string(statusOutput), "\n") {
+			if line == "" {
+				continue
+			}
+			// 상태 코드와 파일 경로 분리
+			status := line[:2]
+			path := strings.TrimSpace(line[3:])
+
+			// 삭제된 파일이 아닌 경우에만 백업
+			if status != " D" && status != "D " {
+				content, err := os.ReadFile(path)
+				if err != nil {
+					fmt.Println("❌ Failed")
+					return fmt.Errorf("failed to read file %s: %v", path, err)
+				}
+				backups = append(backups, FileBackup{path: path, content: content})
+			}
 		}
 		fmt.Println("✅ Done")
 
@@ -133,14 +162,20 @@ func RunGitCommit(config *config.GitConfig) error {
 			fmt.Println("✅ Done")
 		}
 
-		// 임시 저장한 변경사항 적용
-		fmt.Printf("  • Applying saved changes... ")
-		popCommand := exec.Command("git", "stash", "pop")
-		popCommand.Stdout = os.Stdout
-		popCommand.Stderr = os.Stderr
-		if err := popCommand.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to apply stashed changes: %v", err)
+		// 백업한 변경사항 복원
+		fmt.Printf("  • Restoring changes... ")
+		for _, backup := range backups {
+			// 필요한 경우 디렉토리 생성
+			dir := filepath.Dir(backup.path)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to create directory %s: %v", dir, err)
+			}
+
+			if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to restore file %s: %v", backup.path, err)
+			}
 		}
 		fmt.Println("✅ Done")
 	}
