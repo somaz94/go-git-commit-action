@@ -36,19 +36,27 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 새 브랜치 생성 (origin/test의 상태에서 시작)
-		fmt.Printf("  • Creating new branch %s from origin/%s... ", sourceBranch, config.Branch)
-		if err := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
+		// test 브랜치로 체크아웃
+		fmt.Printf("  • Checking out %s branch... ", config.Branch)
+		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to create new branch: %v", err)
+			return fmt.Errorf("failed to checkout branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// test 브랜치의 변경사항을 새 브랜치에 적용
-		fmt.Printf("  • Applying changes... ")
-		if err := exec.Command("git", "reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)).Run(); err != nil {
+		// test 브랜치의 최신 상태로 업데이트
+		fmt.Printf("  • Updating to latest state... ")
+		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to apply changes: %v", err)
+			return fmt.Errorf("failed to pull latest changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 생성
+		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
+		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to create new branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
@@ -84,6 +92,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		"--base", config.PRBase,
 		"--head", sourceBranch,
 		"--repo", os.Getenv("GITHUB_REPOSITORY"))
+
+	prCmd.Env = append(os.Environ(), fmt.Sprintf("GH_TOKEN=%s", os.Getenv("GITHUB_TOKEN")))
 
 	if output, err := prCmd.CombinedOutput(); err != nil {
 		fmt.Println("⚠️  Failed to create PR automatically")
