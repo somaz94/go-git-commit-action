@@ -167,8 +167,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 	}
 
-	// 소스 브랜치 삭제는 PR 생성 성공 후에만 수행
-	if config.DeleteSourceBranch && config.AutoBranch {
+	// PR 생성 후에만 브랜치 삭제
+	if config.DeleteSourceBranch && config.AutoBranch && strings.Contains(string(output), "html_url") {
 		fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
 		deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
 		if err := deleteCommand.Run(); err != nil {

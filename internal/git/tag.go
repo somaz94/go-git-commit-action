@@ -75,7 +75,7 @@ func HandleGitTag(config *config.GitConfig) error {
 			}
 		}
 
-		// 설명 메시지 생성
+		// Create description message
 		desc := "Creating local tag " + config.TagName
 		if config.TagReference != "" {
 			if targetCommit != config.TagReference {

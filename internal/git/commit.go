@@ -56,7 +56,7 @@ func RunGitCommit(config *config.GitConfig) error {
 		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
 	}
 
-	// 기본 git 설정 실행
+	// Git Configuration
 	for _, cmd := range baseCommands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
@@ -70,12 +70,12 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
-	// 브랜치 존재 여부 확인
+	// Branch Existence Check
 	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
 	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
 
 	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
-		// 로컬과 리모트 모두에 브랜치가 없는 경우에만 새로 생성
+		// New only if there are no branches in both local and remote
 		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
 		createCommands := []struct {
 			name string
@@ -99,10 +99,10 @@ func RunGitCommit(config *config.GitConfig) error {
 			fmt.Println("✅ Done")
 		}
 	} else if checkLocalBranch.Run() != nil {
-		// 리모트에는 있지만 로컬에는 없는 경우
+		// Remote exists but local does not exist
 		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
 
-		// 변경된 파일 목록 가져오기
+		// Get modified files
 		fmt.Printf("  • Checking modified files... ")
 		statusCmd := exec.Command("git", "status", "--porcelain")
 		statusOutput, err := statusCmd.Output()
@@ -112,7 +112,7 @@ func RunGitCommit(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경된 파일들의 내용 백업
+		// Backup modified files
 		type FileBackup struct {
 			path    string
 			content []byte
@@ -124,11 +124,11 @@ func RunGitCommit(config *config.GitConfig) error {
 			if line == "" {
 				continue
 			}
-			// 상태 코드와 파일 경로 분리
+			// Split status code and file path
 			status := line[:2]
 			fullPath := strings.TrimSpace(line[3:])
 
-			// config.RepoPath를 기준으로 상대 경로 계산
+			// Calculate relative path based on config.RepoPath
 			relPath := fullPath
 			if config.RepoPath != "." {
 				relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
@@ -136,7 +136,7 @@ func RunGitCommit(config *config.GitConfig) error {
 
 			fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
 
-			// 삭제된 파일이 아닌 경우에만 백업
+			// Backup only if not deleted
 			if status != " D" && status != "D " {
 				content, err := os.ReadFile(relPath)
 				if err != nil {
@@ -148,7 +148,7 @@ func RunGitCommit(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항을 stash로 임시 저장
+		// Stash changes
 		fmt.Printf("  • Stashing changes... ")
 		stashCmd := exec.Command("git", "stash", "push", "-u")
 		stashCmd.Stdout = os.Stdout
@@ -159,7 +159,7 @@ func RunGitCommit(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 리모트 브랜치 체크아웃
+		// Checkout remote branch
 		checkoutCommands := []struct {
 			name string
 			args []string
@@ -182,10 +182,10 @@ func RunGitCommit(config *config.GitConfig) error {
 			fmt.Println("✅ Done")
 		}
 
-		// 백업한 변경사항 복원
+		// Restore changes
 		fmt.Printf("  • Restoring changes... ")
 		for _, backup := range backups {
-			// 필요한 경우 디렉토리 생성
+			// Create directory if necessary
 			dir := filepath.Dir(backup.path)
 			if dir != "." {
 				if err := os.MkdirAll(dir, 0755); err != nil {
@@ -202,13 +202,13 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
-	// PR 생성 여부에 따라 다른 처리
+	// Different actions depending on whether PR is generated or not
 	if config.CreatePR {
 		if err := CreatePullRequest(config); err != nil {
 			return fmt.Errorf("failed to create pull request: %v", err)
 		}
 	} else {
-		// PR을 생성하지 않는 경우에만 직접 커밋 및 푸시
+		// Commit and push if no PR is created
 		commitCommands := []struct {
 			name string
 			args []string
