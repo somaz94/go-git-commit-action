@@ -12,16 +12,15 @@ import (
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
-	// PRBase와 현재 브랜치(Branch)의 차이점 확인
-	fmt.Printf("\n📊 Checking differences between %s and %s:\n", config.PRBase, config.Branch)
-	diffWithBase := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch))
-	diffOutput, _ := diffWithBase.Output()
-	fmt.Printf("Diff between branches:\n%s\n", string(diffOutput))
-
-	// 변경된 파일 목록 확인
+	// PRBase와 현재 브랜치(Branch)의 차이점 확인 - 파일 목록만
+	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.Branch)
 	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.Branch), "--name-status")
 	filesOutput, _ := diffFiles.Output()
-	fmt.Printf("Changed files between branches:\n%s\n", string(filesOutput))
+	if len(filesOutput) > 0 {
+		fmt.Printf("%s\n", string(filesOutput))
+	} else {
+		fmt.Println("No changes detected")
+	}
 
 	// 현재 변경사항 확인
 	statusCommand := exec.Command("git", "status", "--porcelain")
@@ -33,44 +32,37 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 
-		// 현재 브랜치의 변경사항을 stash로 저장
-		fmt.Printf("  • Stashing current changes... ")
-		stashCmd := exec.Command("git", "stash", "push", "-u")
-		stashCmd.Run()
-		fmt.Println("✅ Done")
-
-		// 새 브랜치 생성 (현재 브랜치에서)
-		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
-		createBranch := exec.Command("git", "checkout", "-b", sourceBranch)
-		createBranch.Stdout = os.Stderr
-		createBranch.Stderr = os.Stderr
+		// 새 브랜치 생성 시 현재 브랜치의 커밋 내용을 포함
+		fmt.Printf("  • Creating new branch %s from %s... ", sourceBranch, config.Branch)
+		createBranch := exec.Command("git", "checkout", "-b", sourceBranch, fmt.Sprintf("origin/%s", config.Branch))
 		if err := createBranch.Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// stash에서 변경사항 복원
-		fmt.Printf("  • Restoring changes from stash... ")
-		stashPopCmd := exec.Command("git", "stash", "pop")
-		stashPopCmd.Run()
-		fmt.Println("✅ Done")
-
-		// 변경사항 스테이징
+		// 변경사항 스테이징 및 커밋
 		fmt.Printf("  • Staging changes... ")
 		addCommand := exec.Command("git", "add", config.FilePattern)
-		addCommand.Stdout = os.Stderr
-		addCommand.Stderr = os.Stderr
 		if err := addCommand.Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to stage changes: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// 스테이징된 변경사항 확인
-		diffCommand := exec.Command("git", "diff", "--cached", "--name-status")
-		diffOutput, _ = diffCommand.Output()
-		fmt.Printf("\n📝 Staged changes:\n%s\n", string(diffOutput))
+		// 커밋 생성
+		fmt.Printf("  • Creating commit... ")
+		commitCmd := exec.Command("git", "commit", "-m", config.CommitMessage)
+		if err := commitCmd.Run(); err != nil {
+			if err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing new to commit")
+			} else {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to create commit: %v", err)
+			}
+		} else {
+			fmt.Println("✅ Done")
+		}
 	} else {
 		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch
@@ -82,7 +74,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 		args []string
 		desc string
 	}{
-		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
 		{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
 	}
 
