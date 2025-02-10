@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -97,13 +98,21 @@ func CreatePullRequest(config *config.GitConfig) error {
 		"-d", fmt.Sprintf(`{"title":"%s", "head":"%s", "base":"%s", "body":"%s"}`,
 			prTitle, sourceBranch, config.PRBase, prBody))
 
-	if output, err := curlCmd.CombinedOutput(); err != nil {
+	output, err := curlCmd.CombinedOutput()
+	if err != nil {
 		fmt.Println("⚠️  Failed to create PR automatically")
-		fmt.Printf("Error: %s\n", string(output))
+		fmt.Printf("Error executing curl: %v\n", err)
+		fmt.Printf("Response: %s\n", string(output))
 		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 	} else {
+		// API 응답 확인
 		fmt.Printf("✅ Done\n")
-		fmt.Printf("PR created successfully\n")
+		fmt.Printf("API Response: %s\n", string(output))
+		if strings.Contains(string(output), "number") {
+			fmt.Printf("PR created successfully\n")
+		} else {
+			fmt.Printf("Warning: Unexpected API response\n")
+		}
 	}
 
 	// 소스 브랜치 삭제 (옵션이 활성화된 경우와 auto_branch가 true인 경우에만)

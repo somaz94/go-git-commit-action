@@ -131,6 +131,7 @@ jobs:
           repository_path: test
           file_pattern: .
           delete_source_branch: true
+          github_token: ${{ secrets.PAT_TOKEN }}
 
       - name: Test Auto Branch Local Action (auto_branch true)
         uses: ./
@@ -144,6 +145,7 @@ jobs:
           repository_path: test
           file_pattern: .
           delete_source_branch: true
+          github_token: ${{ secrets.PAT_TOKEN }}
 
       # - name: Create Test File
       #   run: |
