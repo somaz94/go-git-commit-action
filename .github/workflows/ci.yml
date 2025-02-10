@@ -79,8 +79,8 @@ jobs:
 
       - name: Confirm Tag Reference
         run: |
-          git show -1 {{ env.TAG_REFERENCE }}
-          git show -1 {{ env.TAG_NAME }}
+          git show -1 v1.0.1
+          git show -1 test1-${{ github.run_id }}
 
       - name: Delete Tag
         env:

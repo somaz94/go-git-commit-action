@@ -39,11 +39,11 @@ jobs:
           file_pattern: '.'
           tag_name: 'test1-${{ github.run_id }}'
           tag_message: 'test1 ${{ github.run_id }}'
-          tag_reference: 'v1.0.0'
+          tag_reference: 'v1.0.1'
 
       - name: Confirm Tag Reference
         run: |
-          git show -1 v1.0.0
+          git show -1 v1.0.1
           git show -1 test1-${{ github.run_id }}
 
       - name: Delete Tag
