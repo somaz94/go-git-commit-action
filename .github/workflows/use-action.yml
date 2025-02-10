@@ -34,7 +34,7 @@ jobs:
           user_email: 'actions@github.com'
           user_name: 'GitHub Actions'
           commit_message: 'test1 ${{ github.run_id }}!'
-          branch: 'main'
+          branch: 'test'
           repository_path: 'test'
           file_pattern: '.'
           tag_name: 'test1-${{ github.run_id }}'

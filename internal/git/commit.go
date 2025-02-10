@@ -230,5 +230,12 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// PR 생성 로직 추가
+	if config.CreatePR {
+		if err := CreatePullRequest(config); err != nil {
+			return fmt.Errorf("failed to create pull request: %v", err)
+		}
+	}
+
 	return nil
 }

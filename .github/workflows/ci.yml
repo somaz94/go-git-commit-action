@@ -123,6 +123,7 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
+          branch: test
           create_pr: true
           auto_branch: true
           pr_base: main
