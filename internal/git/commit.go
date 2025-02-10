@@ -134,7 +134,6 @@ func RunGitCommit(config *config.GitConfig) error {
 				relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
 			}
 
-			// 디버그 정보 출력
 			fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
 
 			// 삭제된 파일이 아닌 경우에만 백업
@@ -146,6 +145,17 @@ func RunGitCommit(config *config.GitConfig) error {
 				}
 				backups = append(backups, FileBackup{path: relPath, content: content})
 			}
+		}
+		fmt.Println("✅ Done")
+
+		// 변경사항을 stash로 임시 저장
+		fmt.Printf("  • Stashing changes... ")
+		stashCmd := exec.Command("git", "stash", "push", "-u")
+		stashCmd.Stdout = os.Stdout
+		stashCmd.Stderr = os.Stderr
+		if err := stashCmd.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to stash changes: %v", err)
 		}
 		fmt.Println("✅ Done")
 
@@ -176,9 +186,11 @@ func RunGitCommit(config *config.GitConfig) error {
 		for _, backup := range backups {
 			// 필요한 경우 디렉토리 생성
 			dir := filepath.Dir(backup.path)
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to create directory %s: %v", dir, err)
+			if dir != "." {
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					fmt.Println("❌ Failed")
+					return fmt.Errorf("failed to create directory %s: %v", dir, err)
+				}
 			}
 
 			if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
