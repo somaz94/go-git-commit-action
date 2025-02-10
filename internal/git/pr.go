@@ -22,7 +22,13 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 
-		// 새 브랜치 생성
+		// 현재 브랜치의 변경사항을 stash로 저장
+		fmt.Printf("  • Stashing current changes... ")
+		stashCmd := exec.Command("git", "stash", "push", "-u")
+		stashCmd.Run()
+		fmt.Println("✅ Done")
+
+		// 새 브랜치 생성 (현재 브랜치에서)
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		createBranch := exec.Command("git", "checkout", "-b", sourceBranch)
 		createBranch.Stdout = os.Stderr
@@ -31,6 +37,12 @@ func CreatePullRequest(config *config.GitConfig) error {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
+		fmt.Println("✅ Done")
+
+		// stash에서 변경사항 복원
+		fmt.Printf("  • Restoring changes from stash... ")
+		stashPopCmd := exec.Command("git", "stash", "pop")
+		stashPopCmd.Run()
 		fmt.Println("✅ Done")
 
 		// 변경사항 스테이징
