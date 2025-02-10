@@ -166,7 +166,8 @@ func RunGitCommit(config *config.GitConfig) error {
 			desc string
 		}{
 			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
-			{"git", []string{"checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}, "Checking out branch"},
+			{"git", []string{"checkout", config.Branch}, "Checking out branch"}, // -b 옵션 제거
+			{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
 		}
 
 		for _, cmd := range checkoutCommands {
