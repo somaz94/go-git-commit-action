@@ -51,30 +51,40 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 새 브랜치 푸시 (test 브랜치의 변경사항 포함)
+		// 새 브랜치 푸시
 		fmt.Printf("  • Pushing new branch... ")
 		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to push branch: %v", err)
 		}
 		fmt.Println("✅ Done")
+
+		// 새 브랜치와 PRBase 간의 변경사항 확인
+		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
+		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..%s", config.PRBase, sourceBranch), "--name-status")
+		filesOutput, _ := diffFiles.Output()
+		if len(filesOutput) == 0 {
+			fmt.Println("No changes detected")
+			return fmt.Errorf("no changes to create PR")
+		}
+		fmt.Printf("%s\n", string(filesOutput))
+
 	} else {
 		// PRBranch가 지정되어 있는지 확인
 		if config.PRBranch == "" {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false")
 		}
 		sourceBranch = config.PRBranch
-	}
 
-	// 변경사항 체크
-	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
-	filesOutput, _ := diffFiles.Output()
-	if len(filesOutput) > 0 {
+		// PRBase와 PRBranch 간의 변경사항 확인
+		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
+		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
+		filesOutput, _ := diffFiles.Output()
+		if len(filesOutput) == 0 {
+			fmt.Println("No changes detected")
+			return fmt.Errorf("no changes to create PR")
+		}
 		fmt.Printf("%s\n", string(filesOutput))
-	} else {
-		fmt.Println("No changes detected")
-		return fmt.Errorf("no changes to create PR")
 	}
 
 	// PR URL 생성 및 출력
