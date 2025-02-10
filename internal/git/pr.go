@@ -12,6 +12,11 @@ import (
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
+	// 현재 변경사항 확인
+	diffCommand := exec.Command("git", "status", "--porcelain")
+	diffOutput, _ := diffCommand.Output()
+	fmt.Printf("\n📝 Changes to be committed:\n%s\n", string(diffOutput))
+
 	var sourceBranch string
 	if config.AutoBranch {
 		// 자동 브랜치 생성
@@ -28,11 +33,21 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항 스테이징 및 커밋
+		// 변경사항 스테이징
+		fmt.Printf("  • Staging changes... ")
 		addCommand := exec.Command("git", "add", config.FilePattern)
+		addCommand.Stdout = os.Stderr
+		addCommand.Stderr = os.Stderr
 		if err := addCommand.Run(); err != nil {
+			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to stage changes: %v", err)
 		}
+		fmt.Println("✅ Done")
+
+		// 스테이징된 변경사항 확인
+		diffCommand = exec.Command("git", "diff", "--cached", "--name-status")
+		diffOutput, _ = diffCommand.Output()
+		fmt.Printf("\n📝 Staged changes:\n%s\n", string(diffOutput))
 	} else {
 		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch
