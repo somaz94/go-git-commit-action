@@ -42,7 +42,7 @@ func RunGitCommit(config *config.GitConfig) error {
 
 	// Git Operations
 	fmt.Println("\n⚙️  Executing Git Commands:")
-	commands := []struct {
+	baseCommands := []struct {
 		name string
 		args []string
 		desc string
@@ -52,33 +52,55 @@ func RunGitCommit(config *config.GitConfig) error {
 		{"git", []string{"config", "--global", "user.email", config.UserEmail}, "Configuring user email"},
 		{"git", []string{"config", "--global", "user.name", config.UserName}, "Configuring user name"},
 		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
-		{"git", []string{"add", config.FilePattern}, "Adding files"},
-		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-		{"git", []string{"pull", "--rebase", "origin", config.Branch}, "Pulling latest changes"},
-		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
 	}
 
-	for _, cmd := range commands {
+	// 기본 git 설정 실행
+	for _, cmd := range baseCommands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
 
 		if err := command.Run(); err != nil {
-			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				continue
-			}
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 		}
 		fmt.Println("✅ Done")
 	}
 
-	// PR 생성 로직
-	if config.CreatePR == true {
+	// PR 생성이 필요한 경우 새 브랜치에서 작업
+	if config.CreatePR {
 		if err := CreatePullRequest(config); err != nil {
 			return fmt.Errorf("failed to create pull request: %v", err)
+		}
+	} else {
+		// PR이 필요없는 경우 직접 main에 커밋
+		commitCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"add", config.FilePattern}, "Adding files"},
+			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+			{"git", []string{"pull", "--rebase", "origin", config.Branch}, "Pulling latest changes"},
+			{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
+		}
+
+		for _, cmd := range commitCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+
+			if err := command.Run(); err != nil {
+				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+					fmt.Println("⚠️  Nothing to commit, skipping...")
+					continue
+				}
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
 		}
 	}
 

@@ -71,5 +71,33 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// 파일 추가 및 커밋
+	commitCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"add", config.FilePattern}, "Adding files"},
+		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+		{"git", []string{"push", "origin", sourceBranch}, "Pushing changes"},
+	}
+
+	for _, cmd := range commitCommands {
+		fmt.Printf("  • %s... ", cmd.desc)
+		command := exec.Command(cmd.name, cmd.args...)
+		command.Stdout = os.Stderr
+		command.Stderr = os.Stderr
+
+		if err := command.Run(); err != nil {
+			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
+				continue
+			}
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+		}
+		fmt.Println("✅ Done")
+	}
+
 	return nil
 }
