@@ -14,41 +14,36 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
+		// 먼저 변경사항을 스테이징
+		addCommand := exec.Command("git", "add", config.FilePattern)
+		if err := addCommand.Run(); err != nil {
+			return fmt.Errorf("failed to stage changes: %v", err)
+		}
+
 		// 자동 브랜치 생성
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 
-		commands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"checkout", "-b", sourceBranch}, "Creating new branch"},
+		// 새 브랜치 생성
+		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
+		createBranch := exec.Command("git", "checkout", "-b", sourceBranch)
+		createBranch.Stdout = os.Stderr
+		createBranch.Stderr = os.Stderr
+		if err := createBranch.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to create branch: %v", err)
 		}
-
-		for _, cmd := range commands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stderr
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
+		fmt.Println("✅ Done")
 	} else {
 		// 사용자가 지정한 브랜치 사용
 		sourceBranch = config.Branch
 	}
 
-	// 파일 추가 및 커밋
+	// 커밋 및 푸시
 	commitCommands := []struct {
 		name string
 		args []string
 		desc string
 	}{
-		{"git", []string{"add", config.FilePattern}, "Adding files"},
 		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
 		{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
 	}
