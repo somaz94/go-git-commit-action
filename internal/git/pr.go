@@ -16,9 +16,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
-		// 자동 브랜치 생성
-		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
-
 		// 브랜치 생성 및 변경사항 적용
 		fmt.Printf("  • Fetching latest changes... ")
 		if err := exec.Command("git", "fetch", "--all").Run(); err != nil {
@@ -27,7 +24,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// test 브랜치 체크아웃
+		// config.Branch 브랜치 체크아웃
 		fmt.Printf("  • Checking out source branch %s... ", config.Branch)
 		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -35,7 +32,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// test 브랜치 최신화
+		// config.Branch 브랜치 최신화
 		fmt.Printf("  • Pulling latest changes... ")
 		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -43,7 +40,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 새 브랜치 생성 (test 브랜치의 내용을 복사)
+		// 자동 브랜치 생성 (이름 생성 및 실제 브랜치 생성)
+		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 		fmt.Printf("  • Creating new branch %s from %s... ", sourceBranch, config.Branch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
