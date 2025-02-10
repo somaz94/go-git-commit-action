@@ -1,6 +1,7 @@
 package git
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -87,13 +88,16 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// PR 생성
 	fmt.Printf("  • Creating pull request from %s to %s... ", sourceBranch, config.PRBase)
 
+	// GitHub Run ID 가져오기
+	runID := os.Getenv("GITHUB_RUN_ID")
+
 	// JSON 데이터 준비
 	jsonData := fmt.Sprintf(`{
-		"title": "Auto PR: %s to %s",
+		"title": "Auto PR: %s to %s (Run ID: %s)",
 		"head": "%s",
 		"base": "%s",
-		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s"
-	}`, sourceBranch, config.PRBase, sourceBranch, config.PRBase, sourceBranch, config.PRBase)
+		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nGitHub Run ID: %s"
+	}`, sourceBranch, config.PRBase, runID, sourceBranch, config.PRBase, sourceBranch, config.PRBase, runID)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
@@ -110,13 +114,19 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Printf("Response: %s\n", string(output))
 		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 	} else {
-		// API 응답 확인
-		fmt.Printf("✅ Done\n")
-		fmt.Printf("API Response: %s\n", string(output))
-		if strings.Contains(string(output), "number") {
-			fmt.Printf("PR created successfully\n")
+		// API 응답이 성공적인지 확인
+		if strings.Contains(string(output), "html_url") {
+			fmt.Printf("✅ Done\n")
+			// API 응답에서 PR URL 추출
+			var response map[string]interface{}
+			if err := json.Unmarshal(output, &response); err == nil {
+				if htmlURL, ok := response["html_url"].(string); ok {
+					fmt.Printf("Pull request created: %s\n", htmlURL)
+				}
+			}
 		} else {
-			fmt.Printf("Warning: Unexpected API response\n")
+			fmt.Printf("⚠️  Failed to create PR\n")
+			fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 		}
 	}
 
