@@ -80,6 +80,8 @@ runs:
     AUTO_BRANCH: ${{ inputs.auto_branch }}
     PR_TITLE: ${{ inputs.pr_title }}
     PR_BASE: ${{ inputs.pr_base }}
+    DELETE_SOURCE_BRANCH: ${{ inputs.delete_source_branch }}
 branding:
   icon: 'git-commit'
   color: 'blue'
+
