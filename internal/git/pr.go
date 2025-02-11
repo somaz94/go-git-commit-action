@@ -138,7 +138,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
-		"-H", fmt.Sprintf("Authorization: Bearer %s", os.Getenv("GITHUB_TOKEN")),
+		"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
 		"-H", "Accept: application/vnd.github+json",
 		"-H", "Content-Type: application/json",
 		fmt.Sprintf("https://api.github.com/repos/%s/pulls", os.Getenv("GITHUB_REPOSITORY")),
