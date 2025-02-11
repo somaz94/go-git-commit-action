@@ -34,15 +34,17 @@ func CreatePullRequest(config *config.GitConfig) error {
 			desc string
 		}{
 			{"git", []string{"add", config.FilePattern}, "Adding files"},
-			{"git", []string{"commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch)}, "Committing changes"},
+			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
 			{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
 		}
 
 		for _, cmd := range commitCommands {
 			fmt.Printf("  • %s... ", cmd.desc)
 			command := exec.Command(cmd.name, cmd.args...)
-			if output, err := command.CombinedOutput(); err != nil {
-				if cmd.args[0] == "commit" && strings.Contains(string(output), "nothing to commit") {
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			if err := command.Run(); err != nil {
+				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
 					fmt.Println("⚠️  Nothing to commit, skipping...")
 					continue
 				}
