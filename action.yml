@@ -67,7 +67,7 @@ inputs:
     default: ''
   github_token:
     description: 'GitHub token'
-    required: true
+    required: false
 
 runs:
   using: 'docker'
