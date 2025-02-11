@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
@@ -214,14 +215,42 @@ func restoreChanges() error {
 
 	if len(output) > 0 {
 		fmt.Println("  • Restoring stashed changes... ")
-		popCmd := exec.Command("git", "stash", "pop")
-		popCmd.Stdout = os.Stdout
-		popCmd.Stderr = os.Stderr
 
-		if err := popCmd.Run(); err != nil {
+		// stash apply 사용 (pop 대신)
+		applyCmd := exec.Command("git", "stash", "apply")
+		applyOutput, err := applyCmd.CombinedOutput()
+		if err != nil {
+			// 충돌이 발생한 경우
+			if strings.Contains(string(applyOutput), "CONFLICT") {
+				fmt.Println("⚠️  Conflicts detected, discarding stashed changes")
+
+				// 변경사항 초기화
+				resetCmd := exec.Command("git", "reset", "--hard")
+				if resetErr := resetCmd.Run(); resetErr != nil {
+					fmt.Println("❌ Failed to reset changes")
+					return fmt.Errorf("failed to reset after conflict: %v", resetErr)
+				}
+
+				// stash 드롭
+				dropCmd := exec.Command("git", "stash", "drop")
+				if dropErr := dropCmd.Run(); dropErr != nil {
+					fmt.Println("⚠️  Failed to drop stash, but continuing...")
+				}
+
+				fmt.Println("✅ Cleaned up conflicts")
+				return nil
+			}
+
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to restore changes: %v", err)
 		}
+
+		// 성공적으로 적용된 경우 stash 드롭
+		dropCmd := exec.Command("git", "stash", "drop")
+		if err := dropCmd.Run(); err != nil {
+			fmt.Println("⚠️  Failed to drop stash, but continuing...")
+		}
+
 		fmt.Println("✅ Done")
 	}
 
