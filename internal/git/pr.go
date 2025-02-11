@@ -16,86 +16,41 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
-		// 브랜치 생성 및 변경사항 적용
-		fmt.Printf("  • Fetching latest changes... ")
-		if err := exec.Command("git", "fetch", "--all").Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to fetch branch: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// config.Branch 브랜치 체크아웃
-		fmt.Printf("  • Checking out source branch %s... ", config.Branch)
-		if err := exec.Command("git", "checkout", config.Branch).Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to checkout source branch: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// config.Branch 브랜치 최신화
-		fmt.Printf("  • Pulling latest changes... ")
-		if err := exec.Command("git", "pull", "origin", config.Branch).Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to pull latest changes: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 자동 브랜치 생성 (이름 생성 및 실제 브랜치 생성)
+		// 자동 브랜치 생성 (이름 생성)
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
-		fmt.Printf("  • Creating new branch %s from %s... ", sourceBranch, config.Branch)
+
+		// 현재 브랜치에서 새 브랜치 생성
+		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
 		fmt.Println("✅ Done")
 
-		// 모든 변경사항 추가
-		fmt.Printf("  • Adding all changes... ")
-		if err := exec.Command("git", "add", ".").Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to add changes: %v", err)
+		// 변경사항 커밋 및 푸시
+		commitCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"add", config.FilePattern}, "Adding files"},
+			{"git", []string{"commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch)}, "Committing changes"},
+			{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
 		}
-		fmt.Println("✅ Done")
 
-		// 변경사항 커밋
-		fmt.Printf("  • Committing changes... ")
-		commitCmd := exec.Command("git", "commit", "-m", fmt.Sprintf("Auto commit: %s", sourceBranch))
-		if output, err := commitCmd.CombinedOutput(); err != nil {
-			if !strings.Contains(string(output), "nothing to commit") {
+		for _, cmd := range commitCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			if output, err := command.CombinedOutput(); err != nil {
+				if cmd.args[0] == "commit" && strings.Contains(string(output), "nothing to commit") {
+					fmt.Println("⚠️  Nothing to commit, skipping...")
+					continue
+				}
 				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to commit: %v", err)
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 			}
+			fmt.Println("✅ Done")
 		}
-		fmt.Println("✅ Done")
-
-		// 새 브랜치 푸시
-		fmt.Printf("  • Pushing new branch... ")
-		if err := exec.Command("git", "push", "-u", "origin", sourceBranch).Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to push branch: %v", err)
-		}
-		fmt.Println("✅ Done")
-
-		// 잠시 대기 (원격 저장소 반영 대기)
-		time.Sleep(2 * time.Second)
-
-		// 새 브랜치와 PRBase 간의 변경사항 확인
-		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
-		filesOutput, _ := diffFiles.Output()
-		if len(filesOutput) == 0 {
-			// 변경사항이 없으면 브랜치 삭제하고 종료
-			if config.DeleteSourceBranch {
-				fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
-				deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
-				deleteCommand.Run()
-				fmt.Println("✅ Done")
-			}
-			fmt.Println("No changes detected")
-			return fmt.Errorf("no changes to create PR")
-		}
-		fmt.Printf("%s\n", string(filesOutput))
-
 	} else {
 		// PRBranch가 지정되어 있는지 확인
 		if config.PRBranch == "" {
