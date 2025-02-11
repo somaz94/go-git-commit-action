@@ -11,7 +11,7 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-func CreatePullRequest(config *config.GitConfig) error {
+func HandlePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
 	var sourceBranch string
@@ -28,30 +28,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 
 		// 변경사항 커밋 및 푸시
-		commitCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"add", config.FilePattern}, "Adding files"},
-			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-			{"git", []string{"push", "-u", "origin", sourceBranch}, "Pushing changes"},
-		}
-
-		for _, cmd := range commitCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-			if err := command.Run(); err != nil {
-				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-					fmt.Println("⚠️  Nothing to commit, skipping...")
-					continue
-				}
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
+		if err := commitAndPushChanges(config, sourceBranch); err != nil {
+			return err
 		}
 	} else {
 		// PRBranch가 지정되어 있는지 확인
@@ -71,6 +49,40 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Printf("%s\n", string(filesOutput))
 	}
 
+	return createPullRequest(config, sourceBranch)
+}
+
+func commitAndPushChanges(config *config.GitConfig, branch string) error {
+	commitCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"add", config.FilePattern}, "Adding files"},
+		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+		{"git", []string{"push", "-u", "origin", branch}, "Pushing changes"},
+	}
+
+	for _, cmd := range commitCommands {
+		fmt.Printf("  • %s... ", cmd.desc)
+		command := exec.Command(cmd.name, cmd.args...)
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+		if err := command.Run(); err != nil {
+			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
+				continue
+			}
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+		}
+		fmt.Println("✅ Done")
+	}
+
+	return nil
+}
+
+func createPullRequest(config *config.GitConfig, sourceBranch string) error {
 	// PR URL 생성 및 출력
 	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", sourceBranch)
 	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
@@ -107,32 +119,34 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Printf("Error executing curl: %v\n", err)
 		fmt.Printf("Response: %s\n", string(output))
 		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
-	} else {
-		// API 응답이 성공적인지 확인
-		if strings.Contains(string(output), "html_url") {
-			fmt.Printf("✅ Done\n")
-			// API 응답에서 PR URL 추출
-			var response map[string]interface{}
-			if err := json.Unmarshal(output, &response); err == nil {
-				if htmlURL, ok := response["html_url"].(string); ok {
-					fmt.Printf("Pull request created: %s\n", htmlURL)
-				}
-			}
-		} else {
-			fmt.Printf("⚠️  Failed to create PR\n")
-			fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
-		}
+		return err
 	}
 
-	// PR 생성 후에만 브랜치 삭제
-	if config.DeleteSourceBranch && config.AutoBranch && strings.Contains(string(output), "html_url") {
-		fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
-		deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
-		if err := deleteCommand.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to delete source branch: %v", err)
+	// API 응답이 성공적인지 확인
+	if strings.Contains(string(output), "html_url") {
+		fmt.Printf("✅ Done\n")
+		// API 응답에서 PR URL 추출
+		var response map[string]interface{}
+		if err := json.Unmarshal(output, &response); err == nil {
+			if htmlURL, ok := response["html_url"].(string); ok {
+				fmt.Printf("Pull request created: %s\n", htmlURL)
+			}
 		}
-		fmt.Println("✅ Done")
+
+		// PR 생성 후에만 브랜치 삭제
+		if config.DeleteSourceBranch && config.AutoBranch {
+			fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
+			deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
+			if err := deleteCommand.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to delete source branch: %v", err)
+			}
+			fmt.Println("✅ Done")
+		}
+	} else {
+		fmt.Printf("⚠️  Failed to create PR\n")
+		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
+		return fmt.Errorf("failed to create PR")
 	}
 
 	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +

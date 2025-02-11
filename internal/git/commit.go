@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
@@ -26,6 +24,25 @@ func RunGitCommit(config *config.GitConfig) error {
 	fmt.Printf("  • Repository Path: %s\n", config.RepoPath)
 	fmt.Printf("  • File Pattern: %s\n", config.FilePattern)
 
+	if err := setupGitEnvironment(config); err != nil {
+		return err
+	}
+
+	if err := handleBranch(config); err != nil {
+		return err
+	}
+
+	// PR을 생성하지 않을 때만 여기서 커밋
+	if !config.CreatePR {
+		if err := commitChanges(config); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func setupGitEnvironment(config *config.GitConfig) error {
 	// Directory Contents
 	fmt.Println("\n📁 Directory Contents:")
 	files, _ := os.ReadDir(".")
@@ -56,7 +73,6 @@ func RunGitCommit(config *config.GitConfig) error {
 		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
 	}
 
-	// Git Configuration
 	for _, cmd := range baseCommands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
@@ -70,207 +86,143 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	return nil
+}
+
+func handleBranch(config *config.GitConfig) error {
 	// Branch Existence Check
 	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
 	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
 
 	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
-		// New only if there are no branches in both local and remote
-		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
-		createCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
-			{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
-		}
-
-		for _, cmd := range createCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
+		return createNewBranch(config)
 	} else if checkLocalBranch.Run() != nil {
-		// Remote exists but local does not exist
-		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+		return checkoutExistingBranch(config)
+	}
 
-		// Get modified files
-		fmt.Printf("  • Checking modified files... ")
-		statusCmd := exec.Command("git", "status", "--porcelain")
-		statusOutput, err := statusCmd.Output()
-		if err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to get modified files: %v", err)
+	return nil
+}
+
+func createNewBranch(config *config.GitConfig) error {
+	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
+	createCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
+		{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
+	}
+
+	for _, cmd := range createCommands {
+		if err := executeCommand(cmd.name, cmd.args, cmd.desc); err != nil {
+			return err
 		}
-		fmt.Println("✅ Done")
+	}
+	return nil
+}
 
-		// Backup modified files
-		type FileBackup struct {
-			path    string
-			content []byte
+func checkoutExistingBranch(config *config.GitConfig) error {
+	fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+
+	if err := backupAndStashChanges(); err != nil {
+		return err
+	}
+
+	checkoutCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
+		{"git", []string{"checkout", config.Branch}, "Checking out branch"},
+		{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
+	}
+
+	for _, cmd := range checkoutCommands {
+		if err := executeCommand(cmd.name, cmd.args, cmd.desc); err != nil {
+			return err
 		}
-		var backups []FileBackup
+	}
 
-		fmt.Printf("  • Backing up changes... ")
-		for _, line := range strings.Split(string(statusOutput), "\n") {
-			if line == "" {
+	return restoreChanges()
+}
+
+func commitChanges(config *config.GitConfig) error {
+	commitCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"add", config.FilePattern}, "Adding files"},
+		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
+		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
+	}
+
+	for _, cmd := range commitCommands {
+		if err := executeCommand(cmd.name, cmd.args, cmd.desc); err != nil {
+			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
 				continue
 			}
-			// Split status code and file path
-			status := line[:2]
-			fullPath := strings.TrimSpace(line[3:])
-
-			// Calculate relative path based on config.RepoPath
-			relPath := fullPath
-			if config.RepoPath != "." {
-				relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
-			}
-
-			fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
-
-			// Backup only if not deleted
-			if status != " D" && status != "D " {
-				content, err := os.ReadFile(relPath)
-				if err != nil {
-					fmt.Println("❌ Failed")
-					return fmt.Errorf("failed to read file %s: %v", relPath, err)
-				}
-				backups = append(backups, FileBackup{path: relPath, content: content})
-			}
+			return err
 		}
-		fmt.Println("✅ Done")
+	}
 
-		// Stash changes
-		fmt.Printf("  • Stashing changes... ")
+	return nil
+}
+
+func executeCommand(name string, args []string, desc string) error {
+	fmt.Printf("  • %s... ", desc)
+	command := exec.Command(name, args...)
+	command.Stdout = os.Stdout
+	command.Stderr = os.Stderr
+
+	if err := command.Run(); err != nil {
+		fmt.Println("❌ Failed")
+		return fmt.Errorf("failed to execute %s: %v", name, err)
+	}
+	fmt.Println("✅ Done")
+	return nil
+}
+
+func backupAndStashChanges() error {
+	// 현재 변경사항이 있는지 확인
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	output, _ := statusCmd.Output()
+
+	if len(output) > 0 {
+		fmt.Println("  • Stashing current changes... ")
 		stashCmd := exec.Command("git", "stash", "push", "-u")
 		stashCmd.Stdout = os.Stdout
 		stashCmd.Stderr = os.Stderr
+
 		if err := stashCmd.Run(); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to stash changes: %v", err)
 		}
 		fmt.Println("✅ Done")
-
-		// Checkout remote branch
-		checkoutCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
-			{"git", []string{"checkout", config.Branch}, "Checking out branch"}, // -b 옵션 제거
-			{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
-		}
-
-		for _, cmd := range checkoutCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
-
-		// Restore changes
-		fmt.Printf("  • Restoring changes... ")
-		for _, backup := range backups {
-			// Create directory if necessary
-			dir := filepath.Dir(backup.path)
-			if dir != "." {
-				if err := os.MkdirAll(dir, 0755); err != nil {
-					fmt.Println("❌ Failed")
-					return fmt.Errorf("failed to create directory %s: %v", dir, err)
-				}
-			}
-
-			if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to restore file %s: %v", backup.path, err)
-			}
-		}
-		fmt.Println("✅ Done")
 	}
 
-	// Different actions depending on whether PR is generated or not
-	if config.CreatePR {
-		if config.AutoBranch {
-			// AutoBranch가 true일 때는 바로 PR 생성으로 넘어감
-			if err := CreatePullRequest(config); err != nil {
-				return fmt.Errorf("failed to create pull request: %v", err)
-			}
-		} else {
-			// AutoBranch가 false일 때만 여기서 커밋
-			commitCommands := []struct {
-				name string
-				args []string
-				desc string
-			}{
-				{"git", []string{"add", config.FilePattern}, "Adding files"},
-				{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-				{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing changes"},
-			}
+	return nil
+}
 
-			for _, cmd := range commitCommands {
-				fmt.Printf("  • %s... ", cmd.desc)
-				command := exec.Command(cmd.name, cmd.args...)
-				command.Stdout = os.Stdout
-				command.Stderr = os.Stderr
+func restoreChanges() error {
+	// stash list 확인
+	listCmd := exec.Command("git", "stash", "list")
+	output, _ := listCmd.Output()
 
-				if err := command.Run(); err != nil {
-					if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-						fmt.Println("⚠️  Nothing to commit, skipping...")
-						continue
-					}
-					fmt.Println("❌ Failed")
-					return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-				}
-				fmt.Println("✅ Done")
-			}
+	if len(output) > 0 {
+		fmt.Println("  • Restoring stashed changes... ")
+		popCmd := exec.Command("git", "stash", "pop")
+		popCmd.Stdout = os.Stdout
+		popCmd.Stderr = os.Stderr
 
-			// PR 생성
-			if err := CreatePullRequest(config); err != nil {
-				return fmt.Errorf("failed to create pull request: %v", err)
-			}
+		if err := popCmd.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to restore changes: %v", err)
 		}
-	} else {
-		// PR을 생성하지 않을 때는 기존 로직 유지
-		commitCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"add", config.FilePattern}, "Adding files"},
-			{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-			{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
-		}
-
-		for _, cmd := range commitCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-					fmt.Println("⚠️  Nothing to commit, skipping...")
-					continue
-				}
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
+		fmt.Println("✅ Done")
 	}
 
 	return nil
