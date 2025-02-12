@@ -27,6 +27,30 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("branch %s already exists", sourceBranch)
 		}
 
+		// 먼저 지정된 브랜치로 체크아웃
+		fmt.Printf("⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+		checkoutCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
+			{"git", []string{"checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}, "Checking out branch"},
+			{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
+		}
+
+		for _, cmd := range checkoutCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
+
 		// 현재 브랜치에서 새 브랜치 생성
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
