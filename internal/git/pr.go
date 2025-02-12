@@ -18,6 +18,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 	if config.AutoBranch {
 		// 자동 브랜치 생성 (이름 생성)
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
+		// auto_branch가 true일 때 PRBranch 설정
+		config.PRBranch = sourceBranch
 
 		// 현재 브랜치에서 새 브랜치 생성
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
@@ -59,17 +61,17 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false")
 		}
 		sourceBranch = config.PRBranch
-
-		// PRBase와 PRBranch 간의 변경사항 확인
-		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
-		filesOutput, _ := diffFiles.Output()
-		if len(filesOutput) == 0 {
-			fmt.Println("No changes detected")
-			return fmt.Errorf("no changes to create PR")
-		}
-		fmt.Printf("%s\n", string(filesOutput))
 	}
+
+	// PRBase와 sourceBranch 간의 변경사항 확인
+	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
+	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
+	filesOutput, _ := diffFiles.Output()
+	if len(filesOutput) == 0 {
+		fmt.Println("No changes detected")
+		return fmt.Errorf("no changes to create PR")
+	}
+	fmt.Printf("%s\n", string(filesOutput))
 
 	// PR URL 생성 및 출력
 	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", sourceBranch)
