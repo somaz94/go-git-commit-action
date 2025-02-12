@@ -16,9 +16,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
-		// 자동 브랜치 생성 (이름 생성)
+		// Generate timestamped branch name
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
-		// auto_branch가 true일 때 PRBranch 설정
 		config.PRBranch = sourceBranch
 
 		// 새 브랜치 생성 전에 이미 존재하는지 확인
@@ -27,31 +26,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("branch %s already exists", sourceBranch)
 		}
 
-		// 먼저 지정된 브랜치로 체크아웃
-		fmt.Printf("⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
-		checkoutCommands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
-			{"git", []string{"checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}, "Checking out branch"},
-			{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
-		}
-
-		for _, cmd := range checkoutCommands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
-
-		// 현재 브랜치에서 새 브랜치 생성
+		// Create and switch to new branch
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -59,7 +34,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항 커밋 및 푸시
+		// Commit and push changes
 		commitCommands := []struct {
 			name string
 			args []string
@@ -91,17 +66,17 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false")
 		}
 		sourceBranch = config.PRBranch
-	}
 
-	// PRBase와 sourceBranch 간의 변경사항 확인
-	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
-	filesOutput, _ := diffFiles.Output()
-	if len(filesOutput) == 0 {
-		fmt.Println("No changes detected")
-		return fmt.Errorf("no changes to create PR")
+		// PRBase와 PRBranch 간의 변경사항 확인
+		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
+		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
+		filesOutput, _ := diffFiles.Output()
+		if len(filesOutput) == 0 {
+			fmt.Println("No changes detected")
+			return fmt.Errorf("no changes to create PR")
+		}
+		fmt.Printf("%s\n", string(filesOutput))
 	}
-	fmt.Printf("%s\n", string(filesOutput))
 
 	// PR URL 생성 및 출력
 	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", sourceBranch)
@@ -143,6 +118,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// API 응답이 성공적인지 확인
 		if strings.Contains(string(output), "html_url") {
 			fmt.Printf("✅ Done\n")
+			// API 응답에서 PR URL 추출
 			var response map[string]interface{}
 			if err := json.Unmarshal(output, &response); err == nil {
 				if htmlURL, ok := response["html_url"].(string); ok {
@@ -151,13 +127,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 			}
 		} else {
 			fmt.Printf("⚠️  Failed to create PR\n")
-			// 에러 상세 정보 추가
-			var response map[string]interface{}
-			if err := json.Unmarshal(output, &response); err == nil {
-				if message, ok := response["message"].(string); ok {
-					fmt.Printf("Error message: %s\n", message)
-				}
-			}
 			fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 		}
 	}
