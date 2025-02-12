@@ -100,7 +100,7 @@ jobs:
           --rm ${{ env.TEST_TAG }}
 
   test-action-auto-branch-false:
-    name: Test env-output-setter
+    name: Test Auto Branch False
     runs-on: ubuntu-latest
     needs: build-and-push-docker
 
@@ -134,7 +134,7 @@ jobs:
           github_token: ${{ secrets.PAT_TOKEN }}
 
   test-action-auto-branch-true:
-    name: Test env-output-setter
+    name: Test Auto Branch True
     runs-on: ubuntu-latest
     needs: [build-and-push-docker, test-action-auto-branch-false]
 
@@ -151,21 +151,6 @@ jobs:
       # - name: Create Test File
       #   run: |
       #     echo "$(date +%s)-$RANDOM" > test/test2.txt
-
-      - name: Test Auto Branch Local Action (auto_branch false)
-        uses: ./
-        with:
-          user_email: actions@github.com
-          user_name: GitHub Actions
-          branch: test
-          create_pr: true
-          auto_branch: false
-          pr_base: main
-          pr_branch: test
-          repository_path: test
-          file_pattern: .
-          delete_source_branch: true
-          github_token: ${{ secrets.PAT_TOKEN }}
 
       - name: Test Auto Branch Local Action (auto_branch true)
         uses: ./
