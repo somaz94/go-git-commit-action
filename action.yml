@@ -52,7 +52,7 @@ inputs:
   pr_title:
     description: 'Pull request title'
     required: false
-    default: 'Auto PR by Go Git Commit Action'
+    default: ''
   pr_base:
     description: 'Base branch for pull request'
     required: false
