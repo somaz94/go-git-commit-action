@@ -92,6 +92,14 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// GitHub Run ID 가져오기
 	runID := os.Getenv("GITHUB_RUN_ID")
 
+	// Get current commit SHA
+	commitCmd := exec.Command("git", "rev-parse", "HEAD")
+	commitSHA, err := commitCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get commit SHA: %v", err)
+	}
+	commitID := strings.TrimSpace(string(commitSHA))
+
 	// PR 제목 설정
 	title := config.PRTitle
 	if title == "" {
@@ -103,8 +111,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		"title": "%s",
 		"head": "%s",
 		"base": "%s",
-		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nGitHub Run ID: %s"
-	}`, title, sourceBranch, config.PRBase, sourceBranch, config.PRBase, runID)
+		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s"
+	}`, title, sourceBranch, config.PRBase, sourceBranch, config.PRBase, commitID, runID)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
