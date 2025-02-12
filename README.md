@@ -76,6 +76,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
       
       - name: Create Git Tag
         uses: somaz94/go-git-commit-action@v1
@@ -100,6 +102,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
       
       - name: Delete Git Tag
         uses: somaz94/go-git-commit-action@v1
@@ -164,7 +168,7 @@ jobs:
     create_pr: 'true'
     auto_branch: 'true'  # Creates timestamped branch automatically
     pr_base: 'main'
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 #### Custom Branch
@@ -178,7 +182,7 @@ jobs:
     branch: 'feature/my-branch'
     pr_branch: 'feature/my-branch'  # Branch to create PR from
     pr_base: 'main'
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 #### With Custom PR Title
@@ -190,7 +194,7 @@ jobs:
     create_pr: 'true'
     pr_title: 'feat: my custom PR title'
     pr_base: 'main'
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 #### Delete Source Branch After PR
@@ -203,7 +207,7 @@ jobs:
     auto_branch: 'true'
     pr_base: 'main'
     delete_source_branch: 'true'
-    github_token: ${{ secrets.GITHUB_TOKEN }}
+    github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 ## Features
@@ -230,7 +234,7 @@ jobs:
 - Use `tag_message` to create annotated tags
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
 - Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
-- When working with workflow files, you need to use a Personal Access Token (PAT) with appropriate permissions:
+- When working with workflow files, you need to use a Personal Access Token (PAT) with appropriate permissions.
 
 ## License
 
