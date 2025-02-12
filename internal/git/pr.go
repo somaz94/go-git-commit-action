@@ -93,27 +93,13 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// GitHub Run ID 가져오기
 	runID := os.Getenv("GITHUB_RUN_ID")
 
-	// PR 제목 설정
-	prTitle := config.PRTitle
-	if prTitle == "" {
-		prTitle = fmt.Sprintf("Auto PR: %s to %s", sourceBranch, config.PRBase)
-	}
-
 	// JSON 데이터 준비
 	jsonData := fmt.Sprintf(`{
-		"title": "%s",
+		"title": "Auto PR: %s to %s (Run ID: %s)",
 		"head": "%s",
 		"base": "%s",
-		"body": "## Changes Made\n- Created by Go Git Commit Action\n- Source: %s\n- Target: %s\n- GitHub Run ID: %s\n\n## Modified Files\n%s"
-	}`,
-		prTitle,
-		sourceBranch,
-		config.PRBase,
-		sourceBranch,
-		config.PRBase,
-		runID,
-		string(filesOutput),
-	)
+		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nGitHub Run ID: %s"
+	}`, sourceBranch, config.PRBase, runID, sourceBranch, config.PRBase, sourceBranch, config.PRBase, runID)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
