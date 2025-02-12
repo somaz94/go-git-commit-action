@@ -18,7 +18,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 	if config.AutoBranch {
 		// 자동 브랜치 생성 (이름 생성)
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
-		// auto_branch가 true일 때 PRBranch 설정
 		config.PRBranch = sourceBranch
 
 		// 현재 브랜치에서 새 브랜치 생성
@@ -28,6 +27,15 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
 		fmt.Println("✅ Done")
+
+		// 변경사항 확인
+		fmt.Printf("\n📊 Changed files between %s and current:\n", config.PRBase)
+		diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s", config.PRBase), "--name-status")
+		diffCmd.Stdout = os.Stdout
+		diffCmd.Stderr = os.Stderr
+		if err := diffCmd.Run(); err != nil {
+			return fmt.Errorf("failed to check differences: %v", err)
+		}
 
 		// 변경사항 커밋 및 푸시
 		commitCommands := []struct {
