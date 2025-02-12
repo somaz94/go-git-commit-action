@@ -241,7 +241,7 @@ jobs:
 ### Pull Request Operations
 - Set `create_pr: 'true'` to create a pull request
 - When `auto_branch` is true (default), it creates a timestamped branch automatically
-- `pr_title` can be customized (defaults to "Auto PR by Go Git Commit Action")
+- `pr_title` can be customized (defaults to "Auto PR: %s to %s (Run ID: %s)", sourceBranch, config.PRBase, runID)
 - `pr_base` specifies the target branch for the PR (defaults to main)
 - Use `pr_branch` to specify a custom source branch when `auto_branch` is false
 - Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works when `auto_branch` is true)

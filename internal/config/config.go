@@ -43,7 +43,7 @@ func NewGitConfig() *GitConfig {
 		TagReference:       os.Getenv("INPUT_TAG_REFERENCE"),
 		CreatePR:           os.Getenv("INPUT_CREATE_PR") == "true",
 		AutoBranch:         os.Getenv("INPUT_AUTO_BRANCH") == "true",
-		PRTitle:            getEnvWithDefault("INPUT_PR_TITLE", "Auto PR by Go Git Commit Action"),
+		PRTitle:            getEnvWithDefault("INPUT_PR_TITLE", ""),
 		PRBase:             getEnvWithDefault("INPUT_PR_BASE", "main"),
 		PRBranch:           getEnvWithDefault("INPUT_PR_BRANCH", ""),
 		DeleteSourceBranch: os.Getenv("INPUT_DELETE_SOURCE_BRANCH") == "true",
