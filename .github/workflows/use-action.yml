@@ -16,13 +16,12 @@ permissions:
   contents: write
 
 jobs:
-  acton-module:
+  acton-module-tag-reference:
+    name: acton-module-tag-reference
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create Test File
         run: |
@@ -31,15 +30,15 @@ jobs:
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'actions@github.com'
-          user_name: 'GitHub Actions'
-          commit_message: 'test1 ${{ github.run_id }}!'
-          branch: 'test'
-          repository_path: 'test'
-          file_pattern: '.'
-          tag_name: 'test1-${{ github.run_id }}'
-          tag_message: 'test1 ${{ github.run_id }}'
-          tag_reference: 'v1.0.1'
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          commit_message: test1 ${{ github.run_id }}!
+          branch: test
+          repository_path: test
+          file_pattern: .
+          tag_name: test1-${{ github.run_id }}
+          tag_message: test1 ${{ github.run_id }}
+          tag_reference: v1.0.1
 
       - name: Confirm Tag Reference
         run: |
@@ -54,3 +53,47 @@ jobs:
           tag_name: 'test1-${{ github.run_id }}'
           delete_tag: 'true'
 
+  acton-module-auto-branch-false:
+    name: acton-module-auto-branch-false
+    needs: [acton-module-tag-reference]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+
+      - name: Commit to repository
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: test
+          create_pr: true
+          auto_branch: false
+          pr_base: main
+          pr_branch: test
+          repository_path: test
+          file_pattern: .
+          delete_source_branch: true
+          github_token: ${{ secrets.PAT_TOKEN }}
+
+  acton-module-auto-branch-true:
+    name: acton-module-auto-branch-true
+    needs: [acton-module-auto-branch-false]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout infrastructure repository
+        uses: actions/checkout@v4
+
+      - name: Commit to repository
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: test
+          create_pr: true
+          auto_branch: true
+          pr_base: main
+          repository_path: test
+          file_pattern: .
+          delete_source_branch: true
+          github_token: ${{ secrets.PAT_TOKEN }}

@@ -11,22 +11,25 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 
 ## Inputs
 
-| Input             | Required | Description                    | Default                           |
-|-------------------|----------|--------------------------------|-----------------------------------|
-| `user_email`      | Yes      | Git user email                 | -                                 |
-| `user_name`       | Yes      | Git user name                  | -                                 |
-| `commit_message`  | No       | Commit message                 | Auto commit by Go Git Commit Action |
-| `branch`          | No       | Branch to push to              | main                              |
-| `repository_path` | No       | Path to the repository         | .                                 |
-| `file_pattern`    | No       | File pattern to add            | .                                 |
-| `tag_name`        | No       | Tag name to create or delete   | -                                 |
-| `tag_message`     | No       | Tag message (for annotated tags)| -                                |
-| `delete_tag`      | No       | Whether to delete the tag      | false                            |
-| `tag_reference`   | No       | Git reference for the tag      | -                                |
-| `create_pr`      | No       | Whether to create a pull request | false                            |
-| `auto_branch`     | No       | Whether to create an automatic branch | true                            |
-| `pr_base`         | No       | Base branch for the pull request | main                            |
-| `delete_source_branch` | No       | Whether to delete the source branch after creating a pull request | false                            |
+| Input                | Required | Description                    | Default                           |
+|---------------------|----------|--------------------------------|-----------------------------------|
+| `user_email`        | Yes      | Git user email                 | -                                 |
+| `user_name`         | Yes      | Git user name                  | -                                 |
+| `commit_message`    | No       | Commit message                 | Auto commit by Go Git Commit Action |
+| `branch`            | No       | Branch to push to              | main                              |
+| `repository_path`   | No       | Path to the repository         | .                                 |
+| `file_pattern`      | No       | File pattern to add            | .                                 |
+| `tag_name`          | No       | Tag name to create or delete   | -                                 |
+| `tag_message`       | No       | Tag message (for annotated tags)| -                                |
+| `delete_tag`        | No       | Whether to delete the tag      | false                            |
+| `tag_reference`     | No       | Git reference for the tag      | -                                |
+| `create_pr`         | No       | Whether to create a pull request | false                           |
+| `auto_branch`       | No       | Whether to create automatic branch | true                          |
+| `pr_title`          | No       | Pull request title             | Auto PR by Go Git Commit Action   |
+| `pr_base`           | No       | Base branch for pull request   | main                             |
+| `pr_branch`         | No       | Branch to create pull request from | -                            |
+| `delete_source_branch` | No    | Whether to delete source branch after PR | false                   |
+| `github_token`      | No       | GitHub token for PR creation   | -                                |
 
 ## Example Workflows
 
@@ -152,18 +155,19 @@ jobs:
 
 ### Create Pull Request
 
-#### Auto Branch
+#### Auto Branch (Recommended)
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: 'github-actions@github.com'
     user_name: 'GitHub Actions'
     create_pr: 'true'
-    auto_branch: 'true'  # Or skip (default)
+    auto_branch: 'true'  # Creates timestamped branch automatically
     pr_base: 'main'
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-#### User Branch
+#### Custom Branch
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
@@ -171,21 +175,35 @@ jobs:
     user_name: 'GitHub Actions'
     create_pr: 'true'
     auto_branch: 'false'
-    branch: 'feature/my-branch'  # Create PR from this branch
+    branch: 'feature/my-branch'
+    pr_branch: 'feature/my-branch'  # Branch to create PR from
     pr_base: 'main'
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-#### Delete Source Branch
+#### With Custom PR Title
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: 'github-actions@github.com'
     user_name: 'GitHub Actions'
     create_pr: 'true'
-    auto_branch: 'false'
-    branch: 'feature/my-branch'  # Create PR from this branch
+    pr_title: 'feat: my custom PR title'
+    pr_base: 'main'
+    github_token: ${{ secrets.GITHUB_TOKEN }}
+```
+
+#### Delete Source Branch After PR
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: 'github-actions@github.com'
+    user_name: 'GitHub Actions'
+    create_pr: 'true'
+    auto_branch: 'true'
     pr_base: 'main'
     delete_source_branch: 'true'
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Features
@@ -213,21 +231,6 @@ jobs:
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
 - Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
 - When working with workflow files, you need to use a Personal Access Token (PAT) with appropriate permissions:
-
-```yaml
-steps:
-  - uses: actions/checkout@v4
-    with:
-      token: ${{ secrets.PAT_TOKEN }}  # Use PAT instead of GITHUB_TOKEN
-
-  - name: Create Git Tag
-    uses: somaz94/go-git-commit-action@v1
-    with:
-      user_email: 'github-actions@github.com'
-      user_name: 'GitHub Actions'
-      tag_name: 'v1.0.0'
-      tag_reference: 'main'
-```
 
 ## License
 
