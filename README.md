@@ -54,11 +54,11 @@ jobs:
       - name: Auto Commit Changes
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          commit_message: 'Auto commit by GitHub Actions'
-          branch: 'main'
-          repository_path: 'path/to/repo'  # Optional
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          commit_message: Auto commit by GitHub Actions
+          branch: main
+          repository_path: path/to/repo  # Optional
           file_pattern: '*.md'             # Example: commit only markdown files
 ```
 
@@ -82,10 +82,10 @@ jobs:
       - name: Create Git Tag
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'v1.0.0'
-          tag_message: 'Release version 1.0.0'  # Optional for annotated tags
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: v1.0.0
+          tag_message: Release version 1.0.0  # Optional for annotated tags
 ```
 
 ### Deleting a Tag
@@ -108,10 +108,10 @@ jobs:
       - name: Delete Git Tag
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'v1.0.0'
-          delete_tag: 'true'
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: v1.0.0
+          delete_tag: true
 ```
 
 ### Creating a Tag with Reference
@@ -133,28 +133,28 @@ jobs:
       - name: Create Git Tag at Commit
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'v1'
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: v1
           tag_reference: ${{ github.sha }}  # Points to specific commit SHA
           
       # Create tag pointing to another tag
       - name: Create Git Tag from Tag
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'latest'
-          tag_reference: 'v1.0.2'  # Points to existing tag
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: latest
+          tag_reference: v1.0.2  # Points to existing tag
           
       # Create tag pointing to branch
       - name: Create Git Tag from Branch
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'github-actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'stable'
-          tag_reference: 'main'  # Points to branch
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: stable
+          tag_reference: main  # Points to branch
 ```
 
 ### Create Pull Request
@@ -163,11 +163,11 @@ jobs:
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
-    user_email: 'github-actions@github.com'
-    user_name: 'GitHub Actions'
-    create_pr: 'true'
-    auto_branch: 'true'  # Creates timestamped branch automatically
-    pr_base: 'main'
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: true  # Creates timestamped branch automatically
+    pr_base: main
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
@@ -175,13 +175,13 @@ jobs:
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
-    user_email: 'github-actions@github.com'
-    user_name: 'GitHub Actions'
-    create_pr: 'true'
-    auto_branch: 'false'
-    branch: 'feature/my-branch'
-    pr_branch: 'feature/my-branch'  # Branch to create PR from
-    pr_base: 'main'
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: false
+    branch: feature/my-branch
+    pr_branch: feature/my-branch  # Branch to create PR from
+    pr_base: main
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
@@ -189,11 +189,11 @@ jobs:
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
-    user_email: 'github-actions@github.com'
-    user_name: 'GitHub Actions'
-    create_pr: 'true'
-    pr_title: 'feat: my custom PR title'
-    pr_base: 'main'
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    pr_title: feat: my custom PR title
+    pr_base: main
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
@@ -201,12 +201,12 @@ jobs:
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
-    user_email: 'github-actions@github.com'
-    user_name: 'GitHub Actions'
-    create_pr: 'true'
-    auto_branch: 'true'
-    pr_base: 'main'
-    delete_source_branch: 'true'
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: true
+    pr_base: main
+    delete_source_branch: true
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
@@ -226,15 +226,39 @@ jobs:
 
 ## Notes
 
+### General
 - The action automatically handles git configuration
 - If `repository_path` is not specified, it uses the current directory
 - `file_pattern` supports standard git pattern matching
 - The action will skip the commit if there are no changes to commit
+
+### Tag Operations
 - Tag operations are optional and only executed when `tag_name` is provided
 - Use `tag_message` to create annotated tags
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
 - Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
-- When working with workflow files, you need to use a Personal Access Token (PAT) with appropriate permissions.
+
+### Pull Request Operations
+- Set `create_pr: 'true'` to create a pull request
+- When `auto_branch` is true (default), it creates a timestamped branch automatically
+- `pr_title` can be customized (defaults to "Auto PR by Go Git Commit Action")
+- `pr_base` specifies the target branch for the PR (defaults to main)
+- Use `pr_branch` to specify a custom source branch when `auto_branch` is false
+- Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works when `auto_branch` is true)
+
+### Authentication
+- When working with workflow files or tags, you need to use a Personal Access Token (PAT) with appropriate permissions:
+  ```yaml
+  - uses: actions/checkout@v4
+    with:
+      token: ${{ secrets.PAT_TOKEN }}  # Required for tag operations
+  ```
+  This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
+- The `github_token` input is required for creating pull requests
+
+### Branch Operations
+- The `branch` input specifies the target branch for commits (defaults to main)
+- When using `auto_branch`, a new branch is created with a timestamp format
 
 ## License
 

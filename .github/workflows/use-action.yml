@@ -50,10 +50,10 @@ jobs:
       - name: Delete Tag
         uses: somaz94/go-git-commit-action@v1
         with:
-          user_email: 'actions@github.com'
-          user_name: 'GitHub Actions'
-          tag_name: 'test1-${{ github.run_id }}'
-          delete_tag: 'true'
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          tag_name: test1-${{ github.run_id }}
+          delete_tag: true
 
   acton-module-auto-branch-false:
     name: acton-module-auto-branch-false
