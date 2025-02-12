@@ -18,7 +18,14 @@ func CreatePullRequest(config *config.GitConfig) error {
 	if config.AutoBranch {
 		// 자동 브랜치 생성 (이름 생성)
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
+		// auto_branch가 true일 때 PRBranch 설정
 		config.PRBranch = sourceBranch
+
+		// 새 브랜치 생성 전에 이미 존재하는지 확인
+		checkBranch := exec.Command("git", "show-ref", "--verify", fmt.Sprintf("refs/heads/%s", sourceBranch))
+		if checkBranch.Run() == nil {
+			return fmt.Errorf("branch %s already exists", sourceBranch)
+		}
 
 		// 현재 브랜치에서 새 브랜치 생성
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
@@ -27,15 +34,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 			return fmt.Errorf("failed to create branch: %v", err)
 		}
 		fmt.Println("✅ Done")
-
-		// 변경사항 확인
-		fmt.Printf("\n📊 Changed files between %s and current:\n", config.PRBase)
-		diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s", config.PRBase), "--name-status")
-		diffCmd.Stdout = os.Stdout
-		diffCmd.Stderr = os.Stderr
-		if err := diffCmd.Run(); err != nil {
-			return fmt.Errorf("failed to check differences: %v", err)
-		}
 
 		// 변경사항 커밋 및 푸시
 		commitCommands := []struct {
@@ -95,13 +93,27 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// GitHub Run ID 가져오기
 	runID := os.Getenv("GITHUB_RUN_ID")
 
+	// PR 제목 설정
+	prTitle := config.PRTitle
+	if prTitle == "" {
+		prTitle = fmt.Sprintf("Auto PR: %s to %s", sourceBranch, config.PRBase)
+	}
+
 	// JSON 데이터 준비
 	jsonData := fmt.Sprintf(`{
-		"title": "Auto PR: %s to %s (Run ID: %s)",
+		"title": "%s",
 		"head": "%s",
 		"base": "%s",
-		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nGitHub Run ID: %s"
-	}`, sourceBranch, config.PRBase, runID, sourceBranch, config.PRBase, sourceBranch, config.PRBase, runID)
+		"body": "## Changes Made\n- Created by Go Git Commit Action\n- Source: %s\n- Target: %s\n- GitHub Run ID: %s\n\n## Modified Files\n%s"
+	}`,
+		prTitle,
+		sourceBranch,
+		config.PRBase,
+		sourceBranch,
+		config.PRBase,
+		runID,
+		string(filesOutput),
+	)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
@@ -121,7 +133,6 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// API 응답이 성공적인지 확인
 		if strings.Contains(string(output), "html_url") {
 			fmt.Printf("✅ Done\n")
-			// API 응답에서 PR URL 추출
 			var response map[string]interface{}
 			if err := json.Unmarshal(output, &response); err == nil {
 				if htmlURL, ok := response["html_url"].(string); ok {
@@ -130,6 +141,13 @@ func CreatePullRequest(config *config.GitConfig) error {
 			}
 		} else {
 			fmt.Printf("⚠️  Failed to create PR\n")
+			// 에러 상세 정보 추가
+			var response map[string]interface{}
+			if err := json.Unmarshal(output, &response); err == nil {
+				if message, ok := response["message"].(string); ok {
+					fmt.Printf("Error message: %s\n", message)
+				}
+			}
 			fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 		}
 	}
