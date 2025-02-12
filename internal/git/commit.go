@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
@@ -44,7 +45,85 @@ func handleBranch(config *config.GitConfig) error {
 	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
 		return createNewBranch(config)
 	} else if checkLocalBranch.Run() != nil {
-		return checkoutExistingBranch(config)
+		// 로컬 변경사항 처리
+		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+
+		// 수정된 파일 확인
+		fmt.Printf("  • Checking modified files... ")
+		statusCmd := exec.Command("git", "status", "--porcelain")
+		statusOutput, err := statusCmd.Output()
+		if err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to get modified files: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 변경된 파일 백업
+		var backups []FileBackup
+		fmt.Printf("  • Backing up changes... ")
+		for _, line := range strings.Split(string(statusOutput), "\n") {
+			if line == "" {
+				continue
+			}
+			status := line[:2]
+			fullPath := strings.TrimSpace(line[3:])
+
+			// 상대 경로 계산
+			relPath := fullPath
+			if config.RepoPath != "." {
+				relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
+			}
+
+			fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
+
+			// 삭제된 파일이 아닌 경우만 백업
+			if status != " D" && status != "D " {
+				content, err := os.ReadFile(relPath)
+				if err != nil {
+					fmt.Println("❌ Failed")
+					return fmt.Errorf("failed to read file %s: %v", relPath, err)
+				}
+				backups = append(backups, FileBackup{path: relPath, content: content})
+			}
+		}
+		fmt.Println("✅ Done")
+
+		// 변경사항 stash
+		fmt.Printf("  • Stashing changes... ")
+		stashCmd := exec.Command("git", "stash", "push", "-u")
+		stashCmd.Stdout = os.Stdout
+		stashCmd.Stderr = os.Stderr
+		if err := stashCmd.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to stash changes: %v", err)
+		}
+		fmt.Println("✅ Done")
+
+		// 원격 브랜치 체크아웃
+		checkoutCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
+			{"git", []string{"checkout", config.Branch}, "Checking out branch"},
+			{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
+		}
+
+		for _, cmd := range checkoutCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to %s: %v", cmd.desc, err)
+			}
+			fmt.Println("✅ Done")
+		}
+
+		// 변경사항 복원
+		return restoreFiles(backups)
 	}
 	return nil
 }
