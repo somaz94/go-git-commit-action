@@ -74,69 +74,131 @@ func setupGitConfig(config *config.GitConfig) error {
 
 // 실제 커밋 실행
 func RunGitCommit(config *config.GitConfig) error {
-	// 브랜치 처리
-	if err := handleBranch(config); err != nil {
-		return err
+	// Debug information
+	currentDir, _ := os.Getwd()
+	fmt.Println("\n🚀 Starting Git Commit Action\n" +
+		"================================")
+
+	// Configuration Info
+	fmt.Println("\n📋 Configuration:")
+	fmt.Printf("  • Working Directory: %s\n", currentDir)
+	fmt.Printf("  • User Email: %s\n", config.UserEmail)
+	fmt.Printf("  • User Name: %s\n", config.UserName)
+	fmt.Printf("  • Commit Message: %s\n", config.CommitMessage)
+	fmt.Printf("  • Target Branch: %s\n", config.Branch)
+	fmt.Printf("  • Repository Path: %s\n", config.RepoPath)
+	fmt.Printf("  • File Pattern: %s\n", config.FilePattern)
+
+	// Directory Contents
+	fmt.Println("\n📁 Directory Contents:")
+	files, _ := os.ReadDir(".")
+	for _, file := range files {
+		fmt.Printf("  • %s\n", file.Name())
 	}
 
-	// 변경사항 커밋
-	return commitChanges(config)
-}
+	// Change Directory
+	if config.RepoPath != "." {
+		if err := os.Chdir(config.RepoPath); err != nil {
+			return fmt.Errorf("❌ Failed to change directory: %v", err)
+		}
+		newDir, _ := os.Getwd()
+		fmt.Printf("\n📂 Changed to directory: %s\n", newDir)
+	}
 
-func handleBranch(config *config.GitConfig) error {
+	// Git Operations
+	fmt.Println("\n⚙️  Executing Git Commands:")
+	baseCommands := []struct {
+		name string
+		args []string
+		desc string
+	}{
+		{"git", []string{"config", "--global", "--add", "safe.directory", "/app"}, "Setting safe directory (/app)"},
+		{"git", []string{"config", "--global", "--add", "safe.directory", "/github/workspace"}, "Setting safe directory (/github/workspace)"},
+		{"git", []string{"config", "--global", "user.email", config.UserEmail}, "Configuring user email"},
+		{"git", []string{"config", "--global", "user.name", config.UserName}, "Configuring user name"},
+		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
+	}
+
+	// Git Configuration
+	for _, cmd := range baseCommands {
+		fmt.Printf("  • %s... ", cmd.desc)
+		command := exec.Command(cmd.name, cmd.args...)
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+
+		if err := command.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+		}
+		fmt.Println("✅ Done")
+	}
+
+	// Branch Existence Check
 	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
 	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
 
 	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
-		return createNewBranch(config)
+		// Create new branch
+		fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
+		createCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
+			{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
+		}
+
+		for _, cmd := range createCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
+
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
 	} else if checkLocalBranch.Run() != nil {
-		return checkoutExistingBranch(config)
-	}
-	return nil
-}
+		// Checkout existing remote branch
+		fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
 
-func createNewBranch(config *config.GitConfig) error {
-	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
-	createCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
-		{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
-		{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
-	}
+		// Backup current changes
+		if err := backupAndStashChanges(); err != nil {
+			return err
+		}
 
-	return executeCommands(createCommands)
-}
+		checkoutCommands := []struct {
+			name string
+			args []string
+			desc string
+		}{
+			{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
+			{"git", []string{"checkout", "-b", config.Branch, fmt.Sprintf("origin/%s", config.Branch)}, "Checking out branch"},
+		}
 
-func checkoutExistingBranch(config *config.GitConfig) error {
-	fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+		for _, cmd := range checkoutCommands {
+			fmt.Printf("  • %s... ", cmd.desc)
+			command := exec.Command(cmd.name, cmd.args...)
+			command.Stdout = os.Stdout
+			command.Stderr = os.Stderr
 
-	// 현재 변경사항 백업
-	if err := backupAndStashChanges(); err != nil {
-		return err
-	}
+			if err := command.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+			}
+			fmt.Println("✅ Done")
+		}
 
-	// 브랜치 체크아웃
-	checkoutCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
-		{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
-		{"git", []string{"checkout", config.Branch}, "Checking out branch"},
-		{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
+		// Restore changes
+		if err := restoreChanges(); err != nil {
+			return err
+		}
 	}
 
-	if err := executeCommands(checkoutCommands); err != nil {
-		return err
-	}
-
-	// 변경사항 복원
-	return restoreChanges()
-}
-
-func commitChanges(config *config.GitConfig) error {
+	// Commit changes
 	commitCommands := []struct {
 		name string
 		args []string
@@ -147,7 +209,24 @@ func commitChanges(config *config.GitConfig) error {
 		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
 	}
 
-	return executeCommands(commitCommands)
+	for _, cmd := range commitCommands {
+		fmt.Printf("  • %s... ", cmd.desc)
+		command := exec.Command(cmd.name, cmd.args...)
+		command.Stdout = os.Stdout
+		command.Stderr = os.Stderr
+
+		if err := command.Run(); err != nil {
+			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
+				fmt.Println("⚠️  Nothing to commit, skipping...")
+				continue
+			}
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+		}
+		fmt.Println("✅ Done")
+	}
+
+	return nil
 }
 
 func executeCommands(commands []struct {

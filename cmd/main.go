@@ -22,7 +22,7 @@ func main() {
 
 	// 3. PR 생성 처리 (설정된 경우)
 	if cfg.CreatePR {
-		if err := git.HandlePullRequest(cfg); err != nil {
+		if err := git.CreatePullRequest(cfg); err != nil {
 			log.Fatalf("Error creating pull request: %v", err)
 		}
 	}
