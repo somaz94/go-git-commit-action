@@ -71,6 +71,7 @@ jobs:
           branch: test
           create_pr: true
           auto_branch: false
+          pr_title: test-to-main-pr-title
           pr_base: main
           pr_branch: test
           repository_path: test
