@@ -15,6 +15,9 @@ RUN apk add --no-cache \
     github-cli \
     curl
 
+# Set working directory
+WORKDIR /app
+
 COPY --from=builder /go-git-commit-action /go-git-commit-action
 
 ENTRYPOINT ["/go-git-commit-action"]
