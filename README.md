@@ -9,6 +9,8 @@
 
 The **Go Git Commit Action** is a GitHub Action that automates git commit, push, and tag operations. Written in Go, it provides a reliable and efficient way to commit changes and manage tags in your GitHub Actions workflows. This action is particularly useful for workflows that need to automatically commit changes and manage tags in repositories.
 
+<br/>
+
 ## Inputs
 
 | Input                | Required | Description                    | Default                           |
@@ -31,7 +33,11 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `delete_source_branch` | No    | Whether to delete source branch after PR | false                   |
 | `github_token`      | No       | GitHub token for PR creation   | -                                |
 
+<br/>
+
 ## Example Workflows
+
+<br/>
 
 ### Basic Commit Example
 
@@ -62,6 +68,8 @@ jobs:
           file_pattern: '*.md'             # Example: commit only markdown files
 ```
 
+<br/>
+
 ### Creating a Tag
 
 ```yaml
@@ -88,6 +96,8 @@ jobs:
           tag_message: Release version 1.0.0  # Optional for annotated tags
 ```
 
+<br/>
+
 ### Deleting a Tag
 
 ```yaml
@@ -113,6 +123,8 @@ jobs:
           tag_name: v1.0.0
           delete_tag: true
 ```
+
+<br/>
 
 ### Creating a Tag with Reference
 
@@ -156,6 +168,8 @@ jobs:
           tag_name: stable
           tag_reference: main  # Points to branch
 ```
+
+<br/>
 
 ### Create Pull Request
 
@@ -210,6 +224,8 @@ jobs:
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
+<br/>
+
 ## Features
 
 - Written in Go for better performance and reliability
@@ -223,6 +239,8 @@ jobs:
 - Automatic tag pushing to remote
 - Support for creating tags pointing to specific commits, tags, or branches
 - Flexible tag reference system
+
+<br/>
 
 ## Notes
 
@@ -246,6 +264,8 @@ jobs:
 - Use `pr_branch` to specify a custom source branch when `auto_branch` is false
 - Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works when `auto_branch` is true)
 
+<br/>
+
 ### Authentication
 - When working with workflow files or tags, you need to use a Personal Access Token (PAT) with appropriate permissions:
   ```yaml
@@ -256,13 +276,19 @@ jobs:
   This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
 - The `github_token` input is required for creating pull requests
 
+<br/>
+
 ### Branch Operations
 - The `branch` input specifies the target branch for commits (defaults to main)
 - When using `auto_branch`, a new branch is created with a timestamp format
 
+<br/>
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+<br/>
 
 ## Contributing
 
