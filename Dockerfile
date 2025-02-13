@@ -1,8 +1,6 @@
 # Build stage
 FROM golang:1.23-alpine AS builder
 
-RUN apk add --no-cache git
-
 WORKDIR /app
 COPY . .
 
@@ -11,7 +9,11 @@ RUN go build -o /go-git-commit-action ./cmd/main.go
 # Final stage
 FROM alpine:latest
 
-RUN apk add --no-cache git github-cli curl
+# Install required git packages
+RUN apk add --no-cache \
+    git \
+    github-cli \
+    curl
 
 COPY --from=builder /go-git-commit-action /go-git-commit-action
 
