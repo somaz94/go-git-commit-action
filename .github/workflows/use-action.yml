@@ -76,7 +76,6 @@ jobs:
           pr_branch: test
           repository_path: test
           file_pattern: .
-          delete_source_branch: true
           github_token: ${{ secrets.PAT_TOKEN }}
 
   acton-module-auto-branch-true:
