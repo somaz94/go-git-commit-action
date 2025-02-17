@@ -165,33 +165,90 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// Check for error in response
 	if errMsg, ok := response["message"].(string); ok {
 		fmt.Printf("GitHub API Error: %s\n", errMsg)
-		// 에러 상세 정보 출력
 		if errors, ok := response["errors"].([]interface{}); ok {
 			fmt.Println("Error details:")
 			for _, err := range errors {
 				if errMap, ok := err.(map[string]interface{}); ok {
 					fmt.Printf("  • %v\n", errMap)
-				}
-			}
-		}
-		// PR이 이미 존재하는 경우 처리
-		if errMsg == "A pull request already exists for somaz94:test." {
-			fmt.Println("⚠️  Pull request already exists")
-			// 기존 PR 찾기
-			searchCmd := exec.Command("curl", "-s",
-				"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
-				"-H", "Accept: application/vnd.github+json",
-				fmt.Sprintf("https://api.github.com/repos/%s/pulls?head=%s&base=%s",
-					os.Getenv("GITHUB_REPOSITORY"),
-					config.PRBranch,
-					config.PRBase))
+					// PR이 이미 존재하는 경우
+					if errMap["message"].(string) == "A pull request already exists for somaz94:test." {
+						fmt.Println("⚠️  Pull request already exists")
+						// 기존 PR 찾기
+						searchCmd := exec.Command("curl", "-s",
+							"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+							"-H", "Accept: application/vnd.github+json",
+							"-H", "X-GitHub-Api-Version: 2022-11-28",
+							fmt.Sprintf("https://api.github.com/repos/%s/pulls?head=%s&base=%s",
+								os.Getenv("GITHUB_REPOSITORY"),
+								config.PRBranch,
+								config.PRBase))
 
-			searchOutput, _ := searchCmd.CombinedOutput()
-			var prs []map[string]interface{}
-			if err := json.Unmarshal(searchOutput, &prs); err == nil && len(prs) > 0 {
-				if url, ok := prs[0]["html_url"].(string); ok {
-					fmt.Printf("Existing PR: %s\n", url)
-					return nil
+						searchOutput, _ := searchCmd.CombinedOutput()
+						var prs []map[string]interface{}
+						if err := json.Unmarshal(searchOutput, &prs); err == nil && len(prs) > 0 {
+							if number, ok := prs[0]["number"].(float64); ok {
+								prNumber := int(number)
+								fmt.Printf("Found existing PR #%d\n", prNumber)
+
+								// 라벨 추가
+								if config.PRLabels != "" {
+									fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
+									labels := strings.Split(config.PRLabels, ",")
+									for i := range labels {
+										labels[i] = strings.TrimSpace(labels[i])
+									}
+
+									labelsData := map[string]interface{}{
+										"labels": labels,
+									}
+									jsonLabelsData, _ := json.Marshal(labelsData)
+
+									labelsCurlCmd := exec.Command("curl", "-s", "-X", "POST",
+										"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+										"-H", "Accept: application/vnd.github+json",
+										"-H", "Content-Type: application/json",
+										fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/labels",
+											os.Getenv("GITHUB_REPOSITORY"), prNumber),
+										"-d", string(jsonLabelsData))
+
+									if labelsOutput, err := labelsCurlCmd.CombinedOutput(); err != nil {
+										fmt.Println("❌ Failed")
+										fmt.Printf("Error: %v\n", err)
+										fmt.Printf("Response: %s\n", string(labelsOutput))
+									} else {
+										fmt.Println("✅ Done")
+									}
+								}
+
+								// PR 닫기
+								if config.PRClosed {
+									fmt.Printf("  • Closing pull request #%d... ", prNumber)
+									closeData := map[string]string{
+										"state": "closed",
+									}
+									jsonCloseData, _ := json.Marshal(closeData)
+
+									closeCurlCmd := exec.Command("curl", "-s", "-X", "PATCH",
+										"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+										"-H", "Accept: application/vnd.github+json",
+										"-H", "Content-Type: application/json",
+										fmt.Sprintf("https://api.github.com/repos/%s/pulls/%d",
+											os.Getenv("GITHUB_REPOSITORY"), prNumber),
+										"-d", string(jsonCloseData))
+
+									if closeOutput, err := closeCurlCmd.CombinedOutput(); err != nil {
+										fmt.Println("❌ Failed")
+										fmt.Printf("Error: %v\n", err)
+										fmt.Printf("Response: %s\n", string(closeOutput))
+									} else {
+										fmt.Println("✅ Done")
+									}
+								}
+
+								return nil
+							}
+						}
+					}
 				}
 			}
 		}
