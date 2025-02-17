@@ -187,7 +187,7 @@ jobs:
   test-action-with-labels-and-body:
     name: Test PR Labels and Body
     runs-on: ubuntu-latest
-    needs: [build-and-push-docker, test-action-auto-branch-false, test-action-auto-branch-true]
+    needs: [test-action-auto-branch-true]
 
     steps:
       - name: Checkout
@@ -223,7 +223,7 @@ jobs:
   test-skip-if-empty:
     name: Test Skip If Empty
     runs-on: ubuntu-latest
-    needs: [build-and-push-docker, test-action-auto-branch-false, test-action-auto-branch-true]
+    needs: [test-action-with-labels-and-body]
 
     steps:
       - name: Checkout
@@ -271,7 +271,7 @@ jobs:
   test-pr-auto-close:
     name: Test PR Auto Close
     runs-on: ubuntu-latest
-    needs: [build-and-push-docker, test-action-auto-branch-false, test-action-auto-branch-true]
+    needs: [test-skip-if-empty]
 
     steps:
       - name: Checkout
