@@ -106,13 +106,37 @@ func CreatePullRequest(config *config.GitConfig) error {
 		title = fmt.Sprintf("Auto PR: %s to %s (Run ID: %s)", sourceBranch, config.PRBase, runID)
 	}
 
+	// PR body 설정
+	body := config.PRBody
+	if body == "" {
+		body = fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s",
+			sourceBranch, config.PRBase, commitID, runID)
+	}
+
+	// Labels 처리
+	var labels []string
+	if config.PRLabels != "" {
+		labels = strings.Split(config.PRLabels, ",")
+		for i := range labels {
+			labels[i] = strings.TrimSpace(labels[i])
+		}
+	}
+
 	// JSON 데이터 준비
-	jsonData := fmt.Sprintf(`{
-		"title": "%s",
-		"head": "%s",
-		"base": "%s",
-		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s"
-	}`, title, sourceBranch, config.PRBase, sourceBranch, config.PRBase, commitID, runID)
+	prData := map[string]interface{}{
+		"title": title,
+		"head":  sourceBranch,
+		"base":  config.PRBase,
+		"body":  body,
+	}
+	if len(labels) > 0 {
+		prData["labels"] = labels
+	}
+
+	jsonData, err := json.Marshal(prData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal PR data: %v", err)
+	}
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
@@ -120,7 +144,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		"-H", "Accept: application/vnd.github+json",
 		"-H", "Content-Type: application/json",
 		fmt.Sprintf("https://api.github.com/repos/%s/pulls", os.Getenv("GITHUB_REPOSITORY")),
-		"-d", jsonData)
+		"-d", string(jsonData))
 
 	output, err := curlCmd.CombinedOutput()
 	if err != nil {

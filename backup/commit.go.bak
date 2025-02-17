@@ -11,6 +11,19 @@ import (
 )
 
 func RunGitCommit(config *config.GitConfig) error {
+	// 필수 설정 검증
+	if config.CreatePR {
+		if !config.AutoBranch && config.PRBranch == "" {
+			return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
+		}
+		if config.PRBase == "" {
+			return fmt.Errorf("pr_base must be specified when create_pr is true")
+		}
+		if config.GitHubToken == "" {
+			return fmt.Errorf("github_token must be specified when create_pr is true")
+		}
+	}
+
 	// Debug information
 	currentDir, _ := os.Getwd()
 	fmt.Println("\n🚀 Starting Git Commit Action\n" +

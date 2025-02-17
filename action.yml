@@ -68,6 +68,18 @@ inputs:
   github_token:
     description: 'GitHub token'
     required: false
+  pr_labels:
+    description: 'Labels to add to the pull request (comma-separated)'
+    required: false
+    default: ''
+  pr_body:
+    description: 'Custom body message for pull request'
+    required: false
+    default: ''
+  skip_if_empty:
+    description: 'Skip the action if there are no changes'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -90,6 +102,9 @@ runs:
     DELETE_SOURCE_BRANCH: ${{ inputs.delete_source_branch }}
     PR_BRANCH: ${{ inputs.pr_branch }}
     GITHUB_TOKEN: ${{ inputs.github_token }}
+    PR_LABELS: ${{ inputs.pr_labels }}
+    PR_BODY: ${{ inputs.pr_body }}
+    SKIP_IF_EMPTY: ${{ inputs.skip_if_empty }}
 branding:
   icon: 'git-commit'
   color: 'blue'

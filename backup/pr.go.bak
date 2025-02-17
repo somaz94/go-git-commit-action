@@ -16,10 +16,17 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 	var sourceBranch string
 	if config.AutoBranch {
-		// 자동 브랜치 생성 (이름 생성)
+		// Generate timestamped branch name
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
+		config.PRBranch = sourceBranch
 
-		// 현재 브랜치에서 새 브랜치 생성
+		// 새 브랜치 생성 전에 이미 존재하는지 확인
+		checkBranch := exec.Command("git", "show-ref", "--verify", fmt.Sprintf("refs/heads/%s", sourceBranch))
+		if checkBranch.Run() == nil {
+			return fmt.Errorf("branch %s already exists", sourceBranch)
+		}
+
+		// Create and switch to new branch
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -27,7 +34,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항 커밋 및 푸시
+		// Commit and push changes
 		commitCommands := []struct {
 			name string
 			args []string
@@ -85,13 +92,27 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// GitHub Run ID 가져오기
 	runID := os.Getenv("GITHUB_RUN_ID")
 
+	// Get current commit SHA
+	commitCmd := exec.Command("git", "rev-parse", "HEAD")
+	commitSHA, err := commitCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to get commit SHA: %v", err)
+	}
+	commitID := strings.TrimSpace(string(commitSHA))
+
+	// PR 제목 설정
+	title := config.PRTitle
+	if title == "" {
+		title = fmt.Sprintf("Auto PR: %s to %s (Run ID: %s)", sourceBranch, config.PRBase, runID)
+	}
+
 	// JSON 데이터 준비
 	jsonData := fmt.Sprintf(`{
-		"title": "Auto PR: %s to %s (Run ID: %s)",
+		"title": "%s",
 		"head": "%s",
 		"base": "%s",
-		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nGitHub Run ID: %s"
-	}`, sourceBranch, config.PRBase, runID, sourceBranch, config.PRBase, sourceBranch, config.PRBase, runID)
+		"body": "Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s"
+	}`, title, sourceBranch, config.PRBase, sourceBranch, config.PRBase, commitID, runID)
 
 	// GitHub API를 통해 PR 생성
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",

@@ -215,6 +215,18 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// Check for changes
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %v", err)
+	}
+
+	if len(statusOutput) == 0 && config.SkipIfEmpty {
+		fmt.Println("\n⚠️  No changes detected and skip_if_empty is true. Skipping commit process.")
+		return nil
+	}
+
 	// Different actions depending on whether PR is generated or not
 	if config.CreatePR {
 		if config.AutoBranch {

@@ -20,9 +20,6 @@ type GitConfig struct {
 	PRBranch           string
 	DeleteSourceBranch bool
 	GitHubToken        string
-	PRLabels           string
-	PRBody             string
-	SkipIfEmpty        bool
 }
 
 func getEnvWithDefault(key, defaultValue string) string {
@@ -51,8 +48,5 @@ func NewGitConfig() *GitConfig {
 		PRBranch:           getEnvWithDefault("INPUT_PR_BRANCH", ""),
 		DeleteSourceBranch: os.Getenv("INPUT_DELETE_SOURCE_BRANCH") == "true",
 		GitHubToken:        os.Getenv("INPUT_GITHUB_TOKEN"),
-		PRLabels:           os.Getenv("INPUT_PR_LABELS"),
-		PRBody:             os.Getenv("INPUT_PR_BODY"),
-		SkipIfEmpty:        os.Getenv("INPUT_SKIP_IF_EMPTY") == "true",
 	}
 }
