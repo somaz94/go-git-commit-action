@@ -244,19 +244,15 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: test
+          branch: main
           create_pr: true
           auto_branch: true
           pr_base: main
           repository_path: test
           file_pattern: .
           skip_if_empty: true
+          pr_title: "Test Skip If Empty - With Changes (should skip)"
           github_token: ${{ secrets.PAT_TOKEN }}
-
-      # 첫 번째 테스트 후 파일 생성
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test_skip.txt
 
       # 변경사항이 있을 때는 skip되지 않는지 확인
       - name: Test Skip If Empty (should not skip)
@@ -271,7 +267,7 @@ jobs:
           repository_path: test
           file_pattern: .
           skip_if_empty: true
-          pr_title: "Test Skip If Empty - With Changes"
+          pr_title: "Test Skip If Empty - With Changes (should not skip)"
           github_token: ${{ secrets.PAT_TOKEN }}
 
   test-pr-auto-close:

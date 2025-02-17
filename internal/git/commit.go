@@ -215,16 +215,36 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
-	// Check for changes
+	// Check for changes in two ways:
+	// 1. Local changes in working directory
 	statusCmd := exec.Command("git", "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return fmt.Errorf("failed to check git status: %v", err)
 	}
 
-	if len(statusOutput) == 0 && config.SkipIfEmpty {
-		fmt.Println("\n⚠️  No changes detected and skip_if_empty is true. Skipping commit process.")
+	// 2. Differences between branches
+	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.Branch), "--name-only")
+	diffOutput, err := diffCmd.Output()
+	if err != nil {
+		// If error occurs (e.g., new branch), don't consider it as empty
+		diffOutput = []byte("new-branch")
+	}
+
+	if len(statusOutput) == 0 && len(diffOutput) == 0 && config.SkipIfEmpty {
+		fmt.Println("\n⚠️  No changes detected (both working directory and between branches) and skip_if_empty is true. Skipping commit process.")
 		return nil
+	}
+
+	// Debug information
+	fmt.Printf("\n📊 Change Detection:\n")
+	fmt.Printf("  • Local changes: %v\n", len(statusOutput) > 0)
+	fmt.Printf("  • Branch differences: %v\n", len(diffOutput) > 0)
+	if len(statusOutput) > 0 {
+		fmt.Printf("  • Local changes details:\n%s\n", string(statusOutput))
+	}
+	if len(diffOutput) > 0 {
+		fmt.Printf("  • Branch differences details:\n%s\n", string(diffOutput))
 	}
 
 	// Different actions depending on whether PR is generated or not

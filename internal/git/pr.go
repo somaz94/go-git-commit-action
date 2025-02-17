@@ -113,24 +113,12 @@ func CreatePullRequest(config *config.GitConfig) error {
 			sourceBranch, config.PRBase, commitID, runID)
 	}
 
-	// Labels 처리
-	var labels []string
-	if config.PRLabels != "" {
-		labels = strings.Split(config.PRLabels, ",")
-		for i := range labels {
-			labels[i] = strings.TrimSpace(labels[i])
-		}
-	}
-
 	// JSON 데이터 준비
 	prData := map[string]interface{}{
 		"title": title,
 		"head":  sourceBranch,
 		"base":  config.PRBase,
 		"body":  body,
-	}
-	if len(labels) > 0 {
-		prData["labels"] = labels
 	}
 
 	jsonData, err := json.Marshal(prData)
@@ -162,10 +150,42 @@ func CreatePullRequest(config *config.GitConfig) error {
 				if htmlURL, ok := response["html_url"].(string); ok {
 					fmt.Printf("Pull request created: %s\n", htmlURL)
 
-					// PR을 자동으로 close해야 하는 경우
-					if config.PRClosed {
-						if number, ok := response["number"].(float64); ok {
-							prNumber := int(number)
+					// PR 번호 추출
+					if number, ok := response["number"].(float64); ok {
+						prNumber := int(number)
+
+						// 라벨 추가
+						if config.PRLabels != "" {
+							fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
+							labels := strings.Split(config.PRLabels, ",")
+							for i := range labels {
+								labels[i] = strings.TrimSpace(labels[i])
+							}
+
+							labelsData := map[string]interface{}{
+								"labels": labels,
+							}
+							jsonLabelsData, _ := json.Marshal(labelsData)
+
+							labelsCurlCmd := exec.Command("curl", "-s", "-X", "POST",
+								"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+								"-H", "Accept: application/vnd.github+json",
+								"-H", "Content-Type: application/json",
+								fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/labels",
+									os.Getenv("GITHUB_REPOSITORY"), prNumber),
+								"-d", string(jsonLabelsData))
+
+							if labelsOutput, err := labelsCurlCmd.CombinedOutput(); err != nil {
+								fmt.Println("❌ Failed")
+								fmt.Printf("Error adding labels: %v\n", err)
+								fmt.Printf("Response: %s\n", string(labelsOutput))
+							} else {
+								fmt.Println("✅ Done")
+							}
+						}
+
+						// PR을 자동으로 close해야 하는 경우
+						if config.PRClosed {
 							fmt.Printf("  • Closing pull request #%d... ", prNumber)
 
 							// PR close를 위한 API 호출
