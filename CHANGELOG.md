@@ -2,6 +2,14 @@
 
 ## [v1.3.0](https://github.com/somaz94/go-git-commit-action/tree/v1.3.0) (2025-02-17)
 
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.3.0...v1.3.0)
+
+**Merged pull requests:**
+
+- build\(deps\): bump golang from 1.23-alpine to 1.24-alpine in the docker-minor group [\#97](https://github.com/somaz94/go-git-commit-action/pull/97) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v1.3.0](https://github.com/somaz94/go-git-commit-action/tree/v1.3.0) (2025-02-17)
+
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.2.4...v1.3.0)
 
 ## [v1.2.4](https://github.com/somaz94/go-git-commit-action/tree/v1.2.4) (2025-02-13)
