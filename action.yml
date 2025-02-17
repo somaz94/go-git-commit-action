@@ -80,6 +80,10 @@ inputs:
     description: 'Skip the action if there are no changes'
     required: false
     default: 'false'
+  pr_closed:
+    description: 'Whether to close the pull request after creation'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -105,6 +109,7 @@ runs:
     PR_LABELS: ${{ inputs.pr_labels }}
     PR_BODY: ${{ inputs.pr_body }}
     SKIP_IF_EMPTY: ${{ inputs.skip_if_empty }}
+    PR_CLOSED: ${{ inputs.pr_closed }}
 branding:
   icon: 'git-commit'
   color: 'blue'

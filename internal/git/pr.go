@@ -156,11 +156,41 @@ func CreatePullRequest(config *config.GitConfig) error {
 		// API 응답이 성공적인지 확인
 		if strings.Contains(string(output), "html_url") {
 			fmt.Printf("✅ Done\n")
-			// API 응답에서 PR URL 추출
+			// API 응답에서 PR URL과 번호 추출
 			var response map[string]interface{}
 			if err := json.Unmarshal(output, &response); err == nil {
 				if htmlURL, ok := response["html_url"].(string); ok {
 					fmt.Printf("Pull request created: %s\n", htmlURL)
+
+					// PR을 자동으로 close해야 하는 경우
+					if config.PRClosed {
+						if number, ok := response["number"].(float64); ok {
+							prNumber := int(number)
+							fmt.Printf("  • Closing pull request #%d... ", prNumber)
+
+							// PR close를 위한 API 호출
+							closeData := map[string]string{
+								"state": "closed",
+							}
+							jsonCloseData, _ := json.Marshal(closeData)
+
+							closeCurlCmd := exec.Command("curl", "-s", "-X", "PATCH",
+								"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+								"-H", "Accept: application/vnd.github+json",
+								"-H", "Content-Type: application/json",
+								fmt.Sprintf("https://api.github.com/repos/%s/pulls/%d",
+									os.Getenv("GITHUB_REPOSITORY"), prNumber),
+								"-d", string(jsonCloseData))
+
+							if closeOutput, err := closeCurlCmd.CombinedOutput(); err != nil {
+								fmt.Println("❌ Failed")
+								fmt.Printf("Error closing PR: %v\n", err)
+								fmt.Printf("Response: %s\n", string(closeOutput))
+							} else {
+								fmt.Println("✅ Done")
+							}
+						}
+					}
 				}
 			}
 		} else {

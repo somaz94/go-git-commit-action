@@ -23,6 +23,7 @@ type GitConfig struct {
 	PRLabels           string
 	PRBody             string
 	SkipIfEmpty        bool
+	PRClosed           bool
 }
 
 func getEnvWithDefault(key, defaultValue string) string {
@@ -54,5 +55,6 @@ func NewGitConfig() *GitConfig {
 		PRLabels:           os.Getenv("INPUT_PR_LABELS"),
 		PRBody:             os.Getenv("INPUT_PR_BODY"),
 		SkipIfEmpty:        os.Getenv("INPUT_SKIP_IF_EMPTY") == "true",
+		PRClosed:           os.Getenv("INPUT_PR_CLOSED") == "true",
 	}
 }
