@@ -260,7 +260,7 @@ jobs:
           auto_branch: true
           pr_base: main
           pr_labels: "test,automated,skip-if-empty-test"
-          repository_path: .
+          repository_path: test
           delete_source_branch: true
           file_pattern: .
           skip_if_empty: true
