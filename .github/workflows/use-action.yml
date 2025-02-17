@@ -41,7 +41,7 @@ jobs:
           tag_name: test1-${{ github.run_id }}
           tag_message: test1 ${{ github.run_id }}
           tag_reference: v1.0.1
-          pr_labels: "test,automated,tag-reference-test"
+          # pr_labels: "test,automated,tag-reference-test"
 
       - name: Confirm Tag Reference
         run: |
