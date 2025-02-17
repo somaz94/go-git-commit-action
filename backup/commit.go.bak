@@ -11,7 +11,7 @@ import (
 )
 
 func RunGitCommit(config *config.GitConfig) error {
-	// 필수 설정 검증
+	// Validate required settings
 	if config.CreatePR {
 		if !config.AutoBranch && config.PRBranch == "" {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
@@ -215,15 +215,47 @@ func RunGitCommit(config *config.GitConfig) error {
 		fmt.Println("✅ Done")
 	}
 
+	// Check for changes in two ways:
+	// 1. Local changes in working directory
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check git status: %v", err)
+	}
+
+	// 2. Differences between branches
+	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.PRBranch), "--name-only")
+	diffOutput, err := diffCmd.Output()
+	if err != nil {
+		// If error occurs (e.g., new branch), don't consider it as empty
+		diffOutput = []byte("new-branch")
+	}
+
+	if len(statusOutput) == 0 && len(diffOutput) == 0 && config.SkipIfEmpty {
+		fmt.Println("\n⚠️  No changes detected (both working directory and between branches) and skip_if_empty is true. Skipping commit process.")
+		return nil
+	}
+
+	// Debug information
+	fmt.Printf("\n📊 Change Detection:\n")
+	fmt.Printf("  • Local changes: %v\n", len(statusOutput) > 0)
+	fmt.Printf("  • Branch differences: %v\n", len(diffOutput) > 0)
+	if len(statusOutput) > 0 {
+		fmt.Printf("  • Local changes details:\n%s\n", string(statusOutput))
+	}
+	if len(diffOutput) > 0 {
+		fmt.Printf("  • Branch differences details:\n%s\n", string(diffOutput))
+	}
+
 	// Different actions depending on whether PR is generated or not
 	if config.CreatePR {
 		if config.AutoBranch {
-			// AutoBranch가 true일 때는 바로 PR 생성으로 넘어감
+			// When AutoBranch is true, the PR creation function creates a new branch and commits
 			if err := CreatePullRequest(config); err != nil {
 				return fmt.Errorf("failed to create pull request: %v", err)
 			}
 		} else {
-			// AutoBranch가 false일 때만 여기서 커밋
+			// When AutoBranch is false, commit to the specified branch first
 			commitCommands := []struct {
 				name string
 				args []string
@@ -251,13 +283,13 @@ func RunGitCommit(config *config.GitConfig) error {
 				fmt.Println("✅ Done")
 			}
 
-			// PR 생성
+			// Create PR after committing (use pr_branch and pr_base)
 			if err := CreatePullRequest(config); err != nil {
 				return fmt.Errorf("failed to create pull request: %v", err)
 			}
 		}
 	} else {
-		// PR을 생성하지 않을 때는 기존 로직 유지
+		// When PR is not created, maintain the existing logic
 		commitCommands := []struct {
 			name string
 			args []string

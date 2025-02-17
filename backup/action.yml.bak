@@ -1,0 +1,116 @@
+name: 'Go Git Commit Action'
+description: 'Automatically commit and push changes using Go'
+author: 'somaz'
+
+inputs:
+  user_email:
+    description: 'Git user email'
+    required: true
+  user_name:
+    description: 'Git user name'
+    required: true
+  commit_message:
+    description: 'Commit message'
+    required: false   
+    default: 'Auto commit by Go Git Commit Action'
+  branch:
+    description: 'Branch to push to'
+    required: false   
+    default: 'main'
+  repository_path:
+    description: 'Path to the repository'
+    required: false
+    default: '.'
+  file_pattern:
+    description: 'File pattern to add'
+    required: false   
+    default: '.'
+  tag_name:
+    description: 'Tag name to create or delete'
+    required: false
+    default: ''
+  tag_message:
+    description: 'Tag message (for annotated tags)'
+    required: false
+    default: ''
+  delete_tag:
+    description: 'Whether to delete the tag (true/false)'
+    required: false
+    default: 'false'
+  tag_reference:
+    description: 'Git reference for the tag (can be commit SHA, tag name, or branch name)'
+    required: false
+    default: ''
+  create_pr:
+    description: 'Whether to create a pull request'
+    required: false
+    default: 'false'
+  auto_branch:
+    description: 'Whether to create automatic branch name'
+    required: false
+    default: 'false'
+  pr_title:
+    description: 'Pull request title'
+    required: false
+    default: ''
+  pr_base:
+    description: 'Base branch for pull request'
+    required: false
+    default: 'main'
+  delete_source_branch:
+    description: 'Whether to delete source branch after PR creation'
+    required: false
+    default: 'false'
+  pr_branch:
+    description: 'Branch to create pull request from'
+    required: false
+    default: ''
+  github_token:
+    description: 'GitHub token'
+    required: false
+  pr_labels:
+    description: 'Labels to add to the pull request (comma-separated)'
+    required: false
+    default: ''
+  pr_body:
+    description: 'Custom body message for pull request'
+    required: false
+    default: ''
+  skip_if_empty:
+    description: 'Skip the action if there are no changes'
+    required: false
+    default: 'false'
+  pr_closed:
+    description: 'Whether to close the pull request after creation'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  env:
+    USER_EMAIL: ${{ inputs.user_email }}
+    USER_NAME: ${{ inputs.user_name }}
+    COMMIT_MESSAGE: ${{ inputs.commit_message }}
+    BRANCH: ${{ inputs.branch }}
+    REPOSITORY_PATH: ${{ inputs.repository_path }}
+    FILE_PATTERN: ${{ inputs.file_pattern }}
+    TAG_NAME: ${{ inputs.tag_name }}
+    TAG_MESSAGE: ${{ inputs.tag_message }}
+    DELETE_TAG: ${{ inputs.delete_tag }}
+    TAG_REFERENCE: ${{ inputs.tag_reference }}
+    CREATE_PR: ${{ inputs.create_pr }}
+    AUTO_BRANCH: ${{ inputs.auto_branch }}
+    PR_TITLE: ${{ inputs.pr_title }}
+    PR_BASE: ${{ inputs.pr_base }}
+    DELETE_SOURCE_BRANCH: ${{ inputs.delete_source_branch }}
+    PR_BRANCH: ${{ inputs.pr_branch }}
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    PR_LABELS: ${{ inputs.pr_labels }}
+    PR_BODY: ${{ inputs.pr_body }}
+    SKIP_IF_EMPTY: ${{ inputs.skip_if_empty }}
+    PR_CLOSED: ${{ inputs.pr_closed }}
+branding:
+  icon: 'git-commit'
+  color: 'blue'
+
