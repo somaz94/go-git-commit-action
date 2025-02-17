@@ -59,14 +59,23 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// Check for changes between branches
 	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.PRBranch)
 
-	// Fetch the latest changes
-	fetchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
-	if err := fetchCmd.Run(); err != nil {
-		return fmt.Errorf("failed to fetch branch: %v", err)
+	// Fetch both branches
+	fetchBaseCmd := exec.Command("git", "fetch", "origin", config.PRBase)
+	if err := fetchBaseCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch base branch: %v", err)
 	}
 
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
-	filesOutput, _ := diffFiles.Output()
+	fetchBranchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
+	if err := fetchBranchCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch source branch: %v", err)
+	}
+
+	// Check for changes
+	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s...origin/%s", config.PRBase, config.PRBranch), "--name-status")
+	filesOutput, err := diffFiles.Output()
+	if err != nil {
+		return fmt.Errorf("failed to check diff: %v", err)
+	}
 
 	if len(filesOutput) == 0 {
 		fmt.Println("No changes detected")
@@ -138,88 +147,82 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("⚠️  Failed to create PR automatically")
 		fmt.Printf("Error: %v\n", err)
 		fmt.Printf("Response: %s\n", string(output))
-		return fmt.Errorf("failed to create PR: %v - %s", err, string(output))
+		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
+		return nil
 	}
 
 	// Parse response
 	var response map[string]interface{}
 	if err := json.Unmarshal(output, &response); err != nil {
-		fmt.Printf("Failed to parse response: %s\n", string(output))
 		return fmt.Errorf("failed to parse PR response: %v", err)
 	}
 
-	// PR이 성공적으로 생성되었는지 확인
-	if response["message"] != nil {
-		fmt.Printf("GitHub API Error: %s\n", response["message"])
-		return fmt.Errorf("GitHub API Error: %s", response["message"])
-	}
+	if htmlURL, ok := response["html_url"].(string); ok {
+		fmt.Println("✅ Done")
+		fmt.Printf("Pull request created: %s\n", htmlURL)
 
-	// PR 번호 추출
-	prNumber, ok := response["number"].(float64)
-	if !ok {
-		return fmt.Errorf("failed to get PR number from response")
-	}
+		// Handle PR number
+		if number, ok := response["number"].(float64); ok {
+			prNumber := int(number)
 
-	fmt.Println("✅ Done")
-	fmt.Printf("Pull request created: %s\n", response["html_url"].(string))
+			// Add labels if specified
+			if config.PRLabels != "" {
+				fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
+				labels := strings.Split(config.PRLabels, ",")
+				for i := range labels {
+					labels[i] = strings.TrimSpace(labels[i])
+				}
 
-	// 라벨 추가
-	if config.PRLabels != "" {
-		fmt.Printf("  • Adding labels to PR #%d... ", int(prNumber))
-		labels := strings.Split(config.PRLabels, ",")
-		for i := range labels {
-			labels[i] = strings.TrimSpace(labels[i])
+				labelsData := map[string]interface{}{
+					"labels": labels,
+				}
+				jsonLabelsData, _ := json.Marshal(labelsData)
+
+				labelsCurlCmd := exec.Command("curl", "-s", "-X", "POST",
+					"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+					"-H", "Accept: application/vnd.github+json",
+					"-H", "Content-Type: application/json",
+					fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/labels",
+						os.Getenv("GITHUB_REPOSITORY"), prNumber),
+					"-d", string(jsonLabelsData))
+
+				if labelsOutput, err := labelsCurlCmd.CombinedOutput(); err != nil {
+					fmt.Println("❌ Failed")
+					fmt.Printf("Error: %v\n", err)
+					fmt.Printf("Response: %s\n", string(labelsOutput))
+				} else {
+					fmt.Println("✅ Done")
+				}
+			}
+
+			// Close PR if requested
+			if config.PRClosed {
+				fmt.Printf("  • Closing pull request #%d... ", prNumber)
+				closeData := map[string]string{
+					"state": "closed",
+				}
+				jsonCloseData, _ := json.Marshal(closeData)
+
+				closeCurlCmd := exec.Command("curl", "-s", "-X", "PATCH",
+					"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+					"-H", "Accept: application/vnd.github+json",
+					"-H", "Content-Type: application/json",
+					fmt.Sprintf("https://api.github.com/repos/%s/pulls/%d",
+						os.Getenv("GITHUB_REPOSITORY"), prNumber),
+					"-d", string(jsonCloseData))
+
+				if closeOutput, err := closeCurlCmd.CombinedOutput(); err != nil {
+					fmt.Println("❌ Failed")
+					fmt.Printf("Error: %v\n", err)
+					fmt.Printf("Response: %s\n", string(closeOutput))
+				} else {
+					fmt.Println("✅ Done")
+				}
+			}
 		}
-
-		labelsData := map[string]interface{}{
-			"labels": labels,
-		}
-		jsonLabelsData, _ := json.Marshal(labelsData)
-
-		labelsCurlCmd := exec.Command("curl", "-s", "-X", "POST",
-			"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
-			"-H", "Accept: application/vnd.github+json",
-			"-H", "Content-Type: application/json",
-			"-H", "X-GitHub-Api-Version: 2022-11-28",
-			fmt.Sprintf("https://api.github.com/repos/%s/issues/%d/labels",
-				os.Getenv("GITHUB_REPOSITORY"), int(prNumber)),
-			"-d", string(jsonLabelsData))
-
-		labelsOutput, err := labelsCurlCmd.CombinedOutput()
-		if err != nil {
-			fmt.Println("❌ Failed")
-			fmt.Printf("Error adding labels: %v\n", err)
-			fmt.Printf("Response: %s\n", string(labelsOutput))
-		} else {
-			fmt.Println("✅ Done")
-		}
-	}
-
-	// PR 닫기
-	if config.PRClosed {
-		fmt.Printf("  • Closing pull request #%d... ", int(prNumber))
-		closeData := map[string]string{
-			"state": "closed",
-		}
-		jsonCloseData, _ := json.Marshal(closeData)
-
-		closeCurlCmd := exec.Command("curl", "-s", "-X", "PATCH",
-			"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
-			"-H", "Accept: application/vnd.github+json",
-			"-H", "Content-Type: application/json",
-			"-H", "X-GitHub-Api-Version: 2022-11-28",
-			fmt.Sprintf("https://api.github.com/repos/%s/pulls/%d",
-				os.Getenv("GITHUB_REPOSITORY"), int(prNumber)),
-			"-d", string(jsonCloseData))
-
-		closeOutput, err := closeCurlCmd.CombinedOutput()
-		if err != nil {
-			fmt.Println("❌ Failed")
-			fmt.Printf("Error closing PR: %v\n", err)
-			fmt.Printf("Response: %s\n", string(closeOutput))
-		} else {
-			fmt.Println("✅ Done")
-		}
+	} else {
+		fmt.Println("⚠️  Failed to create PR")
+		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
 	}
 
 	// Delete source branch if requested
