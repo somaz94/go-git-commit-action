@@ -48,7 +48,7 @@ inputs:
   auto_branch:
     description: 'Whether to create automatic branch name'
     required: false
-    default: 'true'
+    default: 'false'
   pr_title:
     description: 'Pull request title'
     required: false

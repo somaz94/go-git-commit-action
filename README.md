@@ -26,7 +26,7 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `delete_tag`        | No       | Whether to delete the tag      | false                            |
 | `tag_reference`     | No       | Git reference for the tag      | -                                |
 | `create_pr`         | No       | Whether to create a pull request | false                           |
-| `auto_branch`       | No       | Whether to create automatic branch | true                          |
+| `auto_branch`       | No       | Whether to create automatic branch | false                          |
 | `pr_title`          | No       | Pull request title             | Auto PR by Go Git Commit Action   |
 | `pr_base`           | No       | Base branch for pull request   | main                             |
 | `pr_branch`         | No       | Branch to create pull request from | -                            |
