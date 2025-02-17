@@ -91,7 +91,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 	}
 	fmt.Printf("%s\n", string(filesOutput))
 
-	// PR URL 생성 및 출력
+	// Create PR URL and print it
 	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", config.PRBranch)
 	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
 		os.Getenv("GITHUB_REPOSITORY"),
@@ -102,7 +102,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// Create PR
 	fmt.Printf("  • Creating pull request from %s to %s... ", config.PRBranch, config.PRBase)
 
-	// GitHub Run ID 가져오기
+	// Get GitHub Run ID
 	runID := os.Getenv("GITHUB_RUN_ID")
 
 	// Get current commit SHA
@@ -113,13 +113,13 @@ func CreatePullRequest(config *config.GitConfig) error {
 	}
 	commitID := strings.TrimSpace(string(commitSHA))
 
-	// PR 제목 설정
+	// Set PR title
 	title := config.PRTitle
 	if title == "" {
 		title = fmt.Sprintf("Auto PR: %s to %s (Run ID: %s)", config.PRBranch, config.PRBase, runID)
 	}
 
-	// PR body 설정
+	// Set PR body
 	body := config.PRBody
 	if body == "" {
 		body = fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s",

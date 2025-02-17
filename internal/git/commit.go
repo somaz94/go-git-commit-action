@@ -11,7 +11,7 @@ import (
 )
 
 func RunGitCommit(config *config.GitConfig) error {
-	// 필수 설정 검증
+	// Validate required settings
 	if config.CreatePR {
 		if !config.AutoBranch && config.PRBranch == "" {
 			return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
@@ -250,12 +250,12 @@ func RunGitCommit(config *config.GitConfig) error {
 	// Different actions depending on whether PR is generated or not
 	if config.CreatePR {
 		if config.AutoBranch {
-			// AutoBranch가 true일 때는 PR 생성 함수에서 새 브랜치 생성 및 커밋
+			// When AutoBranch is true, the PR creation function creates a new branch and commits
 			if err := CreatePullRequest(config); err != nil {
 				return fmt.Errorf("failed to create pull request: %v", err)
 			}
 		} else {
-			// AutoBranch가 false일 때는 지정된 branch에 먼저 커밋
+			// When AutoBranch is false, commit to the specified branch first
 			commitCommands := []struct {
 				name string
 				args []string
@@ -283,13 +283,13 @@ func RunGitCommit(config *config.GitConfig) error {
 				fmt.Println("✅ Done")
 			}
 
-			// 그 다음 PR 생성 (pr_branch와 pr_base 사용)
+			// Create PR after committing (use pr_branch and pr_base)
 			if err := CreatePullRequest(config); err != nil {
 				return fmt.Errorf("failed to create pull request: %v", err)
 			}
 		}
 	} else {
-		// PR을 생성하지 않을 때는 기존 로직 유지
+		// When PR is not created, maintain the existing logic
 		commitCommands := []struct {
 			name string
 			args []string

@@ -11,11 +11,11 @@ inputs:
     required: true
   commit_message:
     description: 'Commit message'
-    required: false    # default 값이 있으므로 false로 변경
+    required: false   
     default: 'Auto commit by Go Git Commit Action'
   branch:
     description: 'Branch to push to'
-    required: false    # default 값이 있으므로 false로 변경
+    required: false   
     default: 'main'
   repository_path:
     description: 'Path to the repository'
@@ -23,7 +23,7 @@ inputs:
     default: '.'
   file_pattern:
     description: 'File pattern to add'
-    required: false    # default 값이 있으므로 false로 변경
+    required: false   
     default: '.'
   tag_name:
     description: 'Tag name to create or delete'
