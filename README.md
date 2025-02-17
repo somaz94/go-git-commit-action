@@ -185,6 +185,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: false  # Default value
+    branch: feature/my-branch # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Source branch for PR
     pr_base: main                 # Required: Target branch for PR
     github_token: ${{ secrets.PAT_TOKEN }}
@@ -198,6 +199,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: true   # Will create 'update-files-{timestamp}' branch from pr_branch
+    branch: main # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Base branch for auto-generated branch
     pr_base: main                 # Required: Target branch for PR
     github_token: ${{ secrets.PAT_TOKEN }}
@@ -211,6 +213,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: false
+    branch: feature/my-branch # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Source branch for PR
     pr_base: main                 # Required: Target branch for PR
     pr_title: "feat: my custom PR title"
@@ -226,6 +229,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: true   # Will create 'update-files-{timestamp}' branch
+    branch: main # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Base branch for auto-generated branch
     pr_base: main                 # Required: Target branch for PR
     delete_source_branch: true    # Will delete the auto-generated branch after PR
@@ -240,6 +244,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: false
+    branch: main # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Source branch for PR
     pr_base: main                 # Required: Target branch for PR
     pr_labels: "enhancement,automated,test"
@@ -261,6 +266,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: false
+    branch: feature/my-branch # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Source branch for PR
     pr_base: main                 # Required: Target branch for PR
     skip_if_empty: true          # Skips PR creation if no changes detected
@@ -275,6 +281,7 @@ jobs:
     user_name: GitHub Actions
     create_pr: true
     auto_branch: false
+    branch: main # Not Required: Push branch for commit and tag (Default: main)
     pr_branch: feature/my-branch  # Required: Source branch for PR
     pr_base: main                 # Required: Target branch for PR
     pr_closed: true              # Automatically closes PR after creation

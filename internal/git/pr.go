@@ -28,7 +28,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 		fmt.Println("✅ Done")
 
-		// Commit and push changes
+		// Commit and push changes to the new branch
 		commitCommands := []struct {
 			name string
 			args []string
@@ -54,15 +54,29 @@ func CreatePullRequest(config *config.GitConfig) error {
 			}
 			fmt.Println("✅ Done")
 		}
+	} else {
+		// auto_branch=false일 때는 pr_branch로 체크아웃
+		sourceBranch = config.PRBranch
+		fmt.Printf("  • Checking out branch %s... ", sourceBranch)
+		if err := exec.Command("git", "checkout", sourceBranch).Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to checkout branch: %v", err)
+		}
+		fmt.Println("✅ Done")
 	}
 
-	// Check for changes between branches
+	// Check for changes between pr_base and pr_branch
 	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.PRBranch)
 
-	// Fetch the latest changes
-	fetchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
-	if err := fetchCmd.Run(); err != nil {
-		return fmt.Errorf("failed to fetch branch: %v", err)
+	// Fetch both branches
+	fetchBaseCmd := exec.Command("git", "fetch", "origin", config.PRBase)
+	if err := fetchBaseCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch base branch: %v", err)
+	}
+
+	fetchBranchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
+	if err := fetchBranchCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch source branch: %v", err)
 	}
 
 	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
