@@ -211,7 +211,6 @@ jobs:
           user_name: GitHub Actions
           branch: test
           create_pr: true
-          auto_branch: true
           pr_base: main
           repository_path: test
           file_pattern: .
@@ -268,6 +267,7 @@ jobs:
           pr_base: main
           pr_labels: "test,automated,skip-if-empty-test"
           repository_path: test
+          delete_source_branch: true
           file_pattern: .
           skip_if_empty: true
           pr_title: "Test Skip If Empty - With Changes (should not skip)"
@@ -299,7 +299,6 @@ jobs:
           user_name: GitHub Actions
           branch: test
           create_pr: true
-          auto_branch: true
           pr_base: main
           repository_path: test
           file_pattern: .
