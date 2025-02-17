@@ -132,7 +132,6 @@ jobs:
           pr_labels: "test,automated,auto-branch-false-test"
           repository_path: test
           file_pattern: .
-          delete_source_branch: true
           github_token: ${{ secrets.PAT_TOKEN }}
 
   test-action-auto-branch-true:
