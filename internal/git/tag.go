@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -9,104 +10,115 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-func HandleGitTag(config *config.GitConfig) error {
-	fmt.Println("\n🏷️  Handling Git Tag:")
+// 추가: 태그 관련 구조체
+type TagManager struct {
+	config *config.GitConfig
+}
 
-	// Fetch all tags and refs
-	fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
-	if err := fetchCmd.Run(); err != nil {
-		return fmt.Errorf("failed to fetch tags: %v", err)
-	}
+func NewTagManager(config *config.GitConfig) *TagManager {
+	return &TagManager{config: config}
+}
 
-	if config.DeleteTag {
-		// Delete tag
-		commands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", []string{"tag", "-d", config.TagName}, "Deleting local tag"},
-			{"git", []string{"push", "origin", ":refs/tags/" + config.TagName}, "Deleting remote tag"},
+func (tm *TagManager) HandleGitTag(ctx context.Context) error {
+	return withRetry(ctx, tm.config.RetryCount, func() error {
+		fmt.Println("\n🏷️  Handling Git Tag:")
+
+		// Fetch all tags and refs
+		fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
+		if err := fetchCmd.Run(); err != nil {
+			return fmt.Errorf("failed to fetch tags: %v", err)
 		}
 
-		for _, cmd := range commands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
-	} else {
-		var targetCommit string
-		if config.TagReference != "" {
-			// Check if reference exists
-			cmd := exec.Command("git", "rev-parse", "--verify", config.TagReference)
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("invalid git reference '%s': %v", config.TagReference, err)
+		if tm.config.DeleteTag {
+			// Delete tag
+			commands := []struct {
+				name string
+				args []string
+				desc string
+			}{
+				{"git", []string{"tag", "-d", tm.config.TagName}, "Deleting local tag"},
+				{"git", []string{"push", "origin", ":refs/tags/" + tm.config.TagName}, "Deleting remote tag"},
 			}
 
-			// Get commit SHA for the reference
-			cmd = exec.Command("git", "rev-list", "-n1", config.TagReference)
-			output, err := cmd.Output()
-			if err != nil {
-				return fmt.Errorf("failed to get commit SHA for '%s': %v", config.TagReference, err)
-			}
-			targetCommit = strings.TrimSpace(string(output))
-		}
+			for _, cmd := range commands {
+				fmt.Printf("  • %s... ", cmd.desc)
+				command := exec.Command(cmd.name, cmd.args...)
+				command.Stdout = os.Stdout
+				command.Stderr = os.Stderr
 
-		// Create tag
-		var tagArgs []string
-		if config.TagMessage != "" {
-			if targetCommit != "" {
-				tagArgs = []string{"tag", "-f", "-a", config.TagName, targetCommit, "-m", config.TagMessage}
-			} else {
-				tagArgs = []string{"tag", "-f", "-a", config.TagName, "-m", config.TagMessage}
+				if err := command.Run(); err != nil {
+					fmt.Println("❌ Failed")
+					return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+				}
+				fmt.Println("✅ Done")
 			}
 		} else {
-			if targetCommit != "" {
-				tagArgs = []string{"tag", "-f", config.TagName, targetCommit}
+			var targetCommit string
+			if tm.config.TagReference != "" {
+				// Check if reference exists
+				cmd := exec.Command("git", "rev-parse", "--verify", tm.config.TagReference)
+				if err := cmd.Run(); err != nil {
+					return fmt.Errorf("invalid git reference '%s': %v", tm.config.TagReference, err)
+				}
+
+				// Get commit SHA for the reference
+				cmd = exec.Command("git", "rev-list", "-n1", tm.config.TagReference)
+				output, err := cmd.Output()
+				if err != nil {
+					return fmt.Errorf("failed to get commit SHA for '%s': %v", tm.config.TagReference, err)
+				}
+				targetCommit = strings.TrimSpace(string(output))
+			}
+
+			// Create tag
+			var tagArgs []string
+			if tm.config.TagMessage != "" {
+				if targetCommit != "" {
+					tagArgs = []string{"tag", "-f", "-a", tm.config.TagName, targetCommit, "-m", tm.config.TagMessage}
+				} else {
+					tagArgs = []string{"tag", "-f", "-a", tm.config.TagName, "-m", tm.config.TagMessage}
+				}
 			} else {
-				tagArgs = []string{"tag", "-f", config.TagName}
+				if targetCommit != "" {
+					tagArgs = []string{"tag", "-f", tm.config.TagName, targetCommit}
+				} else {
+					tagArgs = []string{"tag", "-f", tm.config.TagName}
+				}
+			}
+
+			// Create description message
+			desc := "Creating local tag " + tm.config.TagName
+			if tm.config.TagReference != "" {
+				if targetCommit != tm.config.TagReference {
+					desc += fmt.Sprintf(" pointing to %s (%s)", tm.config.TagReference, targetCommit[:8])
+				} else {
+					desc += fmt.Sprintf(" pointing to %s", targetCommit[:8])
+				}
+			}
+
+			commands := []struct {
+				name string
+				args []string
+				desc string
+			}{
+				{"git", tagArgs, desc},
+				{"git", []string{"push", "-f", "origin", tm.config.TagName}, "Pushing tag to remote"},
+			}
+
+			for _, cmd := range commands {
+				fmt.Printf("  • %s... ", cmd.desc)
+				command := exec.Command(cmd.name, cmd.args...)
+				command.Stdout = os.Stdout
+				command.Stderr = os.Stderr
+
+				if err := command.Run(); err != nil {
+					fmt.Println("❌ Failed")
+					return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
+				}
+				fmt.Println("✅ Done")
 			}
 		}
 
-		// Create description message
-		desc := "Creating local tag " + config.TagName
-		if config.TagReference != "" {
-			if targetCommit != config.TagReference {
-				desc += fmt.Sprintf(" pointing to %s (%s)", config.TagReference, targetCommit[:8])
-			} else {
-				desc += fmt.Sprintf(" pointing to %s", targetCommit[:8])
-			}
-		}
-
-		commands := []struct {
-			name string
-			args []string
-			desc string
-		}{
-			{"git", tagArgs, desc},
-			{"git", []string{"push", "-f", "origin", config.TagName}, "Pushing tag to remote"},
-		}
-
-		for _, cmd := range commands {
-			fmt.Printf("  • %s... ", cmd.desc)
-			command := exec.Command(cmd.name, cmd.args...)
-			command.Stdout = os.Stdout
-			command.Stderr = os.Stderr
-
-			if err := command.Run(); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-			}
-			fmt.Println("✅ Done")
-		}
-	}
-
-	return nil
+		return nil
+	})
 }
