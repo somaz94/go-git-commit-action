@@ -129,6 +129,7 @@ jobs:
           pr_title: test-pr-title
           pr_base: main
           pr_branch: test
+          pr_labels: "test,automated,auto-branch-false-test"
           repository_path: test
           file_pattern: .
           delete_source_branch: true
@@ -162,6 +163,7 @@ jobs:
           create_pr: true
           auto_branch: true
           pr_base: main
+          pr_labels: "test,automated,auto-branch-true-test"
           repository_path: test
           file_pattern: .
           delete_source_branch: true
@@ -213,7 +215,7 @@ jobs:
           pr_base: main
           repository_path: test
           file_pattern: .
-          pr_labels: "test,automated,enhancement"
+          pr_labels: "test,automated,label-test"
           pr_body: |
             ## Test Pull Request
             This is a test PR created with custom labels and body.
@@ -264,6 +266,7 @@ jobs:
           create_pr: true
           auto_branch: true
           pr_base: main
+          pr_labels: "test,automated,skip-if-empty-test"
           repository_path: test
           file_pattern: .
           skip_if_empty: true
@@ -301,6 +304,7 @@ jobs:
           repository_path: test
           file_pattern: .
           pr_closed: true
+          pr_labels: "test,automated,auto-close-test"
           pr_title: "Test Auto Close PR"
           pr_body: |
             ## Test Auto Close PR

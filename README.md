@@ -32,6 +32,10 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `pr_branch`         | No       | Branch to create pull request from | -                            |
 | `delete_source_branch` | No    | Whether to delete source branch after PR | false                   |
 | `github_token`      | No       | GitHub token for PR creation   | -                                |
+| `pr_labels`         | No       | Labels to add to pull request (comma-separated) | -               |
+| `pr_body`           | No       | Custom body message for pull request | -                          |
+| `skip_if_empty`     | No       | Skip the action if there are no changes | false                   |
+| `pr_closed`         | No       | Whether to close the pull request after creation | false          |
 
 <br/>
 
@@ -224,6 +228,54 @@ jobs:
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
+### Pull Request with Labels and Custom Body
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: true
+    pr_base: main
+    pr_labels: "enhancement,automated,test"
+    pr_body: |
+      ## Custom Pull Request
+      This PR was automatically created with custom labels and body.
+      
+      ### Changes
+      - Feature 1
+      - Feature 2
+    github_token: ${{ secrets.PAT_TOKEN }}
+```
+
+### Skip Empty Changes
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: true
+    pr_base: main
+    skip_if_empty: true
+    github_token: ${{ secrets.PAT_TOKEN }}
+```
+
+### Auto Close Pull Request
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: true
+    pr_base: main
+    pr_closed: true
+    pr_title: "Auto Close PR Example"
+    pr_body: "This PR will be automatically closed after creation"
+    github_token: ${{ secrets.PAT_TOKEN }}
+```
+
 <br/>
 
 ## Features
@@ -239,6 +291,10 @@ jobs:
 - Automatic tag pushing to remote
 - Support for creating tags pointing to specific commits, tags, or branches
 - Flexible tag reference system
+- Support for PR labels and custom body messages
+- Skip action when no changes are detected
+- Auto-close PR functionality
+- Detailed change detection between branches
 
 <br/>
 
@@ -263,6 +319,11 @@ jobs:
 - `pr_base` specifies the target branch for the PR (defaults to main)
 - Use `pr_branch` to specify a custom source branch when `auto_branch` is false
 - Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works when `auto_branch` is true)
+- Set `pr_labels` to add labels to the PR (comma-separated)
+- Use `pr_body` to set a custom PR description
+- Enable `skip_if_empty` to skip the action when no changes are detected
+- Set `pr_closed: 'true'` to automatically close the PR after creation
+- Change detection includes both working directory changes and branch differences
 
 <br/>
 
