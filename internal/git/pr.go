@@ -69,7 +69,12 @@ func CreatePullRequest(config *config.GitConfig) error {
 
 		// PRBase와 PRBranch 간의 변경사항 확인
 		fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, sourceBranch)
-		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, sourceBranch), "--name-status")
+		// PR 생성 전에 브랜치 fetch
+		fetchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
+		if err := fetchCmd.Run(); err != nil {
+			return fmt.Errorf("failed to fetch branch: %v", err)
+		}
+		diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
 		filesOutput, _ := diffFiles.Output()
 		if len(filesOutput) == 0 {
 			fmt.Println("No changes detected")

@@ -313,24 +313,36 @@ jobs:
 - `file_pattern` supports standard git pattern matching
 - The action will skip the commit if there are no changes to commit
 
+### Branch Operations
+- The `branch` parameter is used for simple commit and tag operations (without PR)
+- For pull request operations:
+  - `pr_branch`: Specifies the source branch for the PR
+  - `pr_base`: Specifies the target branch for the PR
+  - When `auto_branch: true`, a new branch is created with format 'update-files-{timestamp}' based on `pr_branch`
+  - When `auto_branch: false` (default), the PR is created directly from `pr_branch` to `pr_base`
+
 ### Tag Operations
 - Tag operations are optional and only executed when `tag_name` is provided
 - Use `tag_message` to create annotated tags
 - Set `delete_tag: 'true'` to delete a tag both locally and remotely
 - Use `tag_reference` to create tags pointing to specific commits, other tags, or branches
+- The `branch` parameter is used to specify which branch to tag
 
 ### Pull Request Operations
 - Set `create_pr: 'true'` to create a pull request
-- When `auto_branch` is true (default), it creates a timestamped branch automatically
-- `pr_title` can be customized (defaults to "Auto PR: %s to %s (Run ID: %s)", sourceBranch, config.PRBase, runID)
-- `pr_base` specifies the target branch for the PR (defaults to main)
-- Use `pr_branch` to specify a custom source branch when `auto_branch` is false
-- Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works when `auto_branch` is true)
-- Set `pr_labels` to add labels to the PR (comma-separated)
+- `pr_branch` and `pr_base` are required when creating a PR:
+  - `pr_branch`: The source branch containing your changes
+  - `pr_base`: The target branch where changes will be merged
+- When `auto_branch: true`:
+  - Creates a new timestamped branch from `pr_branch`
+  - The new branch name format is 'update-files-{timestamp}'
+  - This is useful for automated updates that need unique branch names
+- `pr_title` can be customized (defaults to "Auto PR: %s to %s (Run ID: %s)")
+- Use `pr_labels` to add labels to the PR (comma-separated)
 - Use `pr_body` to set a custom PR description
 - Enable `skip_if_empty` to skip the action when no changes are detected
 - Set `pr_closed: 'true'` to automatically close the PR after creation
-- Change detection includes both working directory changes and branch differences
+- Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works with `auto_branch: true`)
 
 <br/>
 
@@ -343,13 +355,6 @@ jobs:
   ```
   This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
 - The `github_token` input is required for creating pull requests
-
-<br/>
-
-### Branch Operations
-- The `branch` input specifies the target branch for commits (defaults to main)
-- When using `auto_branch: true`, a new branch is created with a timestamp format (default is false)
-- If `auto_branch` is false (default), you need to specify `pr_branch` when creating a PR
 
 <br/>
 

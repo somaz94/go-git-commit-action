@@ -224,7 +224,7 @@ func RunGitCommit(config *config.GitConfig) error {
 	}
 
 	// 2. Differences between branches
-	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.Branch), "--name-only")
+	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.PRBranch), "--name-only")
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
 		// If error occurs (e.g., new branch), don't consider it as empty
