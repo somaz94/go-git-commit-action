@@ -165,6 +165,36 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// Check for error in response
 	if errMsg, ok := response["message"].(string); ok {
 		fmt.Printf("GitHub API Error: %s\n", errMsg)
+		// 에러 상세 정보 출력
+		if errors, ok := response["errors"].([]interface{}); ok {
+			fmt.Println("Error details:")
+			for _, err := range errors {
+				if errMap, ok := err.(map[string]interface{}); ok {
+					fmt.Printf("  • %v\n", errMap)
+				}
+			}
+		}
+		// PR이 이미 존재하는 경우 처리
+		if errMsg == "A pull request already exists for somaz94:test." {
+			fmt.Println("⚠️  Pull request already exists")
+			// 기존 PR 찾기
+			searchCmd := exec.Command("curl", "-s",
+				"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
+				"-H", "Accept: application/vnd.github+json",
+				fmt.Sprintf("https://api.github.com/repos/%s/pulls?head=%s&base=%s",
+					os.Getenv("GITHUB_REPOSITORY"),
+					config.PRBranch,
+					config.PRBase))
+
+			searchOutput, _ := searchCmd.CombinedOutput()
+			var prs []map[string]interface{}
+			if err := json.Unmarshal(searchOutput, &prs); err == nil && len(prs) > 0 {
+				if url, ok := prs[0]["html_url"].(string); ok {
+					fmt.Printf("Existing PR: %s\n", url)
+					return nil
+				}
+			}
+		}
 		return fmt.Errorf("GitHub API error: %s", errMsg)
 	}
 
