@@ -152,14 +152,20 @@ func CreatePullRequest(config *config.GitConfig) error {
 		fmt.Println("⚠️  Failed to create PR automatically")
 		fmt.Printf("Error: %v\n", err)
 		fmt.Printf("Response: %s\n", string(output))
-		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
-		return nil
+		return fmt.Errorf("failed to execute curl command: %v", err)
 	}
 
 	// Parse response
 	var response map[string]interface{}
 	if err := json.Unmarshal(output, &response); err != nil {
+		fmt.Printf("Raw response: %s\n", string(output))
 		return fmt.Errorf("failed to parse PR response: %v", err)
+	}
+
+	// Check for error in response
+	if errMsg, ok := response["message"].(string); ok {
+		fmt.Printf("GitHub API Error: %s\n", errMsg)
+		return fmt.Errorf("GitHub API error: %s", errMsg)
 	}
 
 	if htmlURL, ok := response["html_url"].(string); ok {
@@ -227,7 +233,8 @@ func CreatePullRequest(config *config.GitConfig) error {
 		}
 	} else {
 		fmt.Println("⚠️  Failed to create PR")
-		fmt.Printf("You can create a pull request manually by visiting:\n   %s\n", prURL)
+		fmt.Printf("Response: %s\n", string(output))
+		return fmt.Errorf("failed to get PR URL from response")
 	}
 
 	// Delete source branch if requested
