@@ -114,10 +114,6 @@ jobs:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
 
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test_labels.txt
-
       - name: Test PR with Labels and Body
         uses: somaz94/go-git-commit-action@v1
         with:
@@ -197,10 +193,6 @@ jobs:
 
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
-
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test_auto_close.txt
 
       - name: Test PR Auto Close
         uses: somaz94/go-git-commit-action@v1

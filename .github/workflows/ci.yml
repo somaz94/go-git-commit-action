@@ -199,10 +199,6 @@ jobs:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
 
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test_labels.txt
-
       - name: Test PR with Labels and Body
         uses: ./
         with:
@@ -264,7 +260,7 @@ jobs:
           auto_branch: true
           pr_base: main
           pr_labels: "test,automated,skip-if-empty-test"
-          repository_path: test
+          repository_path: .
           delete_source_branch: true
           file_pattern: .
           skip_if_empty: true
@@ -284,10 +280,6 @@ jobs:
 
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
-
-      - name: Create Test File
-        run: |
-          echo "$(date +%s)-$RANDOM" > test/test_auto_close.txt
 
       - name: Test PR Auto Close
         uses: ./
