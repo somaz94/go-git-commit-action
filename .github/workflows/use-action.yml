@@ -105,6 +105,7 @@ jobs:
 
   test-action-with-labels-and-body:
     name: Test PR Labels and Body
+    needs: [acton-module-auto-branch-true]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
