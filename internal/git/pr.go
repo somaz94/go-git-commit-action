@@ -59,23 +59,14 @@ func CreatePullRequest(config *config.GitConfig) error {
 	// Check for changes between branches
 	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.PRBranch)
 
-	// Fetch both branches
-	fetchBaseCmd := exec.Command("git", "fetch", "origin", config.PRBase)
-	if err := fetchBaseCmd.Run(); err != nil {
-		return fmt.Errorf("failed to fetch base branch: %v", err)
+	// Fetch the latest changes
+	fetchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
+	if err := fetchCmd.Run(); err != nil {
+		return fmt.Errorf("failed to fetch branch: %v", err)
 	}
 
-	fetchBranchCmd := exec.Command("git", "fetch", "origin", config.PRBranch)
-	if err := fetchBranchCmd.Run(); err != nil {
-		return fmt.Errorf("failed to fetch source branch: %v", err)
-	}
-
-	// Check for changes
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s...origin/%s", config.PRBase, config.PRBranch), "--name-status")
-	filesOutput, err := diffFiles.Output()
-	if err != nil {
-		return fmt.Errorf("failed to check diff: %v", err)
-	}
+	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
+	filesOutput, _ := diffFiles.Output()
 
 	if len(filesOutput) == 0 {
 		fmt.Println("No changes detected")
