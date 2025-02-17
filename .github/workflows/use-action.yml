@@ -103,45 +103,10 @@ jobs:
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_labels: "test,automated,auto-branch-true-test"
 
-  test-action-with-labels-and-body:
-    name: Test PR Labels and Body
-    needs: [acton-module-auto-branch-true]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 10
-
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
-
-      - name: Test PR with Labels and Body
-        uses: somaz94/go-git-commit-action@v1
-        with:
-          user_email: actions@github.com
-          user_name: GitHub Actions
-          branch: test
-          pr_branch: test
-          create_pr: true
-          pr_base: main
-          repository_path: test
-          file_pattern: .
-          pr_labels: "test,automated,label-test"
-          pr_body: |
-            ## Test Pull Request
-            This is a test PR created with custom labels and body.
-            
-            ### Changes
-            - Added test file
-            - Testing PR labels
-            - Testing PR body
-          github_token: ${{ secrets.PAT_TOKEN }}
-
   test-skip-if-empty:
     name: Test Skip If Empty
     runs-on: ubuntu-latest
-    needs: [test-action-with-labels-and-body]
+    needs: [acton-module-auto-branch-true]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -185,10 +150,10 @@ jobs:
           pr_labels: "test,automated,skip-if-empty-test"
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  test-pr-auto-close:
+  test-pr-auto-close-pr-body:
     name: Test PR Auto Close
     runs-on: ubuntu-latest
-    needs: [test-action-with-labels-and-body, test-skip-if-empty]
+    needs: [test-skip-if-empty]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -211,7 +176,7 @@ jobs:
           file_pattern: .
           pr_closed: true
           pr_title: "Test Auto Close PR"
-          pr_labels: "test,automated,auto-close-test"
+          pr_labels: "test,automated,auto-close-pr-body-test"
           pr_body: |
             ## Test Auto Close PR
             This PR will be automatically closed after creation.
