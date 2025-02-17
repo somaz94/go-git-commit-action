@@ -177,65 +177,71 @@ jobs:
 
 ### Create Pull Request
 
-#### Auto Branch
+#### Using Custom Branch (Default)
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    auto_branch: true  # Creates timestamped branch automatically (optional)
-    pr_base: main
+    auto_branch: false  # Default value
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-#### Custom Branch (Default)
+#### Using Auto Branch (Creates timestamped branch from pr_branch)
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    branch: feature/my-branch
-    pr_branch: feature/my-branch  # Branch to create PR from
-    pr_base: main
+    auto_branch: true   # Will create 'update-files-{timestamp}' branch from pr_branch
+    pr_branch: feature/my-branch  # Required: Base branch for auto-generated branch
+    pr_base: main                 # Required: Target branch for PR
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-#### With Custom PR Title
+#### With Custom PR Title and Labels
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    pr_title: feat: my custom PR title
-    pr_base: main
+    auto_branch: false
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
+    pr_title: "feat: my custom PR title"
+    pr_labels: "enhancement,automated,test"
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-#### Delete Source Branch After PR
+#### With Auto Branch and Delete Source Branch
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    auto_branch: true
-    pr_base: main
-    delete_source_branch: true
+    auto_branch: true   # Will create 'update-files-{timestamp}' branch
+    pr_branch: feature/my-branch  # Required: Base branch for auto-generated branch
+    pr_base: main                 # Required: Target branch for PR
+    delete_source_branch: true    # Will delete the auto-generated branch after PR
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-### Pull Request with Labels and Custom Body
+#### With Labels and Custom Body
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    auto_branch: true
-    pr_base: main
+    auto_branch: false
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
     pr_labels: "enhancement,automated,test"
     pr_body: |
       ## Custom Pull Request
@@ -247,29 +253,31 @@ jobs:
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-### Skip Empty Changes
+#### Skip If Empty Changes
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    auto_branch: true
-    pr_base: main
-    skip_if_empty: true
+    auto_branch: false
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
+    skip_if_empty: true          # Skips PR creation if no changes detected
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
-### Auto Close Pull Request
+#### Auto Close Pull Request
 ```yaml
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
     create_pr: true
-    auto_branch: true
-    pr_base: main
-    pr_closed: true
+    auto_branch: false
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
+    pr_closed: true              # Automatically closes PR after creation
     pr_title: "Auto Close PR Example"
     pr_body: "This PR will be automatically closed after creation"
     github_token: ${{ secrets.PAT_TOKEN }}

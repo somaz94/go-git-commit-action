@@ -209,7 +209,7 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: test
+          pr_branch: test
           create_pr: true
           pr_base: main
           repository_path: test
@@ -245,7 +245,7 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: main
+          pr_branch: main
           create_pr: true
           auto_branch: true
           pr_base: main
@@ -261,7 +261,7 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: test
+          pr_branch: test
           create_pr: true
           auto_branch: true
           pr_base: main
@@ -297,7 +297,7 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: test
+          pr_branch: test
           create_pr: true
           pr_base: main
           repository_path: test
