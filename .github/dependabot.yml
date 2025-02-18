@@ -19,3 +19,13 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go-mod-minor:
+        update-types:
+          - minor
+          - patch
