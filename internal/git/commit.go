@@ -15,7 +15,7 @@ import (
 // 추가: 재시도 로직을 위한 헬퍼 함수
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	var lastErr error
-	for i := 0; i < maxRetries; i++ {
+	for i := range make([]struct{}, maxRetries) {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
