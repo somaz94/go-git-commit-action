@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,6 +11,37 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
+
+// 추가: GitHub API 요청을 위한 구조체
+type GitHubClient struct {
+	token      string
+	baseURL    string
+	repository string
+}
+
+func NewGitHubClient(token, repository string) *GitHubClient {
+	return &GitHubClient{
+		token:      token,
+		baseURL:    "https://api.github.com",
+		repository: repository,
+	}
+}
+
+// GitHub API 요청 메서드 추가
+func (c *GitHubClient) CreatePullRequest(ctx context.Context, data map[string]interface{}) (map[string]interface{}, error) {
+	// API 요청 로직
+	return nil, nil
+}
+
+func (c *GitHubClient) AddLabels(ctx context.Context, prNumber int, labels []string) error {
+	// 라벨 추가 로직
+	return nil
+}
+
+func (c *GitHubClient) ClosePullRequest(ctx context.Context, prNumber int) error {
+	// PR 닫기 로직
+	return nil
+}
 
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
@@ -191,15 +223,10 @@ func CreatePullRequest(config *config.GitConfig) error {
 								fmt.Printf("Found existing PR #%d\n", prNumber)
 
 								// 라벨 추가
-								if config.PRLabels != "" {
+								if len(config.PRLabels) > 0 {
 									fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
-									labels := strings.Split(config.PRLabels, ",")
-									for i := range labels {
-										labels[i] = strings.TrimSpace(labels[i])
-									}
-
 									labelsData := map[string]interface{}{
-										"labels": labels,
+										"labels": config.PRLabels,
 									}
 									jsonLabelsData, _ := json.Marshal(labelsData)
 
@@ -264,15 +291,10 @@ func CreatePullRequest(config *config.GitConfig) error {
 			prNumber := int(number)
 
 			// Add labels if specified
-			if config.PRLabels != "" {
+			if len(config.PRLabels) > 0 {
 				fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
-				labels := strings.Split(config.PRLabels, ",")
-				for i := range labels {
-					labels[i] = strings.TrimSpace(labels[i])
-				}
-
 				labelsData := map[string]interface{}{
-					"labels": labels,
+					"labels": config.PRLabels,
 				}
 				jsonLabelsData, _ := json.Marshal(labelsData)
 
