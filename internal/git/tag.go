@@ -10,22 +10,22 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-// TagManager는 Git 태그 관련 작업을 처리하는 구조체입니다.
+// TagManager is a structure that handles tasks related to Git tags.
 type TagManager struct {
 	config *config.GitConfig
 }
 
-// NewTagManager는 새로운 TagManager 인스턴스를 생성합니다.
+// NewTagManager creates a new TagManager instance.
 func NewTagManager(config *config.GitConfig) *TagManager {
 	return &TagManager{config: config}
 }
 
-// HandleGitTag는 Git 태그 작업을 처리합니다.
+// HandleGitTag handles Git tag operations.
 func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 	return withRetry(ctx, tm.config.RetryCount, func() error {
 		fmt.Println("\n🏷️  Handling Git Tag:")
 
-		// 모든 태그와 참조를 가져옵니다.
+		// Gets all tags and references.
 		if err := tm.fetchTags(); err != nil {
 			return err
 		}
@@ -38,7 +38,7 @@ func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 	})
 }
 
-// fetchTags는 모든 태그와 참조를 가져옵니다.
+// fetchTags fetches all tags and references.
 func (tm *TagManager) fetchTags() error {
 	fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
 	if err := fetchCmd.Run(); err != nil {
@@ -47,7 +47,7 @@ func (tm *TagManager) fetchTags() error {
 	return nil
 }
 
-// deleteTag는 로컬 및 원격 태그를 삭제합니다.
+// deleteTag deletes local and remote tags.
 func (tm *TagManager) deleteTag() error {
 	commands := []struct {
 		name string
@@ -61,18 +61,18 @@ func (tm *TagManager) deleteTag() error {
 	return tm.executeCommands(commands)
 }
 
-// createTag는 새 태그를 생성하고 원격 저장소에 푸시합니다.
+// createTag creates a new tag and pushes it to the remote repository.
 func (tm *TagManager) createTag() error {
-	// 태그 참조 대상 커밋 확인
+	// Check the target commit for the tag reference
 	targetCommit, err := tm.getTargetCommit()
 	if err != nil {
 		return err
 	}
 
-	// 태그 생성 명령 준비
+	// Prepare the tag creation command
 	tagArgs := tm.buildTagArgs(targetCommit)
 
-	// 태그 설명 메시지 생성
+	// Create the tag description message
 	desc := tm.buildTagDescription(targetCommit)
 
 	commands := []struct {
@@ -87,19 +87,19 @@ func (tm *TagManager) createTag() error {
 	return tm.executeCommands(commands)
 }
 
-// getTargetCommit은 태그가 가리킬 커밋을 결정합니다.
+// getTargetCommit determines the commit that the tag will point to.
 func (tm *TagManager) getTargetCommit() (string, error) {
 	if tm.config.TagReference == "" {
 		return "", nil
 	}
 
-	// 참조가 유효한지 확인
+	// Check if the reference is valid
 	cmd := exec.Command("git", "rev-parse", "--verify", tm.config.TagReference)
 	if err := cmd.Run(); err != nil {
 		return "", fmt.Errorf("invalid git reference '%s': %v", tm.config.TagReference, err)
 	}
 
-	// 참조에 대한 커밋 SHA 가져오기
+	// Get the commit SHA for the reference
 	cmd = exec.Command("git", "rev-list", "-n1", tm.config.TagReference)
 	output, err := cmd.Output()
 	if err != nil {
@@ -109,7 +109,7 @@ func (tm *TagManager) getTargetCommit() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// buildTagArgs는 태그 생성 명령에 필요한 인수를 구성합니다.
+// buildTagArgs builds the arguments needed for the tag creation command.
 func (tm *TagManager) buildTagArgs(targetCommit string) []string {
 	var tagArgs []string
 
@@ -130,7 +130,7 @@ func (tm *TagManager) buildTagArgs(targetCommit string) []string {
 	return tagArgs
 }
 
-// buildTagDescription은 태그 생성 작업에 대한 설명을 생성합니다.
+// buildTagDescription builds the description for the tag creation operation.
 func (tm *TagManager) buildTagDescription(targetCommit string) string {
 	desc := "Creating local tag " + tm.config.TagName
 
@@ -145,7 +145,7 @@ func (tm *TagManager) buildTagDescription(targetCommit string) string {
 	return desc
 }
 
-// executeCommands는 명령 목록을 실행하고 결과를 출력합니다.
+// executeCommands executes a list of commands and prints the results.
 func (tm *TagManager) executeCommands(commands []struct {
 	name string
 	args []string
