@@ -12,14 +12,14 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-// GitHubClient는 GitHub API 요청을 위한 구조체입니다.
+// The GitHubClient is a structure for GitHub API requests.
 type GitHubClient struct {
 	token      string
 	baseURL    string
 	repository string
 }
 
-// NewGitHubClient는 새로운 GitHubClient 인스턴스를 생성합니다.
+// NewGitHubClient creates a new GitHubClient instance.
 func NewGitHubClient(token, repository string) *GitHubClient {
 	return &GitHubClient{
 		token:      token,
@@ -28,46 +28,46 @@ func NewGitHubClient(token, repository string) *GitHubClient {
 	}
 }
 
-// CreatePullRequest는 GitHub API를 사용하여 PR을 생성합니다.
+// CreatePullRequest creates a pull request using the GitHub API.
 func (c *GitHubClient) CreatePullRequest(ctx context.Context, data map[string]interface{}) (map[string]interface{}, error) {
-	// API 요청 로직
+	// API request logic
 	return nil, nil
 }
 
-// AddLabels는 PR에 라벨을 추가합니다.
+// AddLabels adds labels to a pull request.
 func (c *GitHubClient) AddLabels(ctx context.Context, prNumber int, labels []string) error {
-	// 라벨 추가 로직
+	// Label addition logic
 	return nil
 }
 
-// ClosePullRequest는 PR을 닫습니다.
+// ClosePullRequest closes a pull request.
 func (c *GitHubClient) ClosePullRequest(ctx context.Context, prNumber int) error {
-	// PR 닫기 로직
+	// PR closing logic
 	return nil
 }
 
-// CreatePullRequest는 PR을 생성하는 메인 함수입니다.
+// CreatePullRequest is the main function to create a pull request.
 func CreatePullRequest(config *config.GitConfig) error {
 	fmt.Println("\n🔄 Creating Pull Request:")
 
-	// 소스 브랜치 준비
+	// Prepare the source branch
 	sourceBranch, err := prepareSourceBranch(config)
 	if err != nil {
 		return err
 	}
 
-	// 브랜치 간 변경사항 확인
+	// Check for changes between branches
 	if err := checkBranchDifferences(config); err != nil {
 		return err
 	}
 
-	// PR 생성
+	// Create a pull request
 	prResponse, err := createGitHubPR(config)
 	if err != nil {
 		return err
 	}
 
-	// PR 응답 처리
+	// Process the PR response
 	if err := handlePRResponse(config, prResponse, sourceBranch); err != nil {
 		return err
 	}
@@ -78,16 +78,16 @@ func CreatePullRequest(config *config.GitConfig) error {
 	return nil
 }
 
-// prepareSourceBranch는 소스 브랜치를 준비합니다.
+// prepareSourceBranch prepares the source branch.
 func prepareSourceBranch(config *config.GitConfig) (string, error) {
 	var sourceBranch string
 
 	if config.AutoBranch {
-		// 타임스탬프가 포함된 브랜치 이름 생성
+		// Create a branch name with a timestamp
 		sourceBranch = fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
 		config.PRBranch = sourceBranch
 
-		// 새 브랜치 생성 및 전환
+		// Create and switch to a new branch
 		fmt.Printf("  • Creating new branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
 			fmt.Println("❌ Failed")
@@ -95,12 +95,12 @@ func prepareSourceBranch(config *config.GitConfig) (string, error) {
 		}
 		fmt.Println("✅ Done")
 
-		// 변경사항을 새 브랜치에 커밋하고 푸시
+		// Commit changes to the new branch and push
 		if err := commitAndPushChanges(config); err != nil {
 			return "", err
 		}
 	} else {
-		// auto_branch=false일 때는 pr_branch로 체크아웃
+		// When auto_branch=false, checkout the pr_branch
 		sourceBranch = config.PRBranch
 		fmt.Printf("  • Checking out branch %s... ", sourceBranch)
 		if err := exec.Command("git", "checkout", sourceBranch).Run(); err != nil {
@@ -113,7 +113,7 @@ func prepareSourceBranch(config *config.GitConfig) (string, error) {
 	return sourceBranch, nil
 }
 
-// commitAndPushChanges는 변경사항을 커밋하고 푸시합니다.
+// commitAndPushChanges commits and pushes changes.
 func commitAndPushChanges(config *config.GitConfig) error {
 	commitCommands := []struct {
 		name string
@@ -144,16 +144,16 @@ func commitAndPushChanges(config *config.GitConfig) error {
 	return nil
 }
 
-// checkBranchDifferences는 PR 기본 브랜치와 소스 브랜치 간의 차이를 확인합니다.
+// checkBranchDifferences checks the differences between the PR base branch and the source branch.
 func checkBranchDifferences(config *config.GitConfig) error {
 	fmt.Printf("\n📊 Changed files between %s and %s:\n", config.PRBase, config.PRBranch)
 
-	// 두 브랜치 가져오기
+	// Get the two branches
 	if err := fetchBranches(config); err != nil {
 		return err
 	}
 
-	// 변경된 파일 확인
+	// Check the changed files
 	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
 	filesOutput, _ := diffFiles.Output()
 
@@ -166,7 +166,7 @@ func checkBranchDifferences(config *config.GitConfig) error {
 	}
 	fmt.Printf("%s\n", string(filesOutput))
 
-	// PR URL 생성 및 출력
+	// Create and print the PR URL
 	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", config.PRBranch)
 	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
 		os.Getenv("GITHUB_REPOSITORY"),
@@ -177,7 +177,7 @@ func checkBranchDifferences(config *config.GitConfig) error {
 	return nil
 }
 
-// fetchBranches는 기본 브랜치와 소스 브랜치를 가져옵니다.
+// fetchBranches fetches the base and source branches.
 func fetchBranches(config *config.GitConfig) error {
 	fetchBaseCmd := exec.Command("git", "fetch", "origin", config.PRBase)
 	if err := fetchBaseCmd.Run(); err != nil {
@@ -192,26 +192,26 @@ func fetchBranches(config *config.GitConfig) error {
 	return nil
 }
 
-// createGitHubPR는 GitHub API를 사용하여 PR을 생성합니다.
+// createGitHubPR creates a pull request using the GitHub API.
 func createGitHubPR(config *config.GitConfig) (map[string]interface{}, error) {
 	fmt.Printf("  • Creating pull request from %s to %s... ", config.PRBranch, config.PRBase)
 
-	// PR 데이터 준비
+	// Prepare the PR data
 	prData, err := preparePRData(config)
 	if err != nil {
 		return nil, err
 	}
 
-	// GitHub API 호출
+	// Call the GitHub API
 	return callGitHubAPI(config, prData)
 }
 
-// preparePRData는 PR 생성에 필요한 데이터를 준비합니다.
+// preparePRData prepares the data needed to create a pull request.
 func preparePRData(config *config.GitConfig) (map[string]interface{}, error) {
-	// GitHub Run ID 가져오기
+	// Get the GitHub Run ID
 	runID := os.Getenv("GITHUB_RUN_ID")
 
-	// 현재 커밋 SHA 가져오기
+	// Get the current commit SHA
 	commitCmd := exec.Command("git", "rev-parse", "HEAD")
 	commitSHA, err := commitCmd.Output()
 	if err != nil {
@@ -219,20 +219,20 @@ func preparePRData(config *config.GitConfig) (map[string]interface{}, error) {
 	}
 	commitID := strings.TrimSpace(string(commitSHA))
 
-	// PR 제목 설정
+	// Set the PR title
 	title := config.PRTitle
 	if title == "" {
 		title = fmt.Sprintf("Auto PR: %s to %s (Run ID: %s)", config.PRBranch, config.PRBase, runID)
 	}
 
-	// PR 본문 설정
+	// Set the PR body
 	body := config.PRBody
 	if body == "" {
 		body = fmt.Sprintf("Created by Go Git Commit Action\nSource: %s\nTarget: %s\nCommit: %s\nGitHub Run ID: %s",
 			config.PRBranch, config.PRBase, commitID, runID)
 	}
 
-	// PR 요청 데이터
+	// PR request data
 	prData := map[string]interface{}{
 		"title": title,
 		"head":  config.PRBranch,
@@ -243,14 +243,14 @@ func preparePRData(config *config.GitConfig) (map[string]interface{}, error) {
 	return prData, nil
 }
 
-// callGitHubAPI는 GitHub API를 호출하여 PR을 생성합니다.
+// callGitHubAPI calls the GitHub API to create a pull request.
 func callGitHubAPI(config *config.GitConfig, prData map[string]interface{}) (map[string]interface{}, error) {
 	jsonData, err := json.Marshal(prData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal PR data: %v", err)
 	}
 
-	// GitHub API를 사용하여 PR 생성
+	// Create a pull request using the GitHub API
 	curlCmd := exec.Command("curl", "-s", "-X", "POST",
 		"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
 		"-H", "Accept: application/vnd.github+json",
@@ -266,7 +266,7 @@ func callGitHubAPI(config *config.GitConfig, prData map[string]interface{}) (map
 		return nil, fmt.Errorf("failed to execute curl command: %v", err)
 	}
 
-	// 응답 파싱
+	// Parse the response
 	var response map[string]interface{}
 	if err := json.Unmarshal(output, &response); err != nil {
 		fmt.Printf("Raw response: %s\n", string(output))
@@ -276,9 +276,9 @@ func callGitHubAPI(config *config.GitConfig, prData map[string]interface{}) (map
 	return response, nil
 }
 
-// handlePRResponse는 PR 생성 응답을 처리합니다.
+// handlePRResponse handles the PR creation response.
 func handlePRResponse(config *config.GitConfig, response map[string]interface{}, sourceBranch string) error {
-	// 오류 메시지 확인
+	// Check for error message
 	if errMsg, ok := response["message"].(string); ok {
 		fmt.Printf("GitHub API Error: %s\n", errMsg)
 		if errors, ok := response["errors"].([]interface{}); ok {
@@ -286,7 +286,7 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 			for _, err := range errors {
 				if errMap, ok := err.(map[string]interface{}); ok {
 					fmt.Printf("  • %v\n", errMap)
-					// PR이 이미 존재하는 경우 처리
+					// Handle the case where the PR already exists
 					if errMap["message"].(string) == "A pull request already exists for somaz94:test." {
 						return handleExistingPR(config)
 					}
@@ -296,23 +296,23 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 		return fmt.Errorf("GitHub API error: %s", errMsg)
 	}
 
-	// PR URL 확인
+	// Check for PR URL
 	if htmlURL, ok := response["html_url"].(string); ok {
 		fmt.Println("✅ Done")
 		fmt.Printf("Pull request created: %s\n", htmlURL)
 
-		// PR 번호 처리
+		// Handle the PR number
 		if number, ok := response["number"].(float64); ok {
 			prNumber := int(number)
 
-			// 라벨 추가
+			// Add labels
 			if len(config.PRLabels) > 0 {
 				if err := addLabelsToIssue(config, prNumber); err != nil {
 					return err
 				}
 			}
 
-			// PR 닫기
+			// Close the PR
 			if config.PRClosed {
 				if err := closePullRequest(config, prNumber); err != nil {
 					return err
@@ -325,7 +325,7 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 		return fmt.Errorf("failed to get PR URL from response")
 	}
 
-	// 소스 브랜치 삭제
+	// Delete the source branch
 	if config.DeleteSourceBranch && config.AutoBranch {
 		if err := deleteSourceBranch(sourceBranch); err != nil {
 			return err
@@ -335,11 +335,11 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 	return nil
 }
 
-// handleExistingPR는 이미 존재하는 PR을 처리합니다.
+// handleExistingPR handles an existing pull request.
 func handleExistingPR(config *config.GitConfig) error {
 	fmt.Println("⚠️  Pull request already exists")
 
-	// 기존 PR 찾기
+	// Find the existing PR
 	searchCmd := exec.Command("curl", "-s",
 		"-H", fmt.Sprintf("Authorization: Bearer %s", config.GitHubToken),
 		"-H", "Accept: application/vnd.github+json",
@@ -356,14 +356,14 @@ func handleExistingPR(config *config.GitConfig) error {
 			prNumber := int(number)
 			fmt.Printf("Found existing PR #%d\n", prNumber)
 
-			// 라벨 추가
+			// Add labels
 			if len(config.PRLabels) > 0 {
 				if err := addLabelsToIssue(config, prNumber); err != nil {
 					return err
 				}
 			}
 
-			// PR 닫기
+			// Close the PR
 			if config.PRClosed {
 				if err := closePullRequest(config, prNumber); err != nil {
 					return err
@@ -375,7 +375,7 @@ func handleExistingPR(config *config.GitConfig) error {
 	return nil
 }
 
-// addLabelsToIssue는 이슈/PR에 라벨을 추가합니다.
+// addLabelsToIssue adds labels to an issue/PR.
 func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
 	fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
 	labelsData := map[string]interface{}{
@@ -403,7 +403,7 @@ func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
 	return nil
 }
 
-// closePullRequest는 PR을 닫습니다.
+// closePullRequest closes a pull request.
 func closePullRequest(config *config.GitConfig, prNumber int) error {
 	fmt.Printf("  • Closing pull request #%d... ", prNumber)
 	closeData := map[string]string{
@@ -431,7 +431,7 @@ func closePullRequest(config *config.GitConfig, prNumber int) error {
 	return nil
 }
 
-// deleteSourceBranch는 소스 브랜치를 삭제합니다.
+// deleteSourceBranch deletes the source branch.
 func deleteSourceBranch(sourceBranch string) error {
 	fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
 	deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
