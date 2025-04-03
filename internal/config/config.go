@@ -91,7 +91,7 @@ func NewGitConfig() (*GitConfig, error) {
 		PRLabels:           splitAndTrim(os.Getenv("INPUT_PR_LABELS")),
 		PRBody:             os.Getenv("INPUT_PR_BODY"),
 		SkipIfEmpty:        os.Getenv("INPUT_SKIP_IF_EMPTY") == "true",
-		PRClosed:           os.Getenv("INPUT_PR_CLOSED") == "true",
+		PRClosed:           os.Getenv("INPUT_PR_CLOSED") == "false",
 		Debug:              os.Getenv("INPUT_DEBUG") == "true",
 		Timeout:            30,
 		RetryCount:         3,
