@@ -281,6 +281,11 @@ jobs:
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
 
+      - name: Setup Git User
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
+
       - name: Create Test Files
         run: |
           # 테스트 디렉토리 생성
@@ -358,6 +363,11 @@ jobs:
 
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
+      
+      - name: Setup Git User
+        run: |
+          git config --global user.email "actions@github.com"
+          git config --global user.name "GitHub Actions"
       
       - name: Create Test File for PR
         run: |
