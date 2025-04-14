@@ -413,7 +413,7 @@ jobs:
           branch: main # 메인 브랜치 사용
           create_pr: true
           auto_branch: true
-          pr_base: main
+          pr_base: test
           pr_labels: "test,automated,dry-run-test-auto-branch"
           repository_path: "test" # 상대 경로 수정
           file_pattern: "pr-dry-run-test.txt"
