@@ -232,19 +232,3 @@ jobs:
           file_pattern: "pr-dry-run-test.txt"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_dry_run: true
-          
-      - name: Test PR Dry Run (auto_branch true)
-        uses: somaz94/go-git-commit-action@v1
-        with:
-          user_email: actions@github.com
-          user_name: GitHub Actions
-          branch: main # 메인 브랜치 사용
-          create_pr: true
-          auto_branch: true
-          delete_source_branch: true
-          pr_base: test
-          pr_labels: "test,automated,dry-run-test-auto-branch"
-          repository_path: "test" # 상대 경로 수정
-          file_pattern: "pr-dry-run-test.txt"
-          github_token: ${{ secrets.PAT_TOKEN }}
-          pr_dry_run: true
