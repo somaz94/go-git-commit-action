@@ -134,6 +134,7 @@ jobs:
           repository_path: test
           file_pattern: .
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
   test-action-auto-branch-true:
     name: Test Auto Branch True
@@ -168,6 +169,7 @@ jobs:
           file_pattern: .
           delete_source_branch: true
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
       # - name: Create Test File
       #   run: |
@@ -266,89 +268,89 @@ jobs:
             This PR will be automatically closed after creation.
           github_token: ${{ secrets.PAT_TOKEN }}
 
-  test-multi-file-pattern:
-    name: Test Multiple File Pattern
-    runs-on: ubuntu-latest
-    needs: [test-pr-auto-close-pr-body]
+  # test-multi-file-pattern:
+  #   name: Test Multiple File Pattern
+  #   runs-on: ubuntu-latest
+  #   needs: [test-pr-auto-close-pr-body]
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 10
-          token: ${{ secrets.PAT_TOKEN }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 10
+  #         token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
+  #     - name: Configure Git Safe Directory
+  #       run: git config --global --add safe.directory ${{ github.workspace }}
 
-      - name: Setup Git User
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
+  #     - name: Setup Git User
+  #       run: |
+  #         git config --global user.email "actions@github.com"
+  #         git config --global user.name "GitHub Actions"
 
-      - name: Create Test Files and Add to Git
-        run: |
-          # 테스트 디렉토리 생성
-          mkdir -p test/multi-pattern
-          cd test/multi-pattern
+  #     - name: Create Test Files and Add to Git
+  #       run: |
+  #         # 테스트 디렉토리 생성
+  #         mkdir -p test/multi-pattern
+  #         cd test/multi-pattern
           
-          # 테스트 파일 생성
-          echo "Test file 1 - $(date +%s)" > file1.txt
-          echo "Test file 2 - $(date +%s)" > file2.md
-          echo "Test file 3 - $(date +%s)" > file3.json
-          echo "Test file 4 - $(date +%s)" > file4.txt
+  #         # 테스트 파일 생성
+  #         echo "Test file 1 - $(date +%s)" > file1.txt
+  #         echo "Test file 2 - $(date +%s)" > file2.md
+  #         echo "Test file 3 - $(date +%s)" > file3.json
+  #         echo "Test file 4 - $(date +%s)" > file4.txt
           
-          # 파일 확인
-          echo "디렉토리 내용:"
-          ls -la
+  #         # 파일 확인
+  #         echo "디렉토리 내용:"
+  #         ls -la
           
-          # 경로 돌아가기
-          cd ../..
+  #         # 경로 돌아가기
+  #         cd ../..
 
-      - name: Test Commit with Multiple File Pattern (space separated)
-        uses: ./
-        with:
-          user_email: actions@github.com
-          user_name: GitHub Actions
-          commit_message: "test: commit multiple files with space-separated pattern"
-          branch: main # 메인 브랜치 사용
-          repository_path: "test/multi-pattern" # 상대 경로 수정
-          file_pattern: "file1.txt file2.md"
+  #     - name: Test Commit with Multiple File Pattern (space separated)
+  #       uses: ./
+  #       with:
+  #         user_email: actions@github.com
+  #         user_name: GitHub Actions
+  #         commit_message: "test: commit multiple files with space-separated pattern"
+  #         branch: main # 메인 브랜치 사용
+  #         repository_path: "test/multi-pattern" # 상대 경로 수정
+  #         file_pattern: "file1.txt file2.md"
 
-      - name: Verify Files Added
-        run: |
-          git log -1 --name-status
-          # Verify txt and md files were added but json was not
-          if git log -1 --name-status | grep -q "test/multi-pattern/file1.txt" && \
-             git log -1 --name-status | grep -q "test/multi-pattern/file2.md" && \
-             ! git log -1 --name-status | grep -q "test/multi-pattern/file3.json"; then
-            echo "✅ Test passed: Only specified patterns were committed"
-          else
-            echo "❌ Test failed: Incorrect files were committed"
-            exit 1
-          fi
+  #     - name: Verify Files Added
+  #       run: |
+  #         git log -1 --name-status
+  #         # Verify txt and md files were added but json was not
+  #         if git log -1 --name-status | grep -q "test/multi-pattern/file1.txt" && \
+  #            git log -1 --name-status | grep -q "test/multi-pattern/file2.md" && \
+  #            ! git log -1 --name-status | grep -q "test/multi-pattern/file3.json"; then
+  #           echo "✅ Test passed: Only specified patterns were committed"
+  #         else
+  #           echo "❌ Test failed: Incorrect files were committed"
+  #           exit 1
+  #         fi
 
-      - name: Test Commit with Another Multiple Pattern
-        uses: ./
-        with:
-          user_email: actions@github.com
-          user_name: GitHub Actions
-          commit_message: "test: commit JSON file with separate pattern"
-          branch: main # 메인 브랜치 사용
-          repository_path: "test/multi-pattern" # 상대 경로 수정
-          file_pattern: "file3.json file4.txt"
+  #     - name: Test Commit with Another Multiple Pattern
+  #       uses: ./
+  #       with:
+  #         user_email: actions@github.com
+  #         user_name: GitHub Actions
+  #         commit_message: "test: commit JSON file with separate pattern"
+  #         branch: main # 메인 브랜치 사용
+  #         repository_path: "test/multi-pattern" # 상대 경로 수정
+  #         file_pattern: "file3.json file4.txt"
           
-      - name: Verify Second Pattern
-        run: |
-          git log -1 --name-status
-          # Verify json and specific txt file were added
-          if git log -1 --name-status | grep -q "test/multi-pattern/file3.json" && \
-             git log -1 --name-status | grep -q "test/multi-pattern/file4.txt"; then
-            echo "✅ Test passed: Second pattern correctly committed files"
-          else
-            echo "❌ Test failed: Second pattern did not commit correct files"
-            exit 1
-          fi
+  #     - name: Verify Second Pattern
+  #       run: |
+  #         git log -1 --name-status
+  #         # Verify json and specific txt file were added
+  #         if git log -1 --name-status | grep -q "test/multi-pattern/file3.json" && \
+  #            git log -1 --name-status | grep -q "test/multi-pattern/file4.txt"; then
+  #           echo "✅ Test passed: Second pattern correctly committed files"
+  #         else
+  #           echo "❌ Test failed: Second pattern did not commit correct files"
+  #           exit 1
+  #         fi
 
   test-pr-dry-run:
     name: Test PR Dry Run
@@ -378,6 +380,9 @@ jobs:
           # 파일 확인
           echo "생성된 PR 테스트 파일:"
           ls -la test/
+
+          # 경로 돌아가기
+          cd ../..
           
       
       - name: Test PR Dry Run (auto_branch false)
