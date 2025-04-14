@@ -375,17 +375,17 @@ jobs:
           git config --global user.email "actions@github.com"
           git config --global user.name "GitHub Actions"
       
-      - name: Create Test File for PR and Add to Git
-        run: |
-          mkdir -p test
-          echo "Test file for PR dry run - $(date +%s)" > test/pr-dry-run-test.txt
+      # - name: Create Test File for PR and Add to Git
+      #   run: |
+      #     mkdir -p test
+      #     echo "Test file for PR dry run - $(date +%s)" > test/pr-dry-run-test.txt
           
-          # 파일 확인
-          echo "생성된 PR 테스트 파일:"
-          ls -la test/
+      #     # 파일 확인
+      #     echo "생성된 PR 테스트 파일:"
+      #     ls -la test/
 
-          # 경로 돌아가기
-          cd ../..
+      #     # 경로 돌아가기
+      #     cd ../..
           
       
       - name: Test PR Dry Run (auto_branch false)
