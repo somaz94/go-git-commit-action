@@ -388,17 +388,48 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 
 // commitChanges commits and pushes the changes.
 func commitChanges(config *config.GitConfig) error {
-	commitCommands := []struct {
+	// Handle git add with file pattern that may contain spaces
+	fmt.Printf("  • Adding files... ")
+
+	// Check if file pattern contains spaces, indicating multiple files/patterns
+	if strings.Contains(config.FilePattern, " ") {
+		// Split the pattern and add each file/pattern individually
+		patterns := strings.Fields(config.FilePattern)
+		for _, pattern := range patterns {
+			addCmd := exec.Command("git", "add", pattern)
+			addCmd.Stdout = os.Stdout
+			addCmd.Stderr = os.Stderr
+
+			if err := addCmd.Run(); err != nil {
+				fmt.Println("❌ Failed")
+				return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
+			}
+		}
+		fmt.Println("✅ Done")
+	} else {
+		// Single file pattern case - proceed as before
+		addCmd := exec.Command("git", "add", config.FilePattern)
+		addCmd.Stdout = os.Stdout
+		addCmd.Stderr = os.Stderr
+
+		if err := addCmd.Run(); err != nil {
+			fmt.Println("❌ Failed")
+			return fmt.Errorf("failed to add files: %v", err)
+		}
+		fmt.Println("✅ Done")
+	}
+
+	// Continue with commit and push commands
+	commitPushCommands := []struct {
 		name string
 		args []string
 		desc string
 	}{
-		{"git", []string{"add", config.FilePattern}, "Adding files"},
 		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
 		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
 	}
 
-	for _, cmd := range commitCommands {
+	for _, cmd := range commitPushCommands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
 		command.Stdout = os.Stdout
