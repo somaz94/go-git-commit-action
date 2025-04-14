@@ -355,7 +355,8 @@ jobs:
   test-pr-dry-run:
     name: Test PR Dry Run
     runs-on: ubuntu-latest
-    needs: [test-multi-file-pattern]
+    needs: [test-pr-auto-close-pr-body]
+    # needs: [test-multi-file-pattern]
 
     steps:
       - name: Checkout
