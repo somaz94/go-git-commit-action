@@ -366,18 +366,8 @@ jobs:
           git config --global user.name "GitHub Actions"
       
       - name: Create Test File for PR
-        run: |
-          # 테스트 브랜치가 없으면 생성
-          if ! git rev-parse --verify test &>/dev/null; then
-            git checkout -b test
-          else
-            git checkout test
-          fi
-          
+        run: |      
           echo "Test file for PR dry run - $(date +%s)" > test/pr-dry-run-test.txt
-          git add test/pr-dry-run-test.txt
-          git commit -m "Add test file for PR dry run"
-          git push origin test
       
       - name: Test PR Dry Run (auto_branch false)
         uses: ./
