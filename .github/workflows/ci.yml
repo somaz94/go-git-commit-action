@@ -391,14 +391,14 @@ jobs:
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: main # 메인 브랜치 사용
+          branch: main
           create_pr: true
           auto_branch: false
           pr_title: "Test PR Dry Run"
-          pr_base: main
-          pr_branch: test
+          pr_base: test
+          pr_branch: main
           pr_labels: "test,automated,dry-run-test"
-          repository_path: "test" # 상대 경로 수정
+          repository_path: "test"
           file_pattern: "pr-dry-run-test.txt"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_dry_run: true

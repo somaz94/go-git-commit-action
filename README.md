@@ -36,6 +36,7 @@ The **Go Git Commit Action** is a GitHub Action that automates git commit, push,
 | `pr_body`           | No       | Custom body message for pull request | -                          |
 | `skip_if_empty`     | No       | Skip the action if there are no changes | false                   |
 | `pr_closed`         | No       | Whether to close the pull request after creation | false          |
+| `pr_dry_run`        | No       | Simulate PR creation without actually creating one | false         |
 
 <br/>
 
@@ -290,6 +291,50 @@ jobs:
     github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
+#### PR Dry Run (Simulation Mode)
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    create_pr: true
+    auto_branch: false
+    branch: main
+    pr_branch: feature/my-branch  # Required: Source branch for PR
+    pr_base: main                 # Required: Target branch for PR
+    pr_title: "Test PR Dry Run"
+    pr_labels: "test,automated,dry-run-test"
+    repository_path: "path/to/repo"
+    file_pattern: "*.txt"
+    github_token: ${{ secrets.PAT_TOKEN }}
+    pr_dry_run: true             # Simulates PR creation without executing it
+```
+
+#### Using Multiple File Patterns
+```yaml
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    commit_message: "chore: update multiple file types"
+    branch: main
+    repository_path: "."
+    file_pattern: "docs/*.md src/*.go *.yaml"  # Multiple file patterns separated by spaces
+```
+
+##### Complex Example with Different Directories
+```yaml
+- name: Commit Changes to Specific File Types
+  uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    commit_message: "chore: update configuration and documentation"
+    branch: main
+    repository_path: "."
+    file_pattern: "config/*.yaml docs/*.md src/util/*.js"  # Multiple patterns for different directories
+```
+
 <br/>
 
 ## Features
@@ -350,10 +395,17 @@ jobs:
 - Enable `skip_if_empty` to skip the action when no changes are detected
 - Set `pr_closed: 'true'` to automatically close the PR after creation
 - Set `delete_source_branch: 'true'` to automatically delete the source branch after PR is created (only works with `auto_branch: true`)
+- Use `pr_dry_run: 'true'` to simulate PR creation without actually creating one, useful for testing or previewing what will be submitted
+
+### Multiple File Pattern Support
+- The action supports space-separated file patterns 
+- Example: `file_pattern: "*.md *.txt"` will add all markdown and text files
+- This is useful when you need to commit specific file types from different directories
 
 <br/>
 
-### Authentication
+## Authentication
+
 - When working with workflow files or tags, you need to use a Personal Access Token (PAT) with appropriate permissions:
   ```yaml
   - uses: actions/checkout@v4
