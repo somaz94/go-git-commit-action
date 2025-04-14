@@ -283,11 +283,21 @@ jobs:
 
       - name: Create Test Files
         run: |
+          # 테스트 디렉토리 생성
           mkdir -p test/multi-pattern
-          echo "Test file 1 - $(date +%s)" > test/multi-pattern/file1.txt
-          echo "Test file 2 - $(date +%s)" > test/multi-pattern/file2.md
-          echo "Test file 3 - $(date +%s)" > test/multi-pattern/file3.json
-          echo "Test file 4 - $(date +%s)" > test/multi-pattern/file4.txt
+          cd test/multi-pattern
+          
+          # 테스트 파일 생성
+          echo "Test file 1 - $(date +%s)" > file1.txt
+          echo "Test file 2 - $(date +%s)" > file2.md
+          echo "Test file 3 - $(date +%s)" > file3.json
+          echo "Test file 4 - $(date +%s)" > file4.txt
+          
+          # Git에 디렉토리 추가
+          cd ../..
+          git add test/multi-pattern
+          git commit -m "Add test directory for multi-pattern testing"
+          git push origin test
 
       - name: Test Commit with Multiple File Pattern (space separated)
         uses: ./
@@ -296,17 +306,16 @@ jobs:
           user_name: GitHub Actions
           commit_message: "test: commit multiple files with space-separated pattern"
           branch: test
-          repository_path: test/multi-pattern
-          file_pattern: "*.txt *.md"
+          repository_path: .
+          file_pattern: "test/multi-pattern/*.txt test/multi-pattern/*.md"
 
       - name: Verify Files Added
         run: |
-          cd test/multi-pattern
           git log -1 --name-status
           # Verify txt and md files were added but json was not
-          if git log -1 --name-status | grep -q "file1.txt" && \
-             git log -1 --name-status | grep -q "file2.md" && \
-             ! git log -1 --name-status | grep -q "file3.json"; then
+          if git log -1 --name-status | grep -q "test/multi-pattern/file1.txt" && \
+             git log -1 --name-status | grep -q "test/multi-pattern/file2.md" && \
+             ! git log -1 --name-status | grep -q "test/multi-pattern/file3.json"; then
             echo "✅ Test passed: Only specified patterns were committed"
           else
             echo "❌ Test failed: Incorrect files were committed"
@@ -320,16 +329,15 @@ jobs:
           user_name: GitHub Actions
           commit_message: "test: commit JSON file with separate pattern"
           branch: test
-          repository_path: test/multi-pattern
-          file_pattern: "*.json file4.txt"
+          repository_path: .
+          file_pattern: "test/multi-pattern/*.json test/multi-pattern/file4.txt"
 
       - name: Verify Second Pattern
         run: |
-          cd test/multi-pattern
           git log -1 --name-status
           # Verify json and specific txt file were added
-          if git log -1 --name-status | grep -q "file3.json" && \
-             git log -1 --name-status | grep -q "file4.txt"; then
+          if git log -1 --name-status | grep -q "test/multi-pattern/file3.json" && \
+             git log -1 --name-status | grep -q "test/multi-pattern/file4.txt"; then
             echo "✅ Test passed: Second pattern correctly committed files"
           else
             echo "❌ Test failed: Second pattern did not commit correct files"
