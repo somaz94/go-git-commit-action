@@ -299,6 +299,9 @@ jobs:
           echo "Test file 3 - $(date +%s)" > file3.json
           echo "Test file 4 - $(date +%s)" > file4.txt
           
+          # 디렉토리 내용 확인
+          ls -la
+          cd ../..
 
       - name: Test Commit with Multiple File Pattern (space separated)
         uses: ./
@@ -307,8 +310,8 @@ jobs:
           user_name: GitHub Actions
           commit_message: "test: commit multiple files with space-separated pattern"
           branch: test
-          repository_path: .
-          file_pattern: "test/multi-pattern/*.txt test/multi-pattern/*.md"
+          repository_path: "./test/multi-pattern"
+          file_pattern: "file1.txt file2.md"
 
       - name: Verify Files Added
         run: |
@@ -330,8 +333,8 @@ jobs:
           user_name: GitHub Actions
           commit_message: "test: commit JSON file with separate pattern"
           branch: test
-          repository_path: .
-          file_pattern: "test/multi-pattern/*.json test/multi-pattern/file4.txt"
+          repository_path: "./test/multi-pattern"
+          file_pattern: "file3.json file4.txt"
 
       - name: Verify Second Pattern
         run: |
@@ -381,8 +384,8 @@ jobs:
           pr_base: main
           pr_branch: test
           pr_labels: "test,automated,dry-run-test"
-          repository_path: .
-          file_pattern: test/pr-dry-run-test.txt
+          repository_path: "./test"
+          file_pattern: "pr-dry-run-test.txt"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_dry_run: true
       
@@ -396,7 +399,7 @@ jobs:
           auto_branch: true
           pr_base: main
           pr_labels: "test,automated,dry-run-test-auto-branch"
-          repository_path: .
-          file_pattern: test/pr-dry-run-test.txt
+          repository_path: "./test"
+          file_pattern: "pr-dry-run-test.txt"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_dry_run: true
