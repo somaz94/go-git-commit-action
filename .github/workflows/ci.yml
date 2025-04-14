@@ -216,6 +216,7 @@ jobs:
           skip_if_empty: true
           pr_title: "Test Skip If Empty - With Changes (should skip)"
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
       # 변경사항이 있을 때는 skip되지 않는지 확인
       - name: Test Skip If Empty (should not skip)
@@ -234,6 +235,7 @@ jobs:
           skip_if_empty: true
           pr_title: "Test Skip If Empty - With Changes (should not skip)"
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
   test-pr-auto-close-pr-body:
     name: Test PR Auto Close
