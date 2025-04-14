@@ -28,6 +28,7 @@ type GitConfig struct {
 	PRBody             string
 	SkipIfEmpty        bool
 	PRClosed           bool
+	PRDryRun           bool
 	Debug              bool
 	Timeout            int
 	RetryCount         int
@@ -92,6 +93,7 @@ func NewGitConfig() (*GitConfig, error) {
 		PRBody:             os.Getenv("INPUT_PR_BODY"),
 		SkipIfEmpty:        os.Getenv("INPUT_SKIP_IF_EMPTY") == "true",
 		PRClosed:           os.Getenv("INPUT_PR_CLOSED") == "true",
+		PRDryRun:           os.Getenv("INPUT_PR_DRY_RUN") == "true",
 		Debug:              os.Getenv("INPUT_DEBUG") == "true",
 		Timeout:            30,
 		RetryCount:         3,

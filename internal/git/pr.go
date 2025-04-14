@@ -194,6 +194,24 @@ func fetchBranches(config *config.GitConfig) error {
 
 // createGitHubPR creates a pull request using the GitHub API.
 func createGitHubPR(config *config.GitConfig) (map[string]interface{}, error) {
+	// Check for dry run mode
+	if config.PRDryRun {
+		fmt.Printf("  • [DRY RUN] Would create pull request from %s to %s... ", config.PRBranch, config.PRBase)
+		fmt.Println("✅ Skipped (Dry Run mode)")
+
+		// Create a mock response with the PR URL
+		mockResponse := map[string]interface{}{
+			"html_url": fmt.Sprintf("https://github.com/%s/compare/%s...%s?dry_run=1",
+				os.Getenv("GITHUB_REPOSITORY"),
+				config.PRBase,
+				config.PRBranch),
+			"number":  float64(0),
+			"dry_run": true,
+		}
+
+		return mockResponse, nil
+	}
+
 	fmt.Printf("  • Creating pull request from %s to %s... ", config.PRBranch, config.PRBase)
 
 	// Prepare the PR data
@@ -278,6 +296,29 @@ func callGitHubAPI(config *config.GitConfig, prData map[string]interface{}) (map
 
 // handlePRResponse handles the PR creation response.
 func handlePRResponse(config *config.GitConfig, response map[string]interface{}, sourceBranch string) error {
+	// Check if this is a dry run response
+	if dryRun, ok := response["dry_run"].(bool); ok && dryRun {
+		fmt.Printf("\n🔍 [DRY RUN] Pull request would be created at: %s\n", response["html_url"])
+		fmt.Printf("👉 No actual PR was created (dry run mode)\n")
+
+		// Print mock PR details
+		fmt.Printf("\n📋 PR details that would be submitted:\n")
+		fmt.Printf("  • Title: %s\n", config.PRTitle)
+		fmt.Printf("  • Source branch: %s\n", config.PRBranch)
+		fmt.Printf("  • Target branch: %s\n", config.PRBase)
+		if len(config.PRLabels) > 0 {
+			fmt.Printf("  • Labels: %s\n", strings.Join(config.PRLabels, ", "))
+		}
+		if config.PRClosed {
+			fmt.Printf("  • Would be closed immediately: Yes\n")
+		}
+		if config.DeleteSourceBranch && config.AutoBranch {
+			fmt.Printf("  • Source branch would be deleted: Yes\n")
+		}
+
+		return nil
+	}
+
 	// Check for error message
 	if errMsg, ok := response["message"].(string); ok {
 		fmt.Printf("GitHub API Error: %s\n", errMsg)
@@ -327,7 +368,7 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 
 	// Delete the source branch
 	if config.DeleteSourceBranch && config.AutoBranch {
-		if err := deleteSourceBranch(sourceBranch); err != nil {
+		if err := deleteSourceBranch(config, sourceBranch); err != nil {
 			return err
 		}
 	}
@@ -377,6 +418,12 @@ func handleExistingPR(config *config.GitConfig) error {
 
 // addLabelsToIssue adds labels to an issue/PR.
 func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
+	// Skip if in dry run mode
+	if config.PRDryRun {
+		fmt.Printf("  • [DRY RUN] Would add labels %v to PR #%d... ✅ Skipped\n", config.PRLabels, prNumber)
+		return nil
+	}
+
 	fmt.Printf("  • Adding labels to PR #%d... ", prNumber)
 	labelsData := map[string]interface{}{
 		"labels": config.PRLabels,
@@ -405,6 +452,12 @@ func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
 
 // closePullRequest closes a pull request.
 func closePullRequest(config *config.GitConfig, prNumber int) error {
+	// Skip if in dry run mode
+	if config.PRDryRun {
+		fmt.Printf("  • [DRY RUN] Would close pull request #%d... ✅ Skipped\n", prNumber)
+		return nil
+	}
+
 	fmt.Printf("  • Closing pull request #%d... ", prNumber)
 	closeData := map[string]string{
 		"state": "closed",
@@ -432,7 +485,13 @@ func closePullRequest(config *config.GitConfig, prNumber int) error {
 }
 
 // deleteSourceBranch deletes the source branch.
-func deleteSourceBranch(sourceBranch string) error {
+func deleteSourceBranch(config *config.GitConfig, sourceBranch string) error {
+	// Skip if in dry run mode
+	if config.PRDryRun {
+		fmt.Printf("\n  • [DRY RUN] Would delete source branch %s... ✅ Skipped\n", sourceBranch)
+		return nil
+	}
+
 	fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
 	deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
 	if err := deleteCommand.Run(); err != nil {

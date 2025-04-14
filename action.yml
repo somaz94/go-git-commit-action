@@ -84,6 +84,10 @@ inputs:
     description: 'Whether to close the pull request after creation'
     required: false
     default: 'false'
+  pr_dry_run:
+    description: 'Simulate PR creation without actually creating one (for testing)'
+    required: false
+    default: 'false'
 
 runs:
   using: 'docker'
@@ -110,6 +114,7 @@ runs:
     PR_BODY: ${{ inputs.pr_body }}
     SKIP_IF_EMPTY: ${{ inputs.skip_if_empty }}
     PR_CLOSED: ${{ inputs.pr_closed }}
+    PR_DRY_RUN: ${{ inputs.pr_dry_run }}
 branding:
   icon: 'git-commit'
   color: 'blue'
