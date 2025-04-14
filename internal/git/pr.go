@@ -343,8 +343,12 @@ func handlePRResponse(config *config.GitConfig, response map[string]interface{},
 		if config.PRClosed {
 			fmt.Printf("  • Would be closed immediately: Yes\n")
 		}
-		if config.DeleteSourceBranch && config.AutoBranch {
-			fmt.Printf("  • Source branch would be deleted: Yes\n")
+		if config.DeleteSourceBranch {
+			if config.AutoBranch {
+				fmt.Printf("  • Source branch would be deleted: Yes (auto-generated branch)\n")
+			} else {
+				fmt.Printf("  • Warning: delete_source_branch is set but requires auto_branch:true to take effect\n")
+			}
 		}
 
 		return nil
