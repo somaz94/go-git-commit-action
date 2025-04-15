@@ -10,50 +10,69 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-// TagManager is a structure that handles tasks related to Git tags.
+// TagCommand defines a command to be executed for tag operations
+type TagCommand struct {
+	name string
+	args []string
+	desc string
+}
+
+// TagManager handles all operations related to Git tags.
+// It provides methods for creating, deleting, and managing Git tags.
 type TagManager struct {
 	config *config.GitConfig
 }
 
-// NewTagManager creates a new TagManager instance.
+// NewTagManager creates a new TagManager instance with the provided configuration.
+// This is the entry point for all tag-related operations.
 func NewTagManager(config *config.GitConfig) *TagManager {
 	return &TagManager{config: config}
 }
 
-// HandleGitTag handles Git tag operations.
+// HandleGitTag orchestrates the Git tag operations based on configuration.
+// It determines whether to create or delete tags and handles the operation
+// with retry capability for transient errors.
 func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 	return withRetry(ctx, tm.config.RetryCount, func() error {
 		fmt.Println("\n🏷️  Handling Git Tag:")
 
-		// Gets all tags and references.
+		// Fetch all tags to ensure we're working with the latest data
 		if err := tm.fetchTags(); err != nil {
 			return err
 		}
 
+		// Either delete or create a tag based on the configuration
 		if tm.config.DeleteTag {
 			return tm.deleteTag()
-		} else {
-			return tm.createTag()
 		}
+
+		return tm.createTag()
 	})
 }
 
-// fetchTags fetches all tags and references.
+// fetchTags retrieves all tags and references from the remote repository.
+// This ensures that tag operations have the most up-to-date information.
 func (tm *TagManager) fetchTags() error {
+	fmt.Printf("  • Fetching tags from remote... ")
 	fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
+	fetchCmd.Stdout = os.Stdout
+	fetchCmd.Stderr = os.Stderr
+
 	if err := fetchCmd.Run(); err != nil {
+		fmt.Println("❌ Failed")
 		return fmt.Errorf("failed to fetch tags: %v", err)
 	}
+
+	fmt.Println("✅ Done")
 	return nil
 }
 
-// deleteTag deletes local and remote tags.
+// deleteTag removes both local and remote tags with the specified name.
+// It first deletes the local tag and then pushes the deletion to the remote.
 func (tm *TagManager) deleteTag() error {
-	commands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	fmt.Printf("\n  • Deleting tag: %s\n", tm.config.TagName)
+
+	commands := []TagCommand{
 		{"git", []string{"tag", "-d", tm.config.TagName}, "Deleting local tag"},
 		{"git", []string{"push", "origin", ":refs/tags/" + tm.config.TagName}, "Deleting remote tag"},
 	}
@@ -61,25 +80,23 @@ func (tm *TagManager) deleteTag() error {
 	return tm.executeCommands(commands)
 }
 
-// createTag creates a new tag and pushes it to the remote repository.
+// createTag creates a new Git tag and pushes it to the remote repository.
+// The tag can point to a specific commit if tag_reference is provided.
 func (tm *TagManager) createTag() error {
-	// Check the target commit for the tag reference
-	targetCommit, err := tm.getTargetCommit()
+	// Determine the commit to tag
+	targetCommit, err := tm.resolveTargetCommit()
 	if err != nil {
 		return err
 	}
 
-	// Prepare the tag creation command
+	// Build the tag command arguments
 	tagArgs := tm.buildTagArgs(targetCommit)
 
-	// Create the tag description message
+	// Create a human-readable description of the operation
 	desc := tm.buildTagDescription(targetCommit)
 
-	commands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	// Execute the tag creation and push commands
+	commands := []TagCommand{
 		{"git", tagArgs, desc},
 		{"git", []string{"push", "-f", "origin", tm.config.TagName}, "Pushing tag to remote"},
 	}
@@ -87,70 +104,98 @@ func (tm *TagManager) createTag() error {
 	return tm.executeCommands(commands)
 }
 
-// getTargetCommit determines the commit that the tag will point to.
-func (tm *TagManager) getTargetCommit() (string, error) {
+// resolveTargetCommit determines the exact commit that will be tagged.
+// If tag_reference is not provided, it returns an empty string to tag the current commit.
+func (tm *TagManager) resolveTargetCommit() (string, error) {
+	// If no reference is specified, tag the current commit
 	if tm.config.TagReference == "" {
 		return "", nil
 	}
 
-	// Check if the reference is valid
-	cmd := exec.Command("git", "rev-parse", "--verify", tm.config.TagReference)
-	if err := cmd.Run(); err != nil {
+	// Verify the reference is valid
+	fmt.Printf("  • Verifying reference '%s'... ", tm.config.TagReference)
+	verifyCmd := exec.Command("git", "rev-parse", "--verify", tm.config.TagReference)
+	verifyCmd.Stderr = os.Stderr
+
+	if err := verifyCmd.Run(); err != nil {
+		fmt.Println("❌ Failed")
 		return "", fmt.Errorf("invalid git reference '%s': %v", tm.config.TagReference, err)
 	}
+	fmt.Println("✅ Valid")
 
-	// Get the commit SHA for the reference
-	cmd = exec.Command("git", "rev-list", "-n1", tm.config.TagReference)
-	output, err := cmd.Output()
+	// Get the full commit SHA for the reference
+	fmt.Printf("  • Resolving commit for '%s'... ", tm.config.TagReference)
+	revListCmd := exec.Command("git", "rev-list", "-n1", tm.config.TagReference)
+	output, err := revListCmd.Output()
 	if err != nil {
+		fmt.Println("❌ Failed")
 		return "", fmt.Errorf("failed to get commit SHA for '%s': %v", tm.config.TagReference, err)
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	commitSHA := strings.TrimSpace(string(output))
+	fmt.Printf("✅ Found: %s\n", shortenCommitSHA(commitSHA))
+
+	return commitSHA, nil
 }
 
-// buildTagArgs builds the arguments needed for the tag creation command.
+// shortenCommitSHA creates a shorter version of a commit SHA for display.
+// It returns the first 8 characters of the commit SHA.
+func shortenCommitSHA(sha string) string {
+	if len(sha) > 8 {
+		return sha[:8]
+	}
+	return sha
+}
+
+// buildTagArgs constructs the arguments for the git tag command.
+// It handles different combinations of tag options based on the configuration.
 func (tm *TagManager) buildTagArgs(targetCommit string) []string {
 	var tagArgs []string
 
+	// Base command components
+	tagArgs = append(tagArgs, "tag", "-f")
+
+	// Add annotation if a message is provided
 	if tm.config.TagMessage != "" {
-		if targetCommit != "" {
-			tagArgs = []string{"tag", "-f", "-a", tm.config.TagName, targetCommit, "-m", tm.config.TagMessage}
-		} else {
-			tagArgs = []string{"tag", "-f", "-a", tm.config.TagName, "-m", tm.config.TagMessage}
-		}
-	} else {
-		if targetCommit != "" {
-			tagArgs = []string{"tag", "-f", tm.config.TagName, targetCommit}
-		} else {
-			tagArgs = []string{"tag", "-f", tm.config.TagName}
-		}
+		tagArgs = append(tagArgs, "-a")
+	}
+
+	// Add the tag name
+	tagArgs = append(tagArgs, tm.config.TagName)
+
+	// Add the target commit if specified
+	if targetCommit != "" {
+		tagArgs = append(tagArgs, targetCommit)
+	}
+
+	// Add the message if specified
+	if tm.config.TagMessage != "" {
+		tagArgs = append(tagArgs, "-m", tm.config.TagMessage)
 	}
 
 	return tagArgs
 }
 
-// buildTagDescription builds the description for the tag creation operation.
+// buildTagDescription creates a human-readable description of the tag operation.
+// It includes details about the tag name and the target commit if applicable.
 func (tm *TagManager) buildTagDescription(targetCommit string) string {
 	desc := "Creating local tag " + tm.config.TagName
 
+	// Add information about the target commit if available
 	if tm.config.TagReference != "" && targetCommit != "" {
 		if targetCommit != tm.config.TagReference {
-			desc += fmt.Sprintf(" pointing to %s (%s)", tm.config.TagReference, targetCommit[:8])
+			desc += fmt.Sprintf(" pointing to %s (%s)", tm.config.TagReference, shortenCommitSHA(targetCommit))
 		} else {
-			desc += fmt.Sprintf(" pointing to %s", targetCommit[:8])
+			desc += fmt.Sprintf(" pointing to %s", shortenCommitSHA(targetCommit))
 		}
 	}
 
 	return desc
 }
 
-// executeCommands executes a list of commands and prints the results.
-func (tm *TagManager) executeCommands(commands []struct {
-	name string
-	args []string
-	desc string
-}) error {
+// executeCommands runs a sequence of commands and handles the output formatting.
+// It provides consistent error handling and status messages for each command.
+func (tm *TagManager) executeCommands(commands []TagCommand) error {
 	for _, cmd := range commands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
