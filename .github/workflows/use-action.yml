@@ -113,9 +113,6 @@ jobs:
         with:
           fetch-depth: 10
 
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
-
       - name: Test Skip If Empty (should skip)
         uses: somaz94/go-git-commit-action@v1
         with:
@@ -160,9 +157,6 @@ jobs:
         with:
           fetch-depth: 10
 
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
-
       - name: Test PR Auto Close
         uses: somaz94/go-git-commit-action@v1
         with:
@@ -194,14 +188,6 @@ jobs:
         with:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
-
-      - name: Configure Git Safe Directory
-        run: git config --global --add safe.directory ${{ github.workspace }}
-      
-      - name: Setup Git User
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
       
       # - name: Create Test File for PR and Add to Git
       #   run: |

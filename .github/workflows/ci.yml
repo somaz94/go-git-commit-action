@@ -355,11 +355,6 @@ jobs:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
       
-      - name: Setup Git User
-        run: |
-          git config --global user.email "actions@github.com"
-          git config --global user.name "GitHub Actions"
-      
       # - name: Create Test File for PR and Add to Git
       #   run: |
       #     mkdir -p test
