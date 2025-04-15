@@ -12,7 +12,22 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 )
 
-// Helper function for retry logic
+// CommandDef defines a command to be executed
+type CommandDef struct {
+	name string
+	args []string
+	desc string
+}
+
+// FileBackup is a struct for file backups.
+type FileBackup struct {
+	path    string
+	content []byte
+}
+
+// withRetry provides retry logic for operations that might fail transiently.
+// It executes the given operation repeatedly until it succeeds or the maximum
+// number of retries is reached. The delay between retries increases linearly.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	var lastErr error
 	for i := range make([]struct{}, maxRetries) {
@@ -31,70 +46,89 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 	return fmt.Errorf("operation failed after %d retries: %v", maxRetries, lastErr)
 }
 
-// RunGitCommit runs the Git commit operation.
+// RunGitCommit executes the Git commit operation with the provided configuration.
+// It wraps the entire process in a retry mechanism to handle transient failures.
 func RunGitCommit(config *config.GitConfig) error {
+	// Create a context with timeout for the entire operation
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Timeout)*time.Second)
 	defer cancel()
 
-	// Wrap the existing code in retry logic
+	// Wrap the entire commit process in retry logic
 	return withRetry(ctx, config.RetryCount, func() error {
-		// Validate the configuration
-		if err := validateConfig(config); err != nil {
-			return err
-		}
-
-		// Print debug information
-		printDebugInfo()
-
-		// Change the working directory
-		if err := changeWorkingDirectory(config); err != nil {
-			return err
-		}
-
-		// Setup Git configuration
-		if err := setupGitConfig(config); err != nil {
-			return err
-		}
-
-		// Handle the branch
-		if err := handleBranch(config); err != nil {
-			return err
-		}
-
-		// Check for changes
-		if empty, err := checkIfEmpty(config); err != nil {
-			return err
-		} else if empty {
-			fmt.Println("\n⚠️  No changes detected and skip_if_empty is true. Skipping commit process.")
-			return nil
-		}
-
-		// Create a PR or commit directly
-		if config.CreatePR {
-			return handlePullRequestFlow(config)
-		} else {
-			return commitChanges(config)
-		}
+		return executeGitCommitWorkflow(config)
 	})
 }
 
-// validateConfig validates the required configuration.
-func validateConfig(config *config.GitConfig) error {
-	if config.CreatePR {
-		if !config.AutoBranch && config.PRBranch == "" {
-			return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
-		}
-		if config.PRBase == "" {
-			return fmt.Errorf("pr_base must be specified when create_pr is true")
-		}
-		if config.GitHubToken == "" {
-			return fmt.Errorf("github_token must be specified when create_pr is true")
-		}
+// executeGitCommitWorkflow runs all steps of the Git commit process
+func executeGitCommitWorkflow(config *config.GitConfig) error {
+	// Validate the configuration
+	if err := validateConfig(config); err != nil {
+		return err
 	}
+
+	// Print debug information
+	printDebugInfo()
+
+	// Change the working directory
+	if err := changeWorkingDirectory(config); err != nil {
+		return err
+	}
+
+	// Setup Git configuration
+	if err := setupGitConfig(config); err != nil {
+		return err
+	}
+
+	// Handle the branch
+	if err := handleBranch(config); err != nil {
+		return err
+	}
+
+	// Check for changes
+	isEmpty, err := checkIfEmpty(config)
+	if err != nil {
+		return err
+	}
+
+	if isEmpty {
+		fmt.Println("\n⚠️  No changes detected and skip_if_empty is true. Skipping commit process.")
+		return nil
+	}
+
+	// Create a PR or commit directly based on configuration
+	if config.CreatePR {
+		return handlePullRequestFlow(config)
+	}
+
+	return commitChanges(config)
+}
+
+// validateConfig ensures all required configuration parameters are set.
+// It checks that the necessary fields for PR creation are specified when the
+// create_pr option is enabled.
+func validateConfig(config *config.GitConfig) error {
+	if !config.CreatePR {
+		return nil
+	}
+
+	// Validate PR-specific configuration
+	if !config.AutoBranch && config.PRBranch == "" {
+		return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
+	}
+
+	if config.PRBase == "" {
+		return fmt.Errorf("pr_base must be specified when create_pr is true")
+	}
+
+	if config.GitHubToken == "" {
+		return fmt.Errorf("github_token must be specified when create_pr is true")
+	}
+
 	return nil
 }
 
-// printDebugInfo prints debug information.
+// printDebugInfo outputs debug information about the current environment.
+// This includes the working directory and the contents of the directory.
 func printDebugInfo() {
 	currentDir, _ := os.Getwd()
 	fmt.Println("\n🚀 Starting Git Commit Action\n" +
@@ -110,7 +144,8 @@ func printDebugInfo() {
 	}
 }
 
-// changeWorkingDirectory changes the working directory.
+// changeWorkingDirectory changes to the specified repository path if it's not
+// the current directory. It reports the new directory after changing.
 func changeWorkingDirectory(config *config.GitConfig) error {
 	if config.RepoPath != "." {
 		if err := os.Chdir(config.RepoPath); err != nil {
@@ -122,13 +157,10 @@ func changeWorkingDirectory(config *config.GitConfig) error {
 	return nil
 }
 
-// setupGitConfig performs Git basic configuration.
+// setupGitConfig configures Git with user information and safety settings.
+// It runs a series of git config commands to ensure the proper environment.
 func setupGitConfig(config *config.GitConfig) error {
-	baseCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	baseCommands := []CommandDef{
 		{"git", []string{"config", "--global", "--add", "safe.directory", "/app"}, "Setting safe directory (/app)"},
 		{"git", []string{"config", "--global", "--add", "safe.directory", "/github/workspace"}, "Setting safe directory (/github/workspace)"},
 		{"git", []string{"config", "--global", "user.email", config.UserEmail}, "Configuring user email"},
@@ -136,8 +168,17 @@ func setupGitConfig(config *config.GitConfig) error {
 		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
 	}
 
-	fmt.Println("\n⚙️  Executing Git Commands:")
-	for _, cmd := range baseCommands {
+	return executeCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:")
+}
+
+// executeCommandBatch runs a batch of commands, providing consistent output
+// formatting and error handling.
+func executeCommandBatch(commands []CommandDef, headerMessage string) error {
+	if headerMessage != "" {
+		fmt.Println(headerMessage)
+	}
+
+	for _, cmd := range commands {
 		fmt.Printf("  • %s... ", cmd.desc)
 		command := exec.Command(cmd.name, cmd.args...)
 		command.Stdout = os.Stdout
@@ -152,88 +193,82 @@ func setupGitConfig(config *config.GitConfig) error {
 	return nil
 }
 
-// handleBranch handles branch-related operations.
+// handleBranch manages branch-related operations, checking for local and remote
+// branch existence and taking appropriate action.
 func handleBranch(config *config.GitConfig) error {
-	// Check the local branch
-	checkLocalBranch := exec.Command("git", "rev-parse", "--verify", config.Branch)
-	// Check the remote branch
-	checkRemoteBranch := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch)
+	// Check if local branch exists
+	localBranchExists := exec.Command("git", "rev-parse", "--verify", config.Branch).Run() == nil
 
-	if checkLocalBranch.Run() != nil && checkRemoteBranch.Run() != nil {
-		// If both local and remote branches are missing, create a new one
+	// Check if remote branch exists
+	remoteBranchExists := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch).Run() == nil
+
+	// Determine the appropriate action based on branch existence
+	if !localBranchExists && !remoteBranchExists {
+		// Neither local nor remote branch exists, create a new one
 		return createNewBranch(config)
-	} else if checkLocalBranch.Run() != nil {
-		// If the remote branch exists but the local one does not, checkout the remote branch
+	} else if !localBranchExists && remoteBranchExists {
+		// Only remote branch exists, check it out
 		return checkoutRemoteBranch(config)
 	}
+
+	// Local branch already exists and is checked out, nothing to do
 	return nil
 }
 
-// createNewBranch creates a new branch.
+// createNewBranch creates a new branch and pushes it to the remote repository.
 func createNewBranch(config *config.GitConfig) error {
 	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
-	createCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	createCommands := []CommandDef{
 		{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
 		{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
 	}
 
-	for _, cmd := range createCommands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-		fmt.Println("✅ Done")
-	}
-	return nil
+	return executeCommandBatch(createCommands, "")
 }
 
-// checkoutRemoteBranch checks out the remote branch.
+// checkoutRemoteBranch checks out an existing remote branch while handling
+// local changes properly through backup, stash, and restore.
 func checkoutRemoteBranch(config *config.GitConfig) error {
 	fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
 
-	// Check for modified files
-	statusCmd := exec.Command("git", "status", "--porcelain")
-	statusOutput, err := statusCmd.Output()
-	if err != nil {
-		return fmt.Errorf("failed to get modified files: %v", err)
-	}
-
-	// Backup changes
-	backups, err := backupChanges(config, string(statusOutput))
+	// Get the current working directory state
+	statusOutput, err := getGitStatus()
 	if err != nil {
 		return err
 	}
 
-	// Stash changes
+	// Backup any modified files
+	backups, err := backupChanges(config, statusOutput)
+	if err != nil {
+		return err
+	}
+
+	// Stash any changes to avoid conflicts during checkout
 	if err := stashChanges(); err != nil {
 		return err
 	}
 
-	// Check out the remote branch
+	// Fetch and checkout the remote branch
 	if err := fetchAndCheckout(config); err != nil {
 		return err
 	}
 
-	// Restore changes
+	// Restore the backed up changes
 	return restoreChanges(backups)
 }
 
-// FileBackup is a struct for file backups.
-type FileBackup struct {
-	path    string
-	content []byte
+// getGitStatus returns the current Git status in porcelain format.
+func getGitStatus() (string, error) {
+	statusCmd := exec.Command("git", "status", "--porcelain")
+	output, err := statusCmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("failed to get modified files: %v", err)
+	}
+	return string(output), nil
 }
 
-// backupChanges backs up changed files.
+// backupChanges creates backups of modified files that need to be preserved
+// during branch switching.
 func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup, error) {
 	fmt.Printf("  • Backing up changes... ")
 
@@ -256,65 +291,58 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 
 		fmt.Printf("\n    - Found modified file: %s (status: %s)", relPath, status)
 
-		// Backup only if the file is not deleted
-		if status != " D" && status != "D " {
-			content, err := os.ReadFile(relPath)
-			if err != nil {
-				fmt.Println("❌ Failed")
-				return nil, fmt.Errorf("failed to read file %s: %v", relPath, err)
-			}
-			backups = append(backups, FileBackup{path: relPath, content: content})
+		// Skip deleted files since they don't need backup
+		if status == " D" || status == "D " {
+			continue
 		}
+
+		// Read and store file contents
+		content, err := os.ReadFile(relPath)
+		if err != nil {
+			fmt.Println("❌ Failed")
+			return nil, fmt.Errorf("failed to read file %s: %v", relPath, err)
+		}
+
+		backups = append(backups, FileBackup{path: relPath, content: content})
 	}
+
 	fmt.Println("✅ Done")
 	return backups, nil
 }
 
-// stashChanges stashes changes.
+// stashChanges safely stashes any local changes to avoid conflicts.
 func stashChanges() error {
 	fmt.Printf("  • Stashing changes... ")
 	stashCmd := exec.Command("git", "stash", "push", "-u")
 	stashCmd.Stdout = os.Stdout
 	stashCmd.Stderr = os.Stderr
+
 	if err := stashCmd.Run(); err != nil {
 		fmt.Println("❌ Failed")
 		return fmt.Errorf("failed to stash changes: %v", err)
 	}
+
 	fmt.Println("✅ Done")
 	return nil
 }
 
-// fetchAndCheckout fetches and checks out the remote branch.
+// fetchAndCheckout fetches the remote branch and checks it out locally.
 func fetchAndCheckout(config *config.GitConfig) error {
-	checkoutCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	checkoutCommands := []CommandDef{
 		{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
 		{"git", []string{"checkout", config.Branch}, "Checking out branch"},
 		{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
 	}
 
-	for _, cmd := range checkoutCommands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-		if err := command.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-		fmt.Println("✅ Done")
-	}
-	return nil
+	return executeCommandBatch(checkoutCommands, "")
 }
 
-// restoreChanges restores backed up changes.
+// restoreChanges brings back the backed up files after branch switching.
 func restoreChanges(backups []FileBackup) error {
 	fmt.Printf("  • Restoring changes... ")
+
 	for _, backup := range backups {
-		// Create the directory if it doesn't exist
+		// Create parent directories if they don't exist
 		dir := filepath.Dir(backup.path)
 		if dir != "." {
 			if err := os.MkdirAll(dir, 0755); err != nil {
@@ -323,62 +351,77 @@ func restoreChanges(backups []FileBackup) error {
 			}
 		}
 
+		// Write the file content
 		if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to restore file %s: %v", backup.path, err)
 		}
 	}
+
 	fmt.Println("✅ Done")
 	return nil
 }
 
-// checkIfEmpty checks if there are any changes.
+// checkIfEmpty determines if there are any changes to commit.
+// It checks both working directory changes and differences between branches.
 func checkIfEmpty(config *config.GitConfig) (bool, error) {
-	// Check for local changes in the working directory
+	// Get local working directory changes
 	statusCmd := exec.Command("git", "status", "--porcelain")
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to check git status: %v", err)
 	}
 
-	// Check for differences between the branch
+	// Check for differences between branches
 	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.PRBranch), "--name-only")
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
-		// If an error occurs (e.g., new branch), consider it non-empty
+		// If error (likely new branch), consider it non-empty to proceed
 		diffOutput = []byte("new-branch")
 	}
 
-	isEmpty := len(statusOutput) == 0 && len(diffOutput) == 0
+	// Determine if there are no changes to commit
+	hasLocalChanges := len(statusOutput) > 0
+	hasBranchDifferences := len(diffOutput) > 0
+	isEmpty := !hasLocalChanges && !hasBranchDifferences
 
-	// Print debug information
-	fmt.Printf("\n📊 Change Detection:\n")
-	fmt.Printf("  • Local changes: %v\n", len(statusOutput) > 0)
-	fmt.Printf("  • Branch differences: %v\n", len(diffOutput) > 0)
-	if len(statusOutput) > 0 {
-		fmt.Printf("  • Local changes details:\n%s\n", string(statusOutput))
-	}
-	if len(diffOutput) > 0 {
-		fmt.Printf("  • Branch differences details:\n%s\n", string(diffOutput))
-	}
+	// Print debug information for better visibility
+	printChangeDetectionInfo(statusOutput, diffOutput, hasLocalChanges, hasBranchDifferences)
 
+	// Return true only if empty and config says to skip empty commits
 	return isEmpty && config.SkipIfEmpty, nil
 }
 
-// handlePullRequestFlow handles the PR creation flow.
+// printChangeDetectionInfo outputs information about detected changes.
+func printChangeDetectionInfo(statusOutput, diffOutput []byte, hasLocalChanges, hasBranchDifferences bool) {
+	fmt.Printf("\n📊 Change Detection:\n")
+	fmt.Printf("  • Local changes: %v\n", hasLocalChanges)
+	fmt.Printf("  • Branch differences: %v\n", hasBranchDifferences)
+
+	if hasLocalChanges {
+		fmt.Printf("  • Local changes details:\n%s\n", string(statusOutput))
+	}
+
+	if hasBranchDifferences {
+		fmt.Printf("  • Branch differences details:\n%s\n", string(diffOutput))
+	}
+}
+
+// handlePullRequestFlow manages the creation of pull requests
+// based on the auto_branch configuration.
 func handlePullRequestFlow(config *config.GitConfig) error {
 	if config.AutoBranch {
-		// If AutoBranch is true, the PR creation function will create a new branch and commit
+		// Auto branch creation and PR creation in one step
 		if err := CreatePullRequest(config); err != nil {
 			return fmt.Errorf("failed to create pull request: %v", err)
 		}
 	} else {
-		// If AutoBranch is false, commit the changes first and then create a PR
+		// First commit changes to the specified branch
 		if err := commitChanges(config); err != nil {
 			return err
 		}
 
-		// Commit and then create a PR (use pr_branch and pr_base)
+		// Then create a PR from that branch
 		if err := CreatePullRequest(config); err != nil {
 			return fmt.Errorf("failed to create pull request: %v", err)
 		}
@@ -386,45 +429,54 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 	return nil
 }
 
-// commitChanges commits and pushes the changes.
+// commitChanges stages, commits, and pushes the specified files.
 func commitChanges(config *config.GitConfig) error {
-	// Handle git add with file pattern that may contain spaces
+	// Stage files first
+	if err := stageFiles(config.FilePattern); err != nil {
+		return err
+	}
+
+	// Perform commit and push
+	return performCommitAndPush(config)
+}
+
+// stageFiles adds the specified files to the Git staging area.
+// It handles multiple file patterns separated by spaces.
+func stageFiles(filePattern string) error {
 	fmt.Printf("  • Adding files... ")
 
-	// Check if file pattern contains spaces, indicating multiple files/patterns
-	if strings.Contains(config.FilePattern, " ") {
-		// Split the pattern and add each file/pattern individually
-		patterns := strings.Fields(config.FilePattern)
+	// Handle multiple patterns separated by spaces
+	if strings.Contains(filePattern, " ") {
+		patterns := strings.Fields(filePattern)
 		for _, pattern := range patterns {
-			addCmd := exec.Command("git", "add", pattern)
-			addCmd.Stdout = os.Stdout
-			addCmd.Stderr = os.Stderr
-
-			if err := addCmd.Run(); err != nil {
+			if err := executeGitAdd(pattern); err != nil {
 				fmt.Println("❌ Failed")
 				return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
 			}
 		}
-		fmt.Println("✅ Done")
 	} else {
-		// Single file pattern case - proceed as before
-		addCmd := exec.Command("git", "add", config.FilePattern)
-		addCmd.Stdout = os.Stdout
-		addCmd.Stderr = os.Stderr
-
-		if err := addCmd.Run(); err != nil {
+		// Single pattern case
+		if err := executeGitAdd(filePattern); err != nil {
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to add files: %v", err)
 		}
-		fmt.Println("✅ Done")
 	}
 
-	// Continue with commit and push commands
-	commitPushCommands := []struct {
-		name string
-		args []string
-		desc string
-	}{
+	fmt.Println("✅ Done")
+	return nil
+}
+
+// executeGitAdd executes the git add command for a specific pattern.
+func executeGitAdd(pattern string) error {
+	addCmd := exec.Command("git", "add", pattern)
+	addCmd.Stdout = os.Stdout
+	addCmd.Stderr = os.Stderr
+	return addCmd.Run()
+}
+
+// performCommitAndPush commits the staged changes and pushes them to the remote.
+func performCommitAndPush(config *config.GitConfig) error {
+	commitPushCommands := []CommandDef{
 		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
 		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
 	}
@@ -436,14 +488,18 @@ func commitChanges(config *config.GitConfig) error {
 		command.Stderr = os.Stderr
 
 		if err := command.Run(); err != nil {
+			// Special handling for "nothing to commit" case
 			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
 				fmt.Println("⚠️  Nothing to commit, skipping...")
 				continue
 			}
+
 			fmt.Println("❌ Failed")
 			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
 		}
+
 		fmt.Println("✅ Done")
 	}
+
 	return nil
 }
