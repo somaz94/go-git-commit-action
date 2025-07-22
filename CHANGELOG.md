@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-07-22)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.5.1...v1.5.1)
+
+**Merged pull requests:**
+
+- build\(deps\): bump super-linter/super-linter from 7 to 8 [\#244](https://github.com/somaz94/go-git-commit-action/pull/244) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-04-15)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.5.0...v1.5.1)
