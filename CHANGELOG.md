@@ -6,6 +6,7 @@
 
 **Merged pull requests:**
 
+- build\(deps\): bump actions/checkout from 4 to 5 [\#255](https://github.com/somaz94/go-git-commit-action/pull/255) ([dependabot[bot]](https://github.com/apps/dependabot))
 - build\(deps\): bump golang from 1.24-alpine to 1.25-alpine in the docker-minor group [\#248](https://github.com/somaz94/go-git-commit-action/pull/248) ([dependabot[bot]](https://github.com/apps/dependabot))
 - build\(deps\): bump super-linter/super-linter from 7 to 8 [\#244](https://github.com/somaz94/go-git-commit-action/pull/244) ([dependabot[bot]](https://github.com/apps/dependabot))
 
