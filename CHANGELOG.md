@@ -1,11 +1,12 @@
 # Changelog
 
-## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-07-22)
+## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-08-18)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.5.1...v1.5.1)
 
 **Merged pull requests:**
 
+- build\(deps\): bump golang from 1.24-alpine to 1.25-alpine in the docker-minor group [\#248](https://github.com/somaz94/go-git-commit-action/pull/248) ([dependabot[bot]](https://github.com/apps/dependabot))
 - build\(deps\): bump super-linter/super-linter from 7 to 8 [\#244](https://github.com/somaz94/go-git-commit-action/pull/244) ([dependabot[bot]](https://github.com/apps/dependabot))
 
 ## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-04-15)
