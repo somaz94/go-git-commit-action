@@ -11,13 +11,6 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
-// TagCommand defines a command to be executed for tag operations
-type TagCommand struct {
-	name string
-	args []string
-	desc string
-}
-
 // TagManager handles all operations related to Git tags.
 // It provides methods for creating, deleting, and managing Git tags.
 type TagManager struct {
@@ -73,12 +66,12 @@ func (tm *TagManager) fetchTags() error {
 func (tm *TagManager) deleteTag() error {
 	fmt.Printf("\n  • Deleting tag: %s\n", tm.config.TagName)
 
-	commands := []TagCommand{
+	commands := []Command{
 		{gitcmd.CmdGit, gitcmd.TagDeleteArgs(tm.config.TagName), "Deleting local tag"},
 		{gitcmd.CmdGit, gitcmd.DeleteRemoteTagArgs(tm.config.TagName), "Deleting remote tag"},
 	}
 
-	return tm.executeCommands(commands)
+	return ExecuteCommandBatch(commands, "")
 }
 
 // createTag creates a new Git tag and pushes it to the remote repository.
@@ -97,12 +90,12 @@ func (tm *TagManager) createTag() error {
 	desc := tm.buildTagDescription(targetCommit)
 
 	// Execute the tag creation and push commands
-	commands := []TagCommand{
+	commands := []Command{
 		{gitcmd.CmdGit, tagArgs, desc},
 		{gitcmd.CmdGit, gitcmd.PushTagArgs(tm.config.TagName, true), "Pushing tag to remote"},
 	}
 
-	return tm.executeCommands(commands)
+	return ExecuteCommandBatch(commands, "")
 }
 
 // resolveTargetCommit determines the exact commit that will be tagged.
@@ -194,23 +187,4 @@ func (tm *TagManager) buildTagDescription(targetCommit string) string {
 	}
 
 	return desc
-}
-
-// executeCommands runs a sequence of commands and handles the output formatting.
-// It provides consistent error handling and status messages for each command.
-func (tm *TagManager) executeCommands(commands []TagCommand) error {
-	for _, cmd := range commands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-		fmt.Println("✅ Done")
-	}
-
-	return nil
 }

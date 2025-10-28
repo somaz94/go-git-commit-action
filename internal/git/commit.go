@@ -13,13 +13,6 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
-// CommandDef defines a command to be executed
-type CommandDef struct {
-	name string
-	args []string
-	desc string
-}
-
 // FileBackup is a struct for file backups.
 type FileBackup struct {
 	path    string
@@ -161,7 +154,7 @@ func changeWorkingDirectory(config *config.GitConfig) error {
 // setupGitConfig configures Git with user information and safety settings.
 // It runs a series of git config commands to ensure the proper environment.
 func setupGitConfig(config *config.GitConfig) error {
-	baseCommands := []CommandDef{
+	baseCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathApp), "Setting safe directory (/app)"},
 		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathGitHubWorkspace), "Setting safe directory (/github/workspace)"},
 		{gitcmd.CmdGit, gitcmd.ConfigUserEmailArgs(config.UserEmail), "Configuring user email"},
@@ -169,29 +162,7 @@ func setupGitConfig(config *config.GitConfig) error {
 		{gitcmd.CmdGit, gitcmd.ConfigListArgs(), "Checking git configuration"},
 	}
 
-	return executeCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:")
-}
-
-// executeCommandBatch runs a batch of commands, providing consistent output
-// formatting and error handling.
-func executeCommandBatch(commands []CommandDef, headerMessage string) error {
-	if headerMessage != "" {
-		fmt.Println(headerMessage)
-	}
-
-	for _, cmd := range commands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-		fmt.Println("✅ Done")
-	}
-	return nil
+	return ExecuteCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:")
 }
 
 // handleBranch manages branch-related operations, checking for local and remote
@@ -219,12 +190,12 @@ func handleBranch(config *config.GitConfig) error {
 // createNewBranch creates a new branch and pushes it to the remote repository.
 func createNewBranch(config *config.GitConfig) error {
 	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
-	createCommands := []CommandDef{
+	createCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(config.Branch), "Creating new branch"},
 		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.Branch), "Pushing new branch"},
 	}
 
-	return executeCommandBatch(createCommands, "")
+	return ExecuteCommandBatch(createCommands, "")
 }
 
 // checkoutRemoteBranch checks out an existing remote branch while handling
@@ -329,13 +300,13 @@ func stashChanges() error {
 
 // fetchAndCheckout fetches the remote branch and checks it out locally.
 func fetchAndCheckout(config *config.GitConfig) error {
-	checkoutCommands := []CommandDef{
+	checkoutCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.Branch), "Fetching remote branch"},
 		{gitcmd.CmdGit, gitcmd.CheckoutArgs(config.Branch), "Checking out branch"},
 		{gitcmd.CmdGit, gitcmd.ResetHardArgs(fmt.Sprintf("origin/%s", config.Branch)), "Resetting to remote state"},
 	}
 
-	return executeCommandBatch(checkoutCommands, "")
+	return ExecuteCommandBatch(checkoutCommands, "")
 }
 
 // restoreChanges brings back the backed up files after branch switching.
@@ -480,30 +451,10 @@ func executeGitAdd(pattern string) error {
 
 // performCommitAndPush commits the staged changes and pushes them to the remote.
 func performCommitAndPush(config *config.GitConfig) error {
-	commitPushCommands := []CommandDef{
+	commitPushCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
 		{gitcmd.CmdGit, gitcmd.PushArgs(gitcmd.RefOrigin, config.Branch), "Pushing to remote"},
 	}
 
-	for _, cmd := range commitPushCommands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			// Special handling for "nothing to commit" case
-			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				continue
-			}
-
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-
-		fmt.Println("✅ Done")
-	}
-
-	return nil
+	return ExecuteCommandBatch(commitPushCommands, "")
 }

@@ -13,13 +13,6 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
-// CommandDef defines a command to be executed
-type PRCommandDef struct {
-	name string
-	args []string
-	desc string
-}
-
 // GitHubClient handles GitHub API interactions.
 type GitHubClient struct {
 	token      string
@@ -185,41 +178,12 @@ func executePRGitAdd(pattern string) error {
 
 // commitAndPushToBranch commits the staged changes and pushes them to the remote branch.
 func commitAndPushToBranch(config *config.GitConfig) error {
-	commitPushCommands := []PRCommandDef{
+	commitPushCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
 		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.PRBranch), "Pushing changes"},
 	}
 
-	return executePRCommandBatch(commitPushCommands, "")
-}
-
-// executePRCommandBatch runs a batch of commands with consistent output formatting.
-func executePRCommandBatch(commands []PRCommandDef, headerMessage string) error {
-	if headerMessage != "" {
-		fmt.Println(headerMessage)
-	}
-
-	for _, cmd := range commands {
-		fmt.Printf("  • %s... ", cmd.desc)
-		command := exec.Command(cmd.name, cmd.args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
-
-		if err := command.Run(); err != nil {
-			// Special handling for "nothing to commit" case
-			if cmd.args[0] == "commit" && err.Error() == "exit status 1" {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
-				continue
-			}
-
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to execute %s: %v", cmd.name, err)
-		}
-
-		fmt.Println("✅ Done")
-	}
-
-	return nil
+	return ExecuteCommandBatch(commitPushCommands, "")
 }
 
 // checkBranchDifferences checks the differences between the PR base branch and the source branch.
@@ -238,14 +202,14 @@ func checkBranchDifferences(config *config.GitConfig) error {
 
 // fetchBranches fetches the latest from both the base and source branches.
 func fetchBranches(config *config.GitConfig) error {
-	fetchCommands := []PRCommandDef{
+	fetchCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.PRBase), "Fetching base branch"},
 		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.PRBranch), "Fetching source branch"},
 	}
 
 	for _, cmd := range fetchCommands {
-		if err := exec.Command(cmd.name, cmd.args...).Run(); err != nil {
-			return fmt.Errorf("%s: %v", cmd.desc, err)
+		if err := exec.Command(cmd.Name, cmd.Args...).Run(); err != nil {
+			return fmt.Errorf("%s: %v", cmd.Desc, err)
 		}
 	}
 
