@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
 // CommandDef defines a command to be executed
@@ -110,7 +111,7 @@ func createAutoBranch(config *config.GitConfig) (string, error) {
 
 	// Create and switch to a new branch
 	fmt.Printf("  • Creating new branch %s... ", sourceBranch)
-	if err := exec.Command("git", "checkout", "-b", sourceBranch).Run(); err != nil {
+	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...).Run(); err != nil {
 		fmt.Println("❌ Failed")
 		return "", fmt.Errorf("failed to create branch: %v", err)
 	}
@@ -128,7 +129,7 @@ func createAutoBranch(config *config.GitConfig) (string, error) {
 func checkoutExistingBranch(config *config.GitConfig) (string, error) {
 	sourceBranch := config.PRBranch
 	fmt.Printf("  • Checking out branch %s... ", sourceBranch)
-	if err := exec.Command("git", "checkout", sourceBranch).Run(); err != nil {
+	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutArgs(sourceBranch)...).Run(); err != nil {
 		fmt.Println("❌ Failed")
 		return "", fmt.Errorf("failed to checkout branch: %v", err)
 	}
@@ -176,7 +177,7 @@ func stagePRFiles(filePattern string) error {
 
 // executePRGitAdd executes the git add command for a specific pattern.
 func executePRGitAdd(pattern string) error {
-	addCmd := exec.Command("git", "add", pattern)
+	addCmd := exec.Command(gitcmd.CmdGit, gitcmd.AddArgs(pattern)...)
 	addCmd.Stdout = os.Stdout
 	addCmd.Stderr = os.Stderr
 	return addCmd.Run()
@@ -185,8 +186,8 @@ func executePRGitAdd(pattern string) error {
 // commitAndPushToBranch commits the staged changes and pushes them to the remote branch.
 func commitAndPushToBranch(config *config.GitConfig) error {
 	commitPushCommands := []PRCommandDef{
-		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-		{"git", []string{"push", "-u", "origin", config.PRBranch}, "Pushing changes"},
+		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
+		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.PRBranch), "Pushing changes"},
 	}
 
 	return executePRCommandBatch(commitPushCommands, "")
@@ -238,8 +239,8 @@ func checkBranchDifferences(config *config.GitConfig) error {
 // fetchBranches fetches the latest from both the base and source branches.
 func fetchBranches(config *config.GitConfig) error {
 	fetchCommands := []PRCommandDef{
-		{"git", []string{"fetch", "origin", config.PRBase}, "Fetching base branch"},
-		{"git", []string{"fetch", "origin", config.PRBranch}, "Fetching source branch"},
+		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.PRBase), "Fetching base branch"},
+		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.PRBranch), "Fetching source branch"},
 	}
 
 	for _, cmd := range fetchCommands {
@@ -254,7 +255,10 @@ func fetchBranches(config *config.GitConfig) error {
 // displayChangedFiles shows the changed files between branches and validates if changes exist.
 func displayChangedFiles(config *config.GitConfig) error {
 	// Check the changed files
-	diffFiles := exec.Command("git", "diff", fmt.Sprintf("origin/%s..origin/%s", config.PRBase, config.PRBranch), "--name-status")
+	diffFiles := exec.Command(gitcmd.CmdGit, gitcmd.DiffNameStatusArgs(
+		fmt.Sprintf("origin/%s", config.PRBase),
+		fmt.Sprintf("origin/%s", config.PRBranch),
+	)...)
 	filesOutput, _ := diffFiles.Output()
 
 	if len(filesOutput) == 0 {
@@ -349,7 +353,7 @@ func preparePRData(config *config.GitConfig) (map[string]interface{}, error) {
 
 // getCurrentCommitSHA retrieves the current commit SHA.
 func getCurrentCommitSHA() (string, error) {
-	commitCmd := exec.Command("git", "rev-parse", "HEAD")
+	commitCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...)
 	commitSHA, err := commitCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit SHA: %v", err)
@@ -673,7 +677,7 @@ func deleteSourceBranch(config *config.GitConfig, sourceBranch string) error {
 	}
 
 	fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
-	deleteCommand := exec.Command("git", "push", "origin", "--delete", sourceBranch)
+	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.SubCmdPush, gitcmd.RefOrigin, "--delete", sourceBranch)
 	if err := deleteCommand.Run(); err != nil {
 		fmt.Println("❌ Failed")
 		return fmt.Errorf("failed to delete source branch: %v", err)

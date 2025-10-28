@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
 // TagCommand defines a command to be executed for tag operations
@@ -54,7 +55,7 @@ func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 // This ensures that tag operations have the most up-to-date information.
 func (tm *TagManager) fetchTags() error {
 	fmt.Printf("  • Fetching tags from remote... ")
-	fetchCmd := exec.Command("git", "fetch", "--tags", "--force", "origin")
+	fetchCmd := exec.Command(gitcmd.CmdGit, gitcmd.FetchTagsArgs()...)
 	fetchCmd.Stdout = os.Stdout
 	fetchCmd.Stderr = os.Stderr
 
@@ -73,8 +74,8 @@ func (tm *TagManager) deleteTag() error {
 	fmt.Printf("\n  • Deleting tag: %s\n", tm.config.TagName)
 
 	commands := []TagCommand{
-		{"git", []string{"tag", "-d", tm.config.TagName}, "Deleting local tag"},
-		{"git", []string{"push", "origin", ":refs/tags/" + tm.config.TagName}, "Deleting remote tag"},
+		{gitcmd.CmdGit, gitcmd.TagDeleteArgs(tm.config.TagName), "Deleting local tag"},
+		{gitcmd.CmdGit, gitcmd.DeleteRemoteTagArgs(tm.config.TagName), "Deleting remote tag"},
 	}
 
 	return tm.executeCommands(commands)
@@ -97,8 +98,8 @@ func (tm *TagManager) createTag() error {
 
 	// Execute the tag creation and push commands
 	commands := []TagCommand{
-		{"git", tagArgs, desc},
-		{"git", []string{"push", "-f", "origin", tm.config.TagName}, "Pushing tag to remote"},
+		{gitcmd.CmdGit, tagArgs, desc},
+		{gitcmd.CmdGit, gitcmd.PushTagArgs(tm.config.TagName, true), "Pushing tag to remote"},
 	}
 
 	return tm.executeCommands(commands)
@@ -114,7 +115,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 
 	// Verify the reference is valid
 	fmt.Printf("  • Verifying reference '%s'... ", tm.config.TagReference)
-	verifyCmd := exec.Command("git", "rev-parse", "--verify", tm.config.TagReference)
+	verifyCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs(tm.config.TagReference)...)
 	verifyCmd.Stderr = os.Stderr
 
 	if err := verifyCmd.Run(); err != nil {
@@ -125,7 +126,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 
 	// Get the full commit SHA for the reference
 	fmt.Printf("  • Resolving commit for '%s'... ", tm.config.TagReference)
-	revListCmd := exec.Command("git", "rev-list", "-n1", tm.config.TagReference)
+	revListCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevListArgs(tm.config.TagReference)...)
 	output, err := revListCmd.Output()
 	if err != nil {
 		fmt.Println("❌ Failed")
@@ -150,30 +151,32 @@ func shortenCommitSHA(sha string) string {
 // buildTagArgs constructs the arguments for the git tag command.
 // It handles different combinations of tag options based on the configuration.
 func (tm *TagManager) buildTagArgs(targetCommit string) []string {
-	var tagArgs []string
-
-	// Base command components
-	tagArgs = append(tagArgs, "tag", "-f")
-
-	// Add annotation if a message is provided
+	// If we have a message, create an annotated tag
 	if tm.config.TagMessage != "" {
-		tagArgs = append(tagArgs, "-a")
+		args := gitcmd.TagCreateAnnotatedArgs(tm.config.TagName, tm.config.TagMessage, true)
+		// Insert target commit if specified (before the message)
+		if targetCommit != "" {
+			// Find the position of -m flag and insert commit before it
+			for i, arg := range args {
+				if arg == gitcmd.OptMessage {
+					// Insert targetCommit before -m
+					result := make([]string, 0, len(args)+1)
+					result = append(result, args[:i]...)
+					result = append(result, targetCommit)
+					result = append(result, args[i:]...)
+					return result
+				}
+			}
+		}
+		return args
 	}
 
-	// Add the tag name
-	tagArgs = append(tagArgs, tm.config.TagName)
-
-	// Add the target commit if specified
+	// Simple tag without message
+	args := gitcmd.TagCreateArgs(tm.config.TagName, true)
 	if targetCommit != "" {
-		tagArgs = append(tagArgs, targetCommit)
+		args = append(args, targetCommit)
 	}
-
-	// Add the message if specified
-	if tm.config.TagMessage != "" {
-		tagArgs = append(tagArgs, "-m", tm.config.TagMessage)
-	}
-
-	return tagArgs
+	return args
 }
 
 // buildTagDescription creates a human-readable description of the tag operation.

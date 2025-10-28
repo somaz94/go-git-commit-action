@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
 // CommandDef defines a command to be executed
@@ -161,11 +162,11 @@ func changeWorkingDirectory(config *config.GitConfig) error {
 // It runs a series of git config commands to ensure the proper environment.
 func setupGitConfig(config *config.GitConfig) error {
 	baseCommands := []CommandDef{
-		{"git", []string{"config", "--global", "--add", "safe.directory", "/app"}, "Setting safe directory (/app)"},
-		{"git", []string{"config", "--global", "--add", "safe.directory", "/github/workspace"}, "Setting safe directory (/github/workspace)"},
-		{"git", []string{"config", "--global", "user.email", config.UserEmail}, "Configuring user email"},
-		{"git", []string{"config", "--global", "user.name", config.UserName}, "Configuring user name"},
-		{"git", []string{"config", "--global", "--list"}, "Checking git configuration"},
+		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathApp), "Setting safe directory (/app)"},
+		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathGitHubWorkspace), "Setting safe directory (/github/workspace)"},
+		{gitcmd.CmdGit, gitcmd.ConfigUserEmailArgs(config.UserEmail), "Configuring user email"},
+		{gitcmd.CmdGit, gitcmd.ConfigUserNameArgs(config.UserName), "Configuring user name"},
+		{gitcmd.CmdGit, gitcmd.ConfigListArgs(), "Checking git configuration"},
 	}
 
 	return executeCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:")
@@ -197,10 +198,10 @@ func executeCommandBatch(commands []CommandDef, headerMessage string) error {
 // branch existence and taking appropriate action.
 func handleBranch(config *config.GitConfig) error {
 	// Check if local branch exists
-	localBranchExists := exec.Command("git", "rev-parse", "--verify", config.Branch).Run() == nil
+	localBranchExists := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs(config.Branch)...).Run() == nil
 
 	// Check if remote branch exists
-	remoteBranchExists := exec.Command("git", "ls-remote", "--heads", "origin", config.Branch).Run() == nil
+	remoteBranchExists := exec.Command(gitcmd.CmdGit, gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, config.Branch)...).Run() == nil
 
 	// Determine the appropriate action based on branch existence
 	if !localBranchExists && !remoteBranchExists {
@@ -219,8 +220,8 @@ func handleBranch(config *config.GitConfig) error {
 func createNewBranch(config *config.GitConfig) error {
 	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
 	createCommands := []CommandDef{
-		{"git", []string{"checkout", "-b", config.Branch}, "Creating new branch"},
-		{"git", []string{"push", "-u", "origin", config.Branch}, "Pushing new branch"},
+		{gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(config.Branch), "Creating new branch"},
+		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.Branch), "Pushing new branch"},
 	}
 
 	return executeCommandBatch(createCommands, "")
@@ -259,7 +260,7 @@ func checkoutRemoteBranch(config *config.GitConfig) error {
 
 // getGitStatus returns the current Git status in porcelain format.
 func getGitStatus() (string, error) {
-	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
 	output, err := statusCmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("failed to get modified files: %v", err)
@@ -313,7 +314,7 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 // stashChanges safely stashes any local changes to avoid conflicts.
 func stashChanges() error {
 	fmt.Printf("  • Stashing changes... ")
-	stashCmd := exec.Command("git", "stash", "push", "-u")
+	stashCmd := exec.Command(gitcmd.CmdGit, gitcmd.StashPushArgs()...)
 	stashCmd.Stdout = os.Stdout
 	stashCmd.Stderr = os.Stderr
 
@@ -329,9 +330,9 @@ func stashChanges() error {
 // fetchAndCheckout fetches the remote branch and checks it out locally.
 func fetchAndCheckout(config *config.GitConfig) error {
 	checkoutCommands := []CommandDef{
-		{"git", []string{"fetch", "origin", config.Branch}, "Fetching remote branch"},
-		{"git", []string{"checkout", config.Branch}, "Checking out branch"},
-		{"git", []string{"reset", "--hard", fmt.Sprintf("origin/%s", config.Branch)}, "Resetting to remote state"},
+		{gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, config.Branch), "Fetching remote branch"},
+		{gitcmd.CmdGit, gitcmd.CheckoutArgs(config.Branch), "Checking out branch"},
+		{gitcmd.CmdGit, gitcmd.ResetHardArgs(fmt.Sprintf("origin/%s", config.Branch)), "Resetting to remote state"},
 	}
 
 	return executeCommandBatch(checkoutCommands, "")
@@ -366,14 +367,17 @@ func restoreChanges(backups []FileBackup) error {
 // It checks both working directory changes and differences between branches.
 func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	// Get local working directory changes
-	statusCmd := exec.Command("git", "status", "--porcelain")
+	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
 		return false, fmt.Errorf("failed to check git status: %v", err)
 	}
 
 	// Check for differences between branches
-	diffCmd := exec.Command("git", "diff", fmt.Sprintf("origin/%s...%s", config.PRBase, config.PRBranch), "--name-only")
+	diffCmd := exec.Command(gitcmd.CmdGit, gitcmd.DiffNameOnlyArgs(
+		fmt.Sprintf("origin/%s", config.PRBase),
+		config.PRBranch,
+	)...)
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
 		// If error (likely new branch), consider it non-empty to proceed
@@ -468,7 +472,7 @@ func stageFiles(filePattern string) error {
 
 // executeGitAdd executes the git add command for a specific pattern.
 func executeGitAdd(pattern string) error {
-	addCmd := exec.Command("git", "add", pattern)
+	addCmd := exec.Command(gitcmd.CmdGit, gitcmd.AddArgs(pattern)...)
 	addCmd.Stdout = os.Stdout
 	addCmd.Stderr = os.Stderr
 	return addCmd.Run()
@@ -477,8 +481,8 @@ func executeGitAdd(pattern string) error {
 // performCommitAndPush commits the staged changes and pushes them to the remote.
 func performCommitAndPush(config *config.GitConfig) error {
 	commitPushCommands := []CommandDef{
-		{"git", []string{"commit", "-m", config.CommitMessage}, "Committing changes"},
-		{"git", []string{"push", "origin", config.Branch}, "Pushing to remote"},
+		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
+		{gitcmd.CmdGit, gitcmd.PushArgs(gitcmd.RefOrigin, config.Branch), "Pushing to remote"},
 	}
 
 	for _, cmd := range commitPushCommands {
