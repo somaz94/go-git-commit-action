@@ -1,8 +1,8 @@
 # Changelog
 
-## [v1.5.1](https://github.com/somaz94/go-git-commit-action/tree/v1.5.1) (2025-08-18)
+## [v1.5.2](https://github.com/somaz94/go-git-commit-action/tree/v1.5.2) (2025-10-28)
 
-[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.5.1...v1.5.1)
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.5.1...v1.5.2)
 
 **Merged pull requests:**
 
