@@ -7,6 +7,65 @@ import (
 	"strings"
 )
 
+// Input environment variable names
+const (
+	// User information
+	EnvUserEmail = "INPUT_USER_EMAIL"
+	EnvUserName  = "INPUT_USER_NAME"
+
+	// Commit settings
+	EnvCommitMessage = "INPUT_COMMIT_MESSAGE"
+	EnvBranch        = "INPUT_BRANCH"
+	EnvRepoPath      = "INPUT_REPOSITORY_PATH"
+	EnvFilePattern   = "INPUT_FILE_PATTERN"
+	EnvSkipIfEmpty   = "INPUT_SKIP_IF_EMPTY"
+
+	// Tag settings
+	EnvTagName      = "INPUT_TAG_NAME"
+	EnvTagMessage   = "INPUT_TAG_MESSAGE"
+	EnvDeleteTag    = "INPUT_DELETE_TAG"
+	EnvTagReference = "INPUT_TAG_REFERENCE"
+
+	// Pull request settings
+	EnvCreatePR           = "INPUT_CREATE_PR"
+	EnvAutoBranch         = "INPUT_AUTO_BRANCH"
+	EnvPRTitle            = "INPUT_PR_TITLE"
+	EnvPRBase             = "INPUT_PR_BASE"
+	EnvPRBranch           = "INPUT_PR_BRANCH"
+	EnvDeleteSourceBranch = "INPUT_DELETE_SOURCE_BRANCH"
+	EnvGitHubToken        = "INPUT_GITHUB_TOKEN"
+	EnvPRLabels           = "INPUT_PR_LABELS"
+	EnvPRBody             = "INPUT_PR_BODY"
+	EnvPRClosed           = "INPUT_PR_CLOSED"
+	EnvPRDryRun           = "INPUT_PR_DRY_RUN"
+
+	// Operational settings
+	EnvDebug      = "INPUT_DEBUG"
+	EnvTimeout    = "INPUT_TIMEOUT"
+	EnvRetryCount = "INPUT_RETRY_COUNT"
+)
+
+// Default values for configuration parameters
+const (
+	DefaultCommitMessage = "Auto commit by Go Git Commit Action"
+	DefaultBranch        = "main"
+	DefaultRepoPath      = "."
+	DefaultFilePattern   = "."
+	DefaultSkipIfEmpty   = false
+	DefaultDeleteTag     = false
+	DefaultCreatePR      = false
+	DefaultAutoBranch    = false
+	DefaultPRTitle       = ""
+	DefaultPRBase        = "main"
+	DefaultPRBranch      = ""
+	DefaultDeleteSource  = false
+	DefaultPRClosed      = false
+	DefaultPRDryRun      = false
+	DefaultDebug         = false
+	DefaultTimeout       = 30
+	DefaultRetryCount    = 3
+)
+
 // GitConfig holds all configuration parameters for the Git commit action.
 // It encapsulates user settings, commit options, tag settings, PR configuration,
 // and operational parameters.
@@ -77,40 +136,40 @@ func (c *GitConfig) Validate() error {
 // It applies default values where applicable and validates the configuration.
 func NewGitConfig() (*GitConfig, error) {
 	cfg := &GitConfig{
-		// User information with no defaults
-		UserEmail: os.Getenv("INPUT_USER_EMAIL"),
-		UserName:  os.Getenv("INPUT_USER_NAME"),
+		// User information (no defaults)
+		UserEmail: os.Getenv(EnvUserEmail),
+		UserName:  os.Getenv(EnvUserName),
 
-		// Commit settings with defaults
-		CommitMessage: getEnvWithDefault("INPUT_COMMIT_MESSAGE", "Auto commit by Go Git Commit Action"),
-		Branch:        getEnvWithDefault("INPUT_BRANCH", "main"),
-		RepoPath:      getEnvWithDefault("INPUT_REPOSITORY_PATH", "."),
-		FilePattern:   getEnvWithDefault("INPUT_FILE_PATTERN", "."),
-		SkipIfEmpty:   getEnvBool("INPUT_SKIP_IF_EMPTY", false),
+		// Commit settings
+		CommitMessage: getEnvWithDefault(EnvCommitMessage, DefaultCommitMessage),
+		Branch:        getEnvWithDefault(EnvBranch, DefaultBranch),
+		RepoPath:      getEnvWithDefault(EnvRepoPath, DefaultRepoPath),
+		FilePattern:   getEnvWithDefault(EnvFilePattern, DefaultFilePattern),
+		SkipIfEmpty:   getBoolEnv(EnvSkipIfEmpty, DefaultSkipIfEmpty),
 
 		// Tag settings
-		TagName:      os.Getenv("INPUT_TAG_NAME"),
-		TagMessage:   os.Getenv("INPUT_TAG_MESSAGE"),
-		DeleteTag:    getEnvBool("INPUT_DELETE_TAG", false),
-		TagReference: os.Getenv("INPUT_TAG_REFERENCE"),
+		TagName:      os.Getenv(EnvTagName),
+		TagMessage:   os.Getenv(EnvTagMessage),
+		DeleteTag:    getBoolEnv(EnvDeleteTag, DefaultDeleteTag),
+		TagReference: os.Getenv(EnvTagReference),
 
 		// Pull request settings
-		CreatePR:           getEnvBool("INPUT_CREATE_PR", false),
-		AutoBranch:         getEnvBool("INPUT_AUTO_BRANCH", false),
-		PRTitle:            getEnvWithDefault("INPUT_PR_TITLE", ""),
-		PRBase:             getEnvWithDefault("INPUT_PR_BASE", "main"),
-		PRBranch:           getEnvWithDefault("INPUT_PR_BRANCH", ""),
-		DeleteSourceBranch: getEnvBool("INPUT_DELETE_SOURCE_BRANCH", false),
-		GitHubToken:        os.Getenv("INPUT_GITHUB_TOKEN"),
-		PRLabels:           parseLabels(os.Getenv("INPUT_PR_LABELS")),
-		PRBody:             os.Getenv("INPUT_PR_BODY"),
-		PRClosed:           getEnvBool("INPUT_PR_CLOSED", false),
-		PRDryRun:           getEnvBool("INPUT_PR_DRY_RUN", false),
+		CreatePR:           getBoolEnv(EnvCreatePR, DefaultCreatePR),
+		AutoBranch:         getBoolEnv(EnvAutoBranch, DefaultAutoBranch),
+		PRTitle:            getEnvWithDefault(EnvPRTitle, DefaultPRTitle),
+		PRBase:             getEnvWithDefault(EnvPRBase, DefaultPRBase),
+		PRBranch:           getEnvWithDefault(EnvPRBranch, DefaultPRBranch),
+		DeleteSourceBranch: getBoolEnv(EnvDeleteSourceBranch, DefaultDeleteSource),
+		GitHubToken:        os.Getenv(EnvGitHubToken),
+		PRLabels:           parseLabels(os.Getenv(EnvPRLabels)),
+		PRBody:             os.Getenv(EnvPRBody),
+		PRClosed:           getBoolEnv(EnvPRClosed, DefaultPRClosed),
+		PRDryRun:           getBoolEnv(EnvPRDryRun, DefaultPRDryRun),
 
 		// Operational settings
-		Debug:      getEnvBool("INPUT_DEBUG", false),
-		Timeout:    getEnvInt("INPUT_TIMEOUT", 30),
-		RetryCount: getEnvInt("INPUT_RETRY_COUNT", 3),
+		Debug:      getBoolEnv(EnvDebug, DefaultDebug),
+		Timeout:    getIntEnv(EnvTimeout, DefaultTimeout),
+		RetryCount: getIntEnv(EnvRetryCount, DefaultRetryCount),
 	}
 
 	// Validate the configuration after setting all values
@@ -121,40 +180,47 @@ func NewGitConfig() (*GitConfig, error) {
 	return cfg, nil
 }
 
-// getEnvWithDefault retrieves an environment variable or returns a default value if not set.
-// This helper function simplifies the handling of environment variables with default values.
+// getEnvWithDefault retrieves an environment variable value or returns
+// the specified default value if the variable is not set or empty.
 func getEnvWithDefault(key, defaultValue string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
 	}
-	return defaultValue
+	return value
 }
 
-// getEnvBool retrieves a boolean environment variable or returns a default value if not set.
-// It converts strings like "true", "yes", "1" to true, and everything else to false.
-func getEnvBool(key string, defaultValue bool) bool {
+// getBoolEnv retrieves a boolean environment variable value.
+// It parses the string value to a boolean, returning the default value
+// if the variable is not set, empty, or cannot be parsed as a boolean.
+// Accepts: true, false, 1, 0, t, f, T, F, TRUE, FALSE, True, False
+func getBoolEnv(key string, defaultValue bool) bool {
 	value := os.Getenv(key)
 	if value == "" {
 		return defaultValue
 	}
 
-	return value == "true" || value == "yes" || value == "1"
-}
-
-// getEnvInt retrieves an integer environment variable or returns a default value if not set.
-// It handles conversion from string to int and falls back to the default on any error.
-func getEnvInt(key string, defaultValue int) int {
-	value := os.Getenv(key)
-	if value == "" {
-		return defaultValue
-	}
-
-	intValue, err := strconv.Atoi(value)
+	b, err := strconv.ParseBool(strings.ToLower(value))
 	if err != nil {
 		return defaultValue
 	}
+	return b
+}
 
-	return intValue
+// getIntEnv retrieves an integer environment variable value.
+// It parses the string value to an integer, returning the default value
+// if the variable is not set, empty, or cannot be parsed as an integer.
+func getIntEnv(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+
+	i, err := strconv.Atoi(value)
+	if err != nil {
+		return defaultValue
+	}
+	return i
 }
 
 // parseLabels converts a comma-separated string of labels into a slice of strings.
