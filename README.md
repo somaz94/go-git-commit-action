@@ -406,15 +406,6 @@ jobs:
 
 ## Authentication
 
-- When working with workflow files or tags, you need to use a Personal Access Token (PAT) with appropriate permissions:
-  ```yaml
-  - uses: actions/checkout@v4
-    with:
-      token: ${{ secrets.PAT_TOKEN }}  # Required for tag operations
-  ```
-  This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
-- The `github_token` input is required for creating pull requests
-
 ### Important: GitHub Token Required for checkout@v6
 
 Starting from `actions/checkout@v6`, the action stores Git credentials in `$RUNNER_TEMP` directory, which is not accessible from Docker containers. To ensure proper authentication when using this action, you **must** provide the `github_token` input:
@@ -440,6 +431,17 @@ Starting from `actions/checkout@v6`, the action stores Git credentials in `$RUNN
 - Always include `github_token` when using `actions/checkout@v6`
 - Use `PAT_TOKEN` for operations requiring elevated permissions (tags, workflow modifications)
 - Use `GITHUB_TOKEN` for standard commit/push operations within the same repository
+
+### General Authentication Notes
+
+- When working with workflow files or tags, you need to use a Personal Access Token (PAT) with appropriate permissions:
+  ```yaml
+  - uses: actions/checkout@v4
+    with:
+      token: ${{ secrets.PAT_TOKEN }}  # Required for tag operations
+  ```
+  This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
+- The `github_token` input is required for creating pull requests
 
 <br/>
 
