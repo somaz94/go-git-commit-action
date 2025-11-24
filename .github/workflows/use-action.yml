@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infrastructure repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           token: ${{ secrets.PAT_TOKEN }}
 
@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infrastructure repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout infrastructure repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
@@ -109,7 +109,7 @@ jobs:
     needs: [acton-module-auto-branch-true]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 10
 
@@ -153,7 +153,7 @@ jobs:
     needs: [test-skip-if-empty]
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 10
 
@@ -184,7 +184,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
