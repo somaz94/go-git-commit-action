@@ -160,7 +160,7 @@ func NewGitConfig() (*GitConfig, error) {
 		PRBase:             getEnvWithDefault(EnvPRBase, DefaultPRBase),
 		PRBranch:           getEnvWithDefault(EnvPRBranch, DefaultPRBranch),
 		DeleteSourceBranch: getBoolEnv(EnvDeleteSourceBranch, DefaultDeleteSource),
-		GitHubToken:        os.Getenv(EnvGitHubToken),
+		GitHubToken:        getGitHubToken(),
 		PRLabels:           parseLabels(os.Getenv(EnvPRLabels)),
 		PRBody:             os.Getenv(EnvPRBody),
 		PRClosed:           getBoolEnv(EnvPRClosed, DefaultPRClosed),
@@ -242,4 +242,19 @@ func parseLabels(labelsStr string) []string {
 	}
 
 	return result
+}
+
+// getGitHubToken retrieves the GitHub token from various sources.
+// Priority order:
+// 1. INPUT_GITHUB_TOKEN (user-provided token via action input)
+// 2. GITHUB_TOKEN (automatically available in GitHub Actions)
+// This allows the action to work without explicit token configuration in most cases.
+func getGitHubToken() string {
+	// First check if user explicitly provided a token
+	if token := os.Getenv(EnvGitHubToken); token != "" {
+		return token
+	}
+
+	// Fall back to the automatically available GITHUB_TOKEN
+	return os.Getenv("GITHUB_TOKEN")
 }
