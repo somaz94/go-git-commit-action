@@ -22,8 +22,6 @@ jobs:
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v6
-        with:
-          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create Test File
         run: |
@@ -42,6 +40,7 @@ jobs:
           tag_message: test1 ${{ github.run_id }}
           tag_reference: v1.0.1
           # pr_labels: "test,automated,tag-reference-test"
+          github_token: ${{ secrets.PAT_TOKEN }}
 
       - name: Confirm Tag Reference
         run: |
@@ -55,6 +54,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: test1-${{ github.run_id }}
           delete_tag: true
+          github_token: ${{ secrets.PAT_TOKEN }}
 
   acton-module-auto-branch-false:
     name: acton-module-auto-branch-false
