@@ -75,6 +75,7 @@ jobs:
           --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
           --env INPUT_TAG_MESSAGE="${{ env.TAG_MESSAGE }}" \
           --env INPUT_TAG_REFERENCE="${{ env.TAG_REFERENCE }}" \
+          --env GITHUB_TOKEN="${{ secrets.PAT_TOKEN }}" \
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
@@ -97,6 +98,7 @@ jobs:
           --env INPUT_BRANCH="${{ env.BRANCH }}" \
           --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
           --env INPUT_DELETE_TAG="true" \
+          --env GITHUB_TOKEN="${{ secrets.PAT_TOKEN }}" \
           --volume ${{ github.workspace }}:/app \
           --rm ${{ env.TEST_TAG }}
 
