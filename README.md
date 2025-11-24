@@ -415,6 +415,32 @@ jobs:
   This is especially important when you need to push tags or modify workflow files, as the default GITHUB_TOKEN may not have sufficient permissions.
 - The `github_token` input is required for creating pull requests
 
+### Important: GitHub Token Required for checkout@v6
+
+Starting from `actions/checkout@v6`, the action stores Git credentials in `$RUNNER_TEMP` directory, which is not accessible from Docker containers. To ensure proper authentication when using this action, you **must** provide the `github_token` input:
+
+```yaml
+- uses: actions/checkout@v6
+  with:
+    token: ${{ secrets.PAT_TOKEN }}  # or ${{ secrets.GITHUB_TOKEN }}
+
+- uses: somaz94/go-git-commit-action@v1
+  with:
+    user_email: actions@github.com
+    user_name: GitHub Actions
+    github_token: ${{ secrets.PAT_TOKEN }}  # Required for checkout@v6 compatibility
+```
+
+**Why is this needed?**
+- `checkout@v6` changed how credentials are stored for security improvements
+- Docker containers cannot access the `$RUNNER_TEMP` directory where credentials are stored
+- This action configures Git credentials using the provided token to enable push operations
+
+**Recommendation:**
+- Always include `github_token` when using `actions/checkout@v6`
+- Use `PAT_TOKEN` for operations requiring elevated permissions (tags, workflow modifications)
+- Use `GITHUB_TOKEN` for standard commit/push operations within the same repository
+
 <br/>
 
 ## License
