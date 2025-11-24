@@ -2,7 +2,6 @@ package git
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -162,20 +161,35 @@ func setupGitConfig(config *config.GitConfig) error {
 		{gitcmd.CmdGit, gitcmd.ConfigUserNameArgs(config.UserName), "Configuring user name"},
 	}
 
+	if err := ExecuteCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:"); err != nil {
+		return err
+	}
+
 	// Setup git credentials for checkout@v6 compatibility
 	if err := setupGitCredentials(config); err != nil {
 		return err
 	}
 
-	baseCommands = append(baseCommands, Command{gitcmd.CmdGit, gitcmd.ConfigListArgs(), "Checking git configuration"})
+	// Show final git configuration
+	fmt.Printf("  • Checking git configuration... ")
+	cmd := exec.Command(gitcmd.CmdGit, gitcmd.ConfigListArgs()...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Println("❌ Failed")
+		return err
+	}
+	fmt.Println("✅ Done")
 
-	return ExecuteCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:")
+	return nil
 }
 
 // setupGitCredentials configures git credential helper for checkout@v6 compatibility.
 // Since checkout@v6 stores credentials in $RUNNER_TEMP which is not accessible in Docker containers,
-// we need to configure the credential helper directly using GITHUB_TOKEN.
+// we need to configure the remote URL with the token directly.
 func setupGitCredentials(config *config.GitConfig) error {
+	fmt.Printf("  • Configuring git credentials... ")
+
 	// Get GitHub token from environment or config
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" && config.GitHubToken != "" {
@@ -183,8 +197,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	}
 
 	if token == "" {
-		// No token available, skip credential setup
-		// This is acceptable for public repos or when credentials are already configured
+		fmt.Println("⚠️  No token found, skipping")
 		return nil
 	}
 
@@ -192,33 +205,37 @@ func setupGitCredentials(config *config.GitConfig) error {
 	cmd := exec.Command(gitcmd.CmdGit, "config", "--get", "remote.origin.url")
 	output, err := cmd.Output()
 	if err != nil {
-		// If we can't get remote URL, continue without credential setup
+		fmt.Println("⚠️  Could not get remote URL, skipping")
 		return nil
 	}
 
 	remoteURL := strings.TrimSpace(string(output))
 
-	// Extract the repository info from the URL
-	// Format: https://github.com/owner/repo.git
+	// Only process GitHub URLs
 	if !strings.Contains(remoteURL, "github.com") {
+		fmt.Println("⚠️  Not a GitHub repository, skipping")
 		return nil
 	}
 
-	// Configure git credential helper using extraheader
-	// This is compatible with checkout@v6's approach
-	auth := fmt.Sprintf("x-access-token:%s", token)
-	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
-	authHeader := fmt.Sprintf("AUTHORIZATION: basic %s", encodedAuth)
-
-	configCmd := exec.Command(gitcmd.CmdGit, "config", "--global", "http.https://github.com/.extraheader", authHeader)
-	configCmd.Stdout = os.Stdout
-	configCmd.Stderr = os.Stderr
-
-	if err := configCmd.Run(); err != nil {
-		return fmt.Errorf("failed to configure git credentials: %v", err)
+	// Replace https:// with https://x-access-token:TOKEN@
+	// This works for both checkout@v4 and checkout@v6
+	var newURL string
+	if strings.HasPrefix(remoteURL, "https://github.com/") {
+		newURL = strings.Replace(remoteURL, "https://github.com/", fmt.Sprintf("https://x-access-token:%s@github.com/", token), 1)
+	} else {
+		fmt.Println("⚠️  Unsupported URL format, skipping")
+		return nil
 	}
 
-	fmt.Println("  • Configuring git credentials... ✅ Done")
+	// Update the remote URL
+	setURLCmd := exec.Command(gitcmd.CmdGit, "remote", "set-url", "origin", newURL)
+	setURLCmd.Stderr = os.Stderr
+	if err := setURLCmd.Run(); err != nil {
+		fmt.Println("❌ Failed")
+		return fmt.Errorf("failed to set remote URL: %v", err)
+	}
+
+	fmt.Println("✅ Done")
 	return nil
 }
 
