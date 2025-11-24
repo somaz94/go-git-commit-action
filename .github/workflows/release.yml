@@ -75,7 +75,7 @@ jobs:
 
       # Delete old major version tag
       - name: Delete old major version tag
-        uses: somaz94/go-git-commit-action@v1
+        uses: ./
         with:
           user_email: 'action@github.com'
           user_name: 'GitHub Action'
@@ -85,7 +85,7 @@ jobs:
 
       # Create new major version tag
       - name: Create new major version tag
-        uses: somaz94/go-git-commit-action@v1
+        uses: ./
         with:
           user_email: 'action@github.com'
           user_name: 'GitHub Action'
