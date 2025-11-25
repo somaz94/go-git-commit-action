@@ -66,6 +66,8 @@ jobs:
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
@@ -90,6 +92,12 @@ jobs:
     steps:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v6
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/test-auto-branch.txt
 
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
@@ -115,25 +123,32 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 10
+          token: ${{ secrets.PAT_TOKEN }}
 
-      - name: Test Skip If Empty (should skip)
+      - name: Test Skip If Empty (should skip - no changes)
         uses: somaz94/go-git-commit-action@v1
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
-          branch: main
-          pr_branch: main
+          branch: test
           create_pr: true
+          auto_branch: false
           pr_base: main
+          pr_branch: test
           repository_path: test
           file_pattern: .
           skip_if_empty: true
-          pr_title: "Test Skip If Empty - With Changes (should skip)"
+          pr_title: "Test Skip If Empty - No Changes (should skip)"
           pr_labels: "test,automated,skip-if-empty-test"
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
       # 변경사항이 있을 때는 skip되지 않는지 확인
-      - name: Test Skip If Empty (should not skip)
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/skip-test.txt
+
+      - name: Test Skip If Empty (should not skip - with changes)
         uses: somaz94/go-git-commit-action@v1
         with:
           user_email: actions@github.com
@@ -149,6 +164,7 @@ jobs:
           pr_title: "Test Skip If Empty - With Changes (should not skip)"
           pr_labels: "test,automated,skip-if-empty-test"
           github_token: ${{ secrets.PAT_TOKEN }}
+          pr_closed: true
 
   test-pr-auto-close-pr-body:
     name: Test PR Auto Close
@@ -159,6 +175,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 10
+          token: ${{ secrets.PAT_TOKEN }}
 
       - name: Test PR Auto Close
         uses: somaz94/go-git-commit-action@v1
