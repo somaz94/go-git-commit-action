@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
@@ -54,7 +55,7 @@ func (tm *TagManager) fetchTags() error {
 
 	if err := fetchCmd.Run(); err != nil {
 		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to fetch tags: %v", err)
+		return errors.New("fetch tags", err)
 	}
 
 	fmt.Println("✅ Done")
@@ -113,7 +114,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 
 	if err := verifyCmd.Run(); err != nil {
 		fmt.Println("❌ Failed")
-		return "", fmt.Errorf("invalid git reference '%s': %v", tm.config.TagReference, err)
+		return "", errors.NewWithPath("verify git reference", tm.config.TagReference, err)
 	}
 	fmt.Println("✅ Valid")
 
@@ -123,7 +124,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 	output, err := revListCmd.Output()
 	if err != nil {
 		fmt.Println("❌ Failed")
-		return "", fmt.Errorf("failed to get commit SHA for '%s': %v", tm.config.TagReference, err)
+		return "", errors.NewWithPath("resolve commit SHA", tm.config.TagReference, err)
 	}
 
 	commitSHA := strings.TrimSpace(string(output))

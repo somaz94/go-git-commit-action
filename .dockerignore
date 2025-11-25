@@ -1,0 +1,39 @@
+# Test files
+*_test.go
+
+# Test data and coverage
+coverage.out
+*.coverprofile
+
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# GitHub workflows
+.github/
+
+# Development files
+.vscode/
+.idea/
+.devcontainer/
+
+# Backup files
+backup/
+
+# Build artifacts
+go-git-commit-action
+main
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test directories
+test/

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
@@ -143,7 +144,7 @@ func printDebugInfo() {
 func changeWorkingDirectory(config *config.GitConfig) error {
 	if config.RepoPath != "." {
 		if err := os.Chdir(config.RepoPath); err != nil {
-			return fmt.Errorf("❌ Failed to change directory: %v", err)
+			return errors.NewWithPath("change directory", config.RepoPath, err)
 		}
 		newDir, _ := os.Getwd()
 		fmt.Printf("\n📂 Changed to directory: %s\n", newDir)
@@ -232,7 +233,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	setURLCmd.Stderr = os.Stderr
 	if err := setURLCmd.Run(); err != nil {
 		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to set remote URL: %v", err)
+		return errors.New("set remote URL", err)
 	}
 
 	fmt.Println("✅ Done")
@@ -346,7 +347,7 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 		content, err := os.ReadFile(relPath)
 		if err != nil {
 			fmt.Println("❌ Failed")
-			return nil, fmt.Errorf("failed to read file %s: %v", relPath, err)
+			return nil, errors.NewWithPath("read file for backup", relPath, err)
 		}
 
 		backups = append(backups, FileBackup{path: relPath, content: content})
@@ -365,7 +366,7 @@ func stashChanges() error {
 
 	if err := stashCmd.Run(); err != nil {
 		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to stash changes: %v", err)
+		return errors.New("stash changes", err)
 	}
 
 	fmt.Println("✅ Done")
@@ -393,22 +394,20 @@ func restoreChanges(backups []FileBackup) error {
 		if dir != "." {
 			if err := os.MkdirAll(dir, 0755); err != nil {
 				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to create directory %s: %v", dir, err)
+				return errors.NewWithPath("create directory", dir, err)
 			}
 		}
 
 		// Write the file content
 		if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
 			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to restore file %s: %v", backup.path, err)
+			return errors.NewWithPath("restore file", backup.path, err)
 		}
 	}
 
 	fmt.Println("✅ Done")
 	return nil
-}
-
-// checkIfEmpty determines if there are any changes to commit.
+} // checkIfEmpty determines if there are any changes to commit.
 // It checks both working directory changes and differences between branches.
 func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	// Get local working directory changes
@@ -481,46 +480,12 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 // commitChanges stages, commits, and pushes the specified files.
 func commitChanges(config *config.GitConfig) error {
 	// Stage files first
-	if err := stageFiles(config.FilePattern); err != nil {
+	if err := StageFiles(config.FilePattern); err != nil {
 		return err
 	}
 
 	// Perform commit and push
 	return performCommitAndPush(config)
-}
-
-// stageFiles adds the specified files to the Git staging area.
-// It handles multiple file patterns separated by spaces.
-func stageFiles(filePattern string) error {
-	fmt.Printf("  • Adding files... ")
-
-	// Handle multiple patterns separated by spaces
-	if strings.Contains(filePattern, " ") {
-		patterns := strings.Fields(filePattern)
-		for _, pattern := range patterns {
-			if err := executeGitAdd(pattern); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
-			}
-		}
-	} else {
-		// Single pattern case
-		if err := executeGitAdd(filePattern); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to add files: %v", err)
-		}
-	}
-
-	fmt.Println("✅ Done")
-	return nil
-}
-
-// executeGitAdd executes the git add command for a specific pattern.
-func executeGitAdd(pattern string) error {
-	addCmd := exec.Command(gitcmd.CmdGit, gitcmd.AddArgs(pattern)...)
-	addCmd.Stdout = os.Stdout
-	addCmd.Stderr = os.Stderr
-	return addCmd.Run()
 }
 
 // performCommitAndPush commits the staged changes and pushes them to the remote.

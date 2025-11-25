@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
@@ -110,8 +111,13 @@ func createAutoBranch(config *config.GitConfig) (string, error) {
 	}
 	fmt.Println("✅ Done")
 
-	// Commit changes to the new branch and push
-	if err := commitAndPushChanges(config); err != nil {
+	// Stage files
+	if err := StageFiles(config.FilePattern); err != nil {
+		return "", err
+	}
+
+	// Commit and push changes
+	if err := CommitAndPush(config, sourceBranch); err != nil {
 		return "", err
 	}
 
@@ -129,61 +135,6 @@ func checkoutExistingBranch(config *config.GitConfig) (string, error) {
 	fmt.Println("✅ Done")
 
 	return sourceBranch, nil
-}
-
-// commitAndPushChanges stages, commits, and pushes the specified files to the PR branch.
-func commitAndPushChanges(config *config.GitConfig) error {
-	// Stage the files
-	if err := stagePRFiles(config.FilePattern); err != nil {
-		return err
-	}
-
-	// Commit and push the changes
-	return commitAndPushToBranch(config)
-}
-
-// stagePRFiles adds the specified files to the Git staging area.
-// It handles multiple file patterns separated by spaces.
-func stagePRFiles(filePattern string) error {
-	fmt.Printf("  • Adding files... ")
-
-	// Handle multiple patterns separated by spaces
-	if strings.Contains(filePattern, " ") {
-		patterns := strings.Fields(filePattern)
-		for _, pattern := range patterns {
-			if err := executePRGitAdd(pattern); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
-			}
-		}
-	} else {
-		// Single pattern case
-		if err := executePRGitAdd(filePattern); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to add files: %v", err)
-		}
-	}
-
-	fmt.Println("✅ Done")
-	return nil
-}
-
-// executePRGitAdd executes the git add command for a specific pattern.
-func executePRGitAdd(pattern string) error {
-	addCmd := exec.Command(gitcmd.CmdGit, gitcmd.AddArgs(pattern)...)
-	addCmd.Stdout = os.Stdout
-	addCmd.Stderr = os.Stderr
-	return addCmd.Run()
-}
-
-// commitAndPushToBranch commits the staged changes and pushes them to the remote branch.
-func commitAndPushToBranch(config *config.GitConfig) error {
-	commitPushCommands := []Command{
-		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
-		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.PRBranch), "Pushing changes"},
-	}
-
-	return ExecuteCommandBatch(commitPushCommands, "")
 }
 
 // checkBranchDifferences checks the differences between the PR base branch and the source branch.
@@ -320,7 +271,7 @@ func getCurrentCommitSHA() (string, error) {
 	commitCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...)
 	commitSHA, err := commitCmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get commit SHA: %v", err)
+		return "", errors.New("get commit SHA", err)
 	}
 	return strings.TrimSpace(string(commitSHA)), nil
 }
@@ -368,7 +319,7 @@ func callGitHubAPI(config *config.GitConfig, prData map[string]interface{}) (map
 	var response map[string]interface{}
 	if err := json.Unmarshal(output, &response); err != nil {
 		fmt.Printf("Raw response: %s\n", string(output))
-		return nil, fmt.Errorf("failed to parse PR response: %v", err)
+		return nil, errors.New("parse PR response", err)
 	}
 
 	return response, nil
@@ -522,12 +473,12 @@ func findExistingPRs(config *config.GitConfig) ([]map[string]interface{}, error)
 
 	searchOutput, err := searchCmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("failed to search for existing PRs: %v", err)
+		return nil, errors.New("search existing PRs", err)
 	}
 
 	var prs []map[string]interface{}
 	if err := json.Unmarshal(searchOutput, &prs); err != nil {
-		return nil, fmt.Errorf("failed to parse existing PR search response: %v", err)
+		return nil, errors.New("parse existing PR search response", err)
 	}
 
 	return prs, nil
@@ -568,7 +519,7 @@ func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
 	}
 	jsonLabelsData, err := json.Marshal(labelsData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal labels data: %v", err)
+		return errors.New("marshal labels data", err)
 	}
 
 	// Execute the API call
@@ -585,7 +536,7 @@ func addLabelsToIssue(config *config.GitConfig, prNumber int) error {
 		fmt.Println("❌ Failed")
 		fmt.Printf("Error: %v\n", err)
 		fmt.Printf("Response: %s\n", string(labelsOutput))
-		return fmt.Errorf("failed to add labels: %v", err)
+		return errors.NewAPIError("add labels", string(labelsOutput))
 	}
 
 	fmt.Println("✅ Done")
@@ -608,7 +559,7 @@ func closePullRequest(config *config.GitConfig, prNumber int) error {
 	}
 	jsonCloseData, err := json.Marshal(closeData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal close data: %v", err)
+		return errors.New("marshal close data", err)
 	}
 
 	// Execute the API call
@@ -625,7 +576,7 @@ func closePullRequest(config *config.GitConfig, prNumber int) error {
 		fmt.Println("❌ Failed")
 		fmt.Printf("Error: %v\n", err)
 		fmt.Printf("Response: %s\n", string(closeOutput))
-		return fmt.Errorf("failed to close PR: %v", err)
+		return errors.NewAPIError("close PR", string(closeOutput))
 	}
 
 	fmt.Println("✅ Done")
@@ -644,7 +595,7 @@ func deleteSourceBranch(config *config.GitConfig, sourceBranch string) error {
 	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.SubCmdPush, gitcmd.RefOrigin, "--delete", sourceBranch)
 	if err := deleteCommand.Run(); err != nil {
 		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to delete source branch: %v", err)
+		return errors.NewWithPath("delete source branch", sourceBranch, err)
 	}
 
 	fmt.Println("✅ Done")

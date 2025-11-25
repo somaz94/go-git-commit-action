@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/somaz94/go-git-commit-action/internal/errors"
 )
 
 // Input environment variable names
@@ -112,20 +114,20 @@ func (c *GitConfig) Validate() error {
 	// Validate pull request configuration
 	if c.CreatePR {
 		if !c.AutoBranch && c.PRBranch == "" {
-			return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
+			return errors.NewConfigError("pr_branch", "must be specified when auto_branch is false and create_pr is true")
 		}
 		if c.PRBase == "" {
-			return fmt.Errorf("pr_base must be specified when create_pr is true")
+			return errors.NewConfigError("pr_base", "must be specified when create_pr is true")
 		}
 		if c.GitHubToken == "" {
-			return fmt.Errorf("github_token must be specified when create_pr is true")
+			return errors.NewConfigError("github_token", "must be specified when create_pr is true")
 		}
 	}
 
 	// Validate tag configuration
 	if c.TagName != "" && c.DeleteTag {
 		if c.TagReference != "" {
-			return fmt.Errorf("tag_reference cannot be used with delete_tag")
+			return errors.NewConfigError("tag_reference", "cannot be used with delete_tag")
 		}
 	}
 
