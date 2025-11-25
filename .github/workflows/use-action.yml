@@ -23,6 +23,7 @@ jobs:
       - name: Checkout infrastructure repository
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           token: ${{ secrets.PAT_TOKEN }}
 
       - name: Create Test File
