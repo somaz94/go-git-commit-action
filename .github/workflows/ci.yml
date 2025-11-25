@@ -145,11 +145,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 10
-          # token: ${{ secrets.ACCESS_TOKEN }}
+          token: ${{ secrets.PAT_TOKEN }}
 
-      # - name: Create Test File
-      #   run: |
-      #     echo "$(date +%s)-$RANDOM" > test/test2.txt
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/test2.txt
 
       - name: Test Auto Branch Local Action (auto_branch true)
         uses: ./
