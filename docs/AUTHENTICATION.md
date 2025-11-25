@@ -84,13 +84,15 @@ github_token: ${{ secrets.PAT_TOKEN }}
 ### Scenario 1: Simple Commit and Push
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
 
 - uses: somaz94/go-git-commit-action@v1
   with:
     user_email: actions@github.com
     user_name: GitHub Actions
-    # github_token not required for checkout@v5
+    github_token: ${{ secrets.GITHUB_TOKEN }}  # Required for checkout@v6
 ```
 
 <br/>
@@ -98,7 +100,7 @@ github_token: ${{ secrets.PAT_TOKEN }}
 ### Scenario 2: Tag Operations
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
   with:
     token: ${{ secrets.PAT_TOKEN }}  # PAT required for tags
 
@@ -107,6 +109,7 @@ github_token: ${{ secrets.PAT_TOKEN }}
     user_email: actions@github.com
     user_name: GitHub Actions
     tag_name: v1.0.0
+    github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 <br/>
@@ -114,7 +117,9 @@ github_token: ${{ secrets.PAT_TOKEN }}
 ### Scenario 3: Pull Request Creation
 
 ```yaml
-- uses: actions/checkout@v5
+- uses: actions/checkout@v6
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}
 
 - uses: somaz94/go-git-commit-action@v1
   with:

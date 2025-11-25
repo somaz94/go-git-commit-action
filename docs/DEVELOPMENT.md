@@ -37,8 +37,12 @@ Guide for developers who want to contribute to or modify the Go Git Commit Actio
 │   │   ├── common.go
 │   │   ├── common_test.go
 │   │   ├── file_operations.go
-│   │   ├── pr.go
-│   │   └── tag.go
+│   │   ├── pr.go               # PR orchestration
+│   │   ├── tag.go
+│   │   └── pr/                 # PR modules
+│   │       ├── branch.go       # Branch management
+│   │       ├── creation.go     # PR creation & API
+│   │       └── diff.go         # Change detection
 │   └── gitcmd/                 # Git command builders
 │       ├── commands.go
 │       └── commands_test.go
@@ -241,9 +245,14 @@ This reduces image size and build time.
 - Interface for dependency injection
 
 **internal/git**
-- Git operations (commit, PR, tag)
+- Git operations (commit, tag)
 - File operations
-- Branch management
+- PR orchestration
+
+**internal/git/pr**
+- Branch management (`branch.go`)
+- PR creation and GitHub API (`creation.go`)
+- Change detection (`diff.go`)
 
 **internal/gitcmd**
 - Git command building

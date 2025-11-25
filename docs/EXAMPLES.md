@@ -47,6 +47,7 @@ jobs:
           branch: main
           repository_path: path/to/repo  # Optional
           file_pattern: '*.md'             # Example: commit only markdown files
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ---
@@ -81,6 +82,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: v1.0.0
           tag_message: Release version 1.0.0  # Optional for annotated tags
+          github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 <br/>
@@ -109,6 +111,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: v1.0.0
           delete_tag: true
+          github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 <br/>
@@ -138,6 +141,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: v1
           tag_reference: ${{ github.sha }}
+          github_token: ${{ secrets.PAT_TOKEN }}
           
       # Tag from another tag
       - name: Create Git Tag from Tag
@@ -147,6 +151,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: latest
           tag_reference: v1.0.2
+          github_token: ${{ secrets.PAT_TOKEN }}
           
       # Tag from branch
       - name: Create Git Tag from Branch
@@ -156,6 +161,7 @@ jobs:
           user_name: GitHub Actions
           tag_name: stable
           tag_reference: main
+          github_token: ${{ secrets.PAT_TOKEN }}
 ```
 
 ---
@@ -307,6 +313,7 @@ Commit multiple file types:
     commit_message: "chore: update multiple file types"
     branch: main
     file_pattern: "docs/*.md src/*.go *.yaml"
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 <br/>
@@ -322,4 +329,5 @@ Commit multiple file types:
     branch: main
     repository_path: "."
     file_pattern: "config/*.yaml docs/*.md src/util/*.js"
+    github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
