@@ -49,14 +49,50 @@ type ConfigError struct {
 
 // Error implements the error interface.
 func (e *ConfigError) Error() string {
-	return fmt.Sprintf("configuration error in %s: %s", e.Field, e.Message)
+	if e.Field != "" {
+		return fmt.Sprintf("configuration error in %s: %s", e.Field, e.Message)
+	}
+	return fmt.Sprintf("configuration error: %s", e.Message)
 }
 
-// NewConfigError creates a new ConfigError.
+// NewConfigError creates a new ConfigError with field and message.
 func NewConfigError(field, message string) *ConfigError {
 	return &ConfigError{
 		Field:   field,
 		Message: message,
+	}
+}
+
+// NewConfig creates a new ConfigError with just a message (no specific field).
+func NewConfig(message string) *ConfigError {
+	return &ConfigError{
+		Message: message,
+	}
+}
+
+// RetryError represents an error after multiple retry attempts.
+type RetryError struct {
+	Attempts int    // Number of retry attempts made
+	LastErr  error  // Last error encountered
+	Message  string // Operation description
+}
+
+// Error implements the error interface.
+func (e *RetryError) Error() string {
+	return fmt.Sprintf("%s (failed after %d attempts): %v", e.Message, e.Attempts, e.LastErr)
+}
+
+// Unwrap returns the underlying error for error chain support.
+func (e *RetryError) Unwrap() error {
+	return e.LastErr
+}
+
+// NewWithContext creates a new RetryError.
+func NewWithContext(message string, attempts int, lastErr error) *RetryError {
+	return &RetryError{
+		Message:  message,
+		Attempts: attempts,
+		LastErr:  lastErr,
 	}
 }
 

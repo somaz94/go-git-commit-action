@@ -36,6 +36,31 @@ func TestRealExecutor_ExecuteWithOutput(t *testing.T) {
 	}
 }
 
+func TestRealExecutor_ExecuteWithStreams(t *testing.T) {
+	executor := NewRealExecutor()
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	// Test successful command with streams
+	err := executor.ExecuteWithStreams("echo", []string{"hello"}, &stdout, &stderr)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+
+	if stdout.Len() == 0 {
+		t.Error("Expected stdout output, got none")
+	}
+
+	// Test failing command with streams
+	stdout.Reset()
+	stderr.Reset()
+	err = executor.ExecuteWithStreams("false", []string{}, &stdout, &stderr)
+	if err == nil {
+		t.Error("Expected error for 'false' command")
+	}
+}
+
 func TestMockExecutor_Execute(t *testing.T) {
 	mock := NewMockExecutor()
 
@@ -86,6 +111,26 @@ func TestMockExecutor_ExecuteWithOutput(t *testing.T) {
 	if string(output) != string(expectedOutput) {
 		t.Errorf("Expected output '%s', got '%s'", expectedOutput, output)
 	}
+
+	// Test with error
+	mock.Reset()
+	expectedErr := errors.New("output error")
+	mock.SetError(expectedErr, "git", "status")
+
+	_, err = mock.ExecuteWithOutput("git", "status")
+	if err != expectedErr {
+		t.Errorf("Expected error '%v', got '%v'", expectedErr, err)
+	}
+
+	// Test command without configured output
+	mock.Reset()
+	output, err = mock.ExecuteWithOutput("git", "branch")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if len(output) != 0 {
+		t.Errorf("Expected empty output, got '%s'", output)
+	}
 }
 
 func TestMockExecutor_ExecuteWithStreams(t *testing.T) {
@@ -95,7 +140,7 @@ func TestMockExecutor_ExecuteWithStreams(t *testing.T) {
 	expectedOutput := "stream output"
 	mock.SetStreamOutput(expectedOutput, "git", "diff")
 
-	// Execute command
+	// Execute command with stream output
 	err := mock.ExecuteWithStreams("git", []string{"diff"}, &stdout, nil)
 	if err != nil {
 		t.Errorf("Expected no error, got %v", err)
@@ -103,6 +148,28 @@ func TestMockExecutor_ExecuteWithStreams(t *testing.T) {
 
 	if stdout.String() != expectedOutput {
 		t.Errorf("Expected output '%s', got '%s'", expectedOutput, stdout.String())
+	}
+
+	// Test with error
+	mock.Reset()
+	stdout.Reset()
+	expectedErr := errors.New("stream error")
+	mock.SetError(expectedErr, "git", "push")
+
+	err = mock.ExecuteWithStreams("git", []string{"push"}, &stdout, nil)
+	if err != expectedErr {
+		t.Errorf("Expected error '%v', got '%v'", expectedErr, err)
+	}
+
+	// Test command without configured stream output
+	mock.Reset()
+	stdout.Reset()
+	err = mock.ExecuteWithStreams("git", []string{"status"}, &stdout, nil)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if stdout.Len() != 0 {
+		t.Errorf("Expected empty stdout, got '%s'", stdout.String())
 	}
 }
 
@@ -150,5 +217,69 @@ func TestMockExecutor_Reset(t *testing.T) {
 
 	if len(mock.Errors) != 0 {
 		t.Error("Expected no errors after reset")
+	}
+}
+
+func TestMockExecutor_GetLastCommand(t *testing.T) {
+	mock := NewMockExecutor()
+
+	// Test with no commands
+	cmd := mock.GetLastCommand()
+	if cmd != nil {
+		t.Errorf("Expected nil for empty command list, got %v", cmd)
+	}
+
+	// Execute commands
+	mock.Execute("git", "status")
+	mock.Execute("git", "add", ".")
+
+	// Test last command
+	cmd = mock.GetLastCommand()
+	if cmd == nil {
+		t.Fatal("Expected command, got nil")
+	}
+	if cmd.Name != "git" {
+		t.Errorf("Expected command name 'git', got '%s'", cmd.Name)
+	}
+	if len(cmd.Args) != 2 || cmd.Args[0] != "add" || cmd.Args[1] != "." {
+		t.Errorf("Expected args ['add', '.'], got %v", cmd.Args)
+	}
+}
+
+func TestMockExecutor_MultipleCommands(t *testing.T) {
+	mock := NewMockExecutor()
+
+	// Execute multiple commands
+	commands := []struct {
+		name string
+		args []string
+	}{
+		{"git", []string{"init"}},
+		{"git", []string{"add", "."}},
+		{"git", []string{"commit", "-m", "test"}},
+	}
+
+	for _, cmd := range commands {
+		err := mock.Execute(cmd.name, cmd.args...)
+		if err != nil {
+			t.Errorf("Unexpected error for command '%s %v': %v", cmd.name, cmd.args, err)
+		}
+	}
+
+	// Verify all commands were recorded
+	executed := mock.GetExecutedCommands()
+	if len(executed) != len(commands) {
+		t.Errorf("Expected %d commands, got %d", len(commands), len(executed))
+	}
+
+	// Verify each command
+	for i, cmd := range commands {
+		if !mock.CommandExecuted(cmd.name, cmd.args...) {
+			t.Errorf("Command '%s %v' was not recorded", cmd.name, cmd.args)
+		}
+
+		if executed[i].Name != cmd.name {
+			t.Errorf("Command %d: expected name '%s', got '%s'", i, cmd.name, executed[i].Name)
+		}
 	}
 }

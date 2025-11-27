@@ -14,6 +14,15 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
+const (
+	// File and directory permissions
+	permDir  = 0755
+	permFile = 0644
+
+	// Retry configuration
+	retryBaseDelay = time.Second
+)
+
 // FileBackup is a struct for file backups.
 type FileBackup struct {
 	path    string
@@ -32,13 +41,13 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 		default:
 			if err := operation(); err != nil {
 				lastErr = err
-				time.Sleep(time.Second * time.Duration(i+1))
+				time.Sleep(retryBaseDelay * time.Duration(i+1))
 				continue
 			}
 			return nil
 		}
 	}
-	return fmt.Errorf("operation failed after %d retries: %v", maxRetries, lastErr)
+	return errors.NewWithContext("operation failed after retries", maxRetries, lastErr)
 }
 
 // RunGitCommit executes the Git commit operation with the provided configuration.
@@ -108,15 +117,15 @@ func validateConfig(config *config.GitConfig) error {
 
 	// Validate PR-specific configuration
 	if !config.AutoBranch && config.PRBranch == "" {
-		return fmt.Errorf("pr_branch must be specified when auto_branch is false and create_pr is true")
+		return errors.NewConfig("pr_branch must be specified when auto_branch is false and create_pr is true")
 	}
 
 	if config.PRBase == "" {
-		return fmt.Errorf("pr_base must be specified when create_pr is true")
+		return errors.NewConfig("pr_base must be specified when create_pr is true")
 	}
 
 	if config.GitHubToken == "" {
-		return fmt.Errorf("github_token must be specified when create_pr is true")
+		return errors.NewConfig("github_token must be specified when create_pr is true")
 	}
 
 	return nil
@@ -309,7 +318,7 @@ func getGitStatus() (string, error) {
 	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
 	output, err := statusCmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("failed to get modified files: %v", err)
+		return "", errors.New("get git status", err)
 	}
 	return string(output), nil
 }
@@ -392,14 +401,14 @@ func restoreChanges(backups []FileBackup) error {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir(backup.path)
 		if dir != "." {
-			if err := os.MkdirAll(dir, 0755); err != nil {
+			if err := os.MkdirAll(dir, permDir); err != nil {
 				fmt.Println("❌ Failed")
 				return errors.NewWithPath("create directory", dir, err)
 			}
 		}
 
 		// Write the file content
-		if err := os.WriteFile(backup.path, backup.content, 0644); err != nil {
+		if err := os.WriteFile(backup.path, backup.content, permFile); err != nil {
 			fmt.Println("❌ Failed")
 			return errors.NewWithPath("restore file", backup.path, err)
 		}
@@ -414,7 +423,7 @@ func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
 	statusOutput, err := statusCmd.Output()
 	if err != nil {
-		return false, fmt.Errorf("failed to check git status: %v", err)
+		return false, errors.New("check git status", err)
 	}
 
 	// Check for differences between branches
@@ -461,7 +470,7 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 	if config.AutoBranch {
 		// Auto branch creation and PR creation in one step
 		if err := CreatePullRequest(config); err != nil {
-			return fmt.Errorf("failed to create pull request: %v", err)
+			return errors.New("create pull request with auto branch", err)
 		}
 	} else {
 		// First commit changes to the specified branch
@@ -471,7 +480,7 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 
 		// Then create a PR from that branch
 		if err := CreatePullRequest(config); err != nil {
-			return fmt.Errorf("failed to create pull request: %v", err)
+			return errors.New("create pull request", err)
 		}
 	}
 	return nil

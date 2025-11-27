@@ -85,16 +85,35 @@ func TestNewWithPath(t *testing.T) {
 }
 
 func TestConfigError_Error(t *testing.T) {
-	configErr := &ConfigError{
-		Field:   "pr_branch",
-		Message: "must be specified when auto_branch is false",
+	tests := []struct {
+		name     string
+		err      *ConfigError
+		expected string
+	}{
+		{
+			name: "error with field",
+			err: &ConfigError{
+				Field:   "pr_branch",
+				Message: "must be specified when auto_branch is false",
+			},
+			expected: "configuration error in pr_branch: must be specified when auto_branch is false",
+		},
+		{
+			name: "error without field",
+			err: &ConfigError{
+				Message: "invalid configuration",
+			},
+			expected: "configuration error: invalid configuration",
+		},
 	}
 
-	expected := "configuration error in pr_branch: must be specified when auto_branch is false"
-	got := configErr.Error()
-
-	if got != expected {
-		t.Errorf("ConfigError.Error() = %v, want %v", got, expected)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.err.Error()
+			if got != tt.expected {
+				t.Errorf("ConfigError.Error() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }
 
@@ -106,6 +125,62 @@ func TestNewConfigError(t *testing.T) {
 	}
 	if configErr.Message != "test message" {
 		t.Errorf("NewConfigError() Message = %v, want %v", configErr.Message, "test message")
+	}
+}
+
+func TestNewConfig(t *testing.T) {
+	configErr := NewConfig("test message")
+
+	if configErr.Field != "" {
+		t.Errorf("NewConfig() Field = %v, want empty", configErr.Field)
+	}
+	if configErr.Message != "test message" {
+		t.Errorf("NewConfig() Message = %v, want %v", configErr.Message, "test message")
+	}
+}
+
+func TestRetryError_Error(t *testing.T) {
+	originalErr := errors.New("connection timeout")
+	retryErr := &RetryError{
+		Message:  "operation failed after retries",
+		Attempts: 3,
+		LastErr:  originalErr,
+	}
+
+	expected := "operation failed after retries (failed after 3 attempts): connection timeout"
+	got := retryErr.Error()
+
+	if got != expected {
+		t.Errorf("RetryError.Error() = %v, want %v", got, expected)
+	}
+}
+
+func TestRetryError_Unwrap(t *testing.T) {
+	originalErr := errors.New("original error")
+	retryErr := &RetryError{
+		Message:  "retry failed",
+		Attempts: 5,
+		LastErr:  originalErr,
+	}
+
+	unwrapped := retryErr.Unwrap()
+	if unwrapped != originalErr {
+		t.Errorf("RetryError.Unwrap() = %v, want %v", unwrapped, originalErr)
+	}
+}
+
+func TestNewWithContext(t *testing.T) {
+	originalErr := errors.New("test error")
+	retryErr := NewWithContext("test operation", 3, originalErr)
+
+	if retryErr.Message != "test operation" {
+		t.Errorf("NewWithContext() Message = %v, want %v", retryErr.Message, "test operation")
+	}
+	if retryErr.Attempts != 3 {
+		t.Errorf("NewWithContext() Attempts = %v, want 3", retryErr.Attempts)
+	}
+	if retryErr.LastErr != originalErr {
+		t.Errorf("NewWithContext() LastErr = %v, want %v", retryErr.LastErr, originalErr)
 	}
 }
 
