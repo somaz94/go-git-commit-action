@@ -139,12 +139,24 @@ go tool cover -func=coverage.out
 
 ### Current Test Coverage
 
-| Package | Coverage |
-|---------|----------|
-| `config` | 97.8% |
-| `errors` | 100% |
-| `executor` | 82.5% |
-| `gitcmd` | 100% |
+| Package | Coverage | Notes |
+|---------|----------|-------|
+| `config` | 97.8% | Configuration parsing and validation |
+| `errors` | 100% | Custom error types (GitError, ConfigError, RetryError, APIError) |
+| `executor` | 98.2% | Command execution abstraction and mocking |
+| `gitcmd` | 100% | Git command builders |
+| `cmd` | 0% | Entry point (tested via integration tests) |
+| `git` | 0% | Git operations (tested via CI workflows) |
+| `git/pr` | 0% | PR operations (tested via CI workflows) |
+
+**Why some packages have 0% coverage:**
+- **cmd/main.go**: Application entry point with signal handling - tested through integration tests in CI
+- **internal/git**: Core git operations with heavy external dependencies (git commands, filesystem) - validated through real workflow execution
+- **internal/git/pr**: GitHub API interactions requiring network calls - tested end-to-end in CI workflows
+
+**Testing Strategy:**
+- **Unit Tests** (High Coverage): Pure logic without external dependencies
+- **Integration Tests** (CI/CD): Components requiring git, filesystem, or API interactions
 
 ---
 
@@ -383,4 +395,293 @@ go run ./cmd/main.go
 ```bash
 git tag -a v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
+```
+
+---
+
+## Improving Test Coverage
+
+<br/>
+
+### Coverage Analysis
+
+<br/>
+
+#### Finding Low Coverage Areas
+
+```bash
+# Generate detailed coverage report
+go test -v -coverprofile=coverage.out ./internal/executor
+
+# View function-level coverage
+go tool cover -func=coverage.out | grep executor
+```
+
+**Example Output:**
+```
+executor.go:44:    ExecuteWithStreams      0.0%
+mock_executor.go:54:  ExecuteWithOutput    71.4%
+mock_executor.go:73:  ExecuteWithStreams   70.0%
+mock_executor.go:120: GetLastCommand       66.7%
+```
+
+<br/>
+
+#### Common Coverage Issues and Solutions
+
+**1. Uncovered Error Paths**
+
+```go
+// Before: Only testing success case (71.4% coverage)
+func TestMockExecutor_ExecuteWithOutput(t *testing.T) {
+    mock := NewMockExecutor()
+    mock.SetOutput([]byte("output"), "git", "log")
+    
+    output, err := mock.ExecuteWithOutput("git", "log")
+    if err != nil {
+        t.Errorf("Expected no error, got %v", err)
+    }
+}
+
+// After: Test success + error + default cases (100% coverage)
+func TestMockExecutor_ExecuteWithOutput(t *testing.T) {
+    mock := NewMockExecutor()
+    
+    // Test configured output
+    mock.SetOutput([]byte("output"), "git", "log")
+    output, err := mock.ExecuteWithOutput("git", "log")
+    // ... assertions
+    
+    // Test error case
+    mock.Reset()
+    expectedErr := errors.New("output error")
+    mock.SetError(expectedErr, "git", "status")
+    _, err = mock.ExecuteWithOutput("git", "status")
+    // ... assertions
+    
+    // Test unconfigured command (default behavior)
+    mock.Reset()
+    output, err = mock.ExecuteWithOutput("git", "branch")
+    // ... assertions
+}
+```
+
+**2. Missing Nil Checks**
+
+```go
+// Before: GetLastCommand test causing panic (66.7% coverage)
+func TestMockExecutor_GetLastCommand(t *testing.T) {
+    mock := NewMockExecutor()
+    
+    // This caused panic - cmd was nil!
+    cmd := mock.GetLastCommand()
+    if cmd.Name != "" {  // ❌ Panic: nil pointer dereference
+        t.Error("Expected empty")
+    }
+}
+
+// After: Proper nil handling (100% coverage)
+func TestMockExecutor_GetLastCommand(t *testing.T) {
+    mock := NewMockExecutor()
+    
+    // Test with no commands
+    cmd := mock.GetLastCommand()
+    if cmd != nil {  // ✅ Check for nil first
+        t.Errorf("Expected nil, got %v", cmd)
+    }
+    
+    // Test with commands
+    mock.Execute("git", "status")
+    cmd = mock.GetLastCommand()
+    if cmd == nil {
+        t.Fatal("Expected command, got nil")
+    }
+    // ... assertions
+}
+```
+
+**3. Untested Stream Operations**
+
+```go
+// Before: RealExecutor_ExecuteWithStreams not tested (0% coverage)
+// No test existed for this function
+
+// After: Add stream testing (100% coverage)
+func TestRealExecutor_ExecuteWithStreams(t *testing.T) {
+    executor := NewRealExecutor()
+    var stdout, stderr bytes.Buffer
+    
+    // Test successful command
+    err := executor.ExecuteWithStreams("echo", []string{"hello"}, &stdout, &stderr)
+    if err != nil {
+        t.Errorf("Expected no error, got %v", err)
+    }
+    if stdout.Len() == 0 {
+        t.Error("Expected stdout output")
+    }
+    
+    // Test failing command
+    stdout.Reset()
+    stderr.Reset()
+    err = executor.ExecuteWithStreams("false", []string{}, &stdout, &stderr)
+    if err == nil {
+        t.Error("Expected error for 'false' command")
+    }
+}
+```
+
+**4. Missing Edge Cases**
+
+```go
+// Before: Only testing main flow (70% coverage)
+func TestMockExecutor_ExecuteWithStreams(t *testing.T) {
+    mock := NewMockExecutor()
+    var stdout bytes.Buffer
+    
+    mock.SetStreamOutput("output", "git", "diff")
+    err := mock.ExecuteWithStreams("git", []string{"diff"}, &stdout, nil)
+    // ... assertions
+}
+
+// After: Test all branches (100% coverage)
+func TestMockExecutor_ExecuteWithStreams(t *testing.T) {
+    mock := NewMockExecutor()
+    var stdout bytes.Buffer
+    
+    // Test configured stream output
+    mock.SetStreamOutput("output", "git", "diff")
+    err := mock.ExecuteWithStreams("git", []string{"diff"}, &stdout, nil)
+    // ... assertions
+    
+    // Test error case
+    mock.Reset()
+    expectedErr := errors.New("stream error")
+    mock.SetError(expectedErr, "git", "push")
+    err = mock.ExecuteWithStreams("git", []string{"push"}, &stdout, nil)
+    // ... assertions
+    
+    // Test unconfigured command
+    mock.Reset()
+    stdout.Reset()
+    err = mock.ExecuteWithStreams("git", []string{"status"}, &stdout, nil)
+    // ... assertions
+}
+```
+
+<br/>
+
+### Coverage Improvement Workflow
+
+1. **Identify low coverage areas:**
+   ```bash
+   go test -coverprofile=coverage.out ./internal/executor
+   go tool cover -func=coverage.out | grep -E "^.*\s+[0-8][0-9]\.[0-9]%$"
+   ```
+
+2. **Analyze uncovered lines:**
+   ```bash
+   go tool cover -html=coverage.out
+   # Opens browser showing covered (green) vs uncovered (red) lines
+   ```
+
+3. **Add missing test cases:**
+   - Error paths
+   - Edge cases (nil, empty, boundary values)
+   - Default behaviors
+   - All conditional branches
+
+4. **Verify improvement:**
+   ```bash
+   go test -cover ./internal/executor
+   # Should show higher percentage
+   ```
+
+<br/>
+
+### Example: Improving executor Coverage (82.5% → 98.2%)
+
+#### Steps taken:
+
+1. **Identified gaps** using `go tool cover -func`:
+   - `ExecuteWithStreams` (RealExecutor): 0% → Added test
+   - `ExecuteWithOutput` (MockExecutor): 71.4% → Added error/default cases
+   - `ExecuteWithStreams` (MockExecutor): 70% → Added error/unconfigured cases
+   - `GetLastCommand`: 66.7% → Fixed nil handling
+
+2. **Added comprehensive tests:**
+   - Created `TestRealExecutor_ExecuteWithStreams`
+   - Enhanced `TestMockExecutor_ExecuteWithOutput` with 3 scenarios
+   - Enhanced `TestMockExecutor_ExecuteWithStreams` with 3 scenarios
+   - Fixed `TestMockExecutor_GetLastCommand` nil check
+   - Added `TestMockExecutor_MultipleCommands` for integration
+
+3. **Result:** 82.5% → 98.2% (+15.7 percentage points)
+
+---
+
+## Code Quality Improvements
+
+<br/>
+
+### Refactoring for Better Testability
+
+#### 1. Error Handling Consistency
+
+```go
+// Before: Mixed error handling styles
+return fmt.Errorf("operation failed: %v", err)
+return errors.New("failed", err)
+
+// After: Consistent custom error types
+return errors.New("operation", err)
+return errors.NewWithPath("operation", path, err)
+return errors.NewConfig("validation message")
+return errors.NewWithContext("retry failed", attempts, lastErr)
+```
+
+#### 2. Magic Numbers → Constants
+
+```go
+// Before: Hard-coded values
+time.Sleep(time.Second * time.Duration(i+1))
+os.MkdirAll(dir, 0755)
+os.WriteFile(path, content, 0644)
+
+// After: Named constants
+const (
+    permDir  = 0755
+    permFile = 0644
+    retryBaseDelay = time.Second
+)
+
+time.Sleep(retryBaseDelay * time.Duration(i+1))
+os.MkdirAll(dir, permDir)
+os.WriteFile(path, content, permFile)
+```
+
+#### 3. Error Types Enhancement
+
+Added new error types for better error handling:
+
+```go
+// RetryError for retry failures
+type RetryError struct {
+    Attempts int
+    LastErr  error
+    Message  string
+}
+
+// NewConfig for configuration errors without field
+func NewConfig(message string) *ConfigError {
+    return &ConfigError{Message: message}
+}
+
+// NewWithContext for retry context
+func NewWithContext(message string, attempts int, lastErr error) *RetryError {
+    return &RetryError{
+        Message:  message,
+        Attempts: attempts,
+        LastErr:  lastErr,
+    }
+}
 ```
