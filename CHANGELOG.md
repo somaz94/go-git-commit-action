@@ -1,5 +1,13 @@
 # Changelog
 
+## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2026-02-20)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.6.3)
+
+**Merged pull requests:**
+
+- build\(deps\): bump golang from 1.25-alpine to 1.26-alpine in the docker-minor group [\#338](https://github.com/somaz94/go-git-commit-action/pull/338) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2025-11-27)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.2...v1.6.3)
