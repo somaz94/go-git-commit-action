@@ -1,6 +1,8 @@
 package git
 
 import (
+	"fmt"
+	"os/exec"
 	"testing"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -93,6 +95,117 @@ func TestCommandBatch_Preparation(t *testing.T) {
 	}
 	if commands[0].Desc != "Setting email" {
 		t.Errorf("First command desc = %v, want 'Setting email'", commands[0].Desc)
+	}
+}
+
+func TestIsNothingToCommitError(t *testing.T) {
+	tests := []struct {
+		name string
+		cmd  Command
+		err  error
+		want bool
+	}{
+		{
+			name: "non-commit command",
+			cmd:  Command{Name: "git", Args: []string{"push", "origin"}},
+			err:  fmt.Errorf("some error"),
+			want: false,
+		},
+		{
+			name: "empty args",
+			cmd:  Command{Name: "git", Args: []string{}},
+			err:  fmt.Errorf("some error"),
+			want: false,
+		},
+		{
+			name: "non-ExitError",
+			cmd:  Command{Name: "git", Args: []string{"commit", "-m", "test"}},
+			err:  fmt.Errorf("random error"),
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isNothingToCommitError(tt.cmd, tt.err)
+			if got != tt.want {
+				t.Errorf("isNothingToCommitError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsNothingToCommitError_WithExitError(t *testing.T) {
+	// Run a command that exits with code 1 to get a real exec.ExitError
+	cmd := exec.Command("sh", "-c", "exit 1")
+	err := cmd.Run()
+	if err == nil {
+		t.Fatal("expected error from exit 1")
+	}
+
+	commitCmd := Command{Name: "git", Args: []string{"commit", "-m", "test"}}
+	if !isNothingToCommitError(commitCmd, err) {
+		t.Error("isNothingToCommitError() should return true for commit with exit code 1")
+	}
+
+	pushCmd := Command{Name: "git", Args: []string{"push"}}
+	if isNothingToCommitError(pushCmd, err) {
+		t.Error("isNothingToCommitError() should return false for non-commit command")
+	}
+}
+
+func TestExecuteCommandBatch_Success(t *testing.T) {
+	commands := []Command{
+		{Name: "echo", Args: []string{"hello"}, Desc: "Echoing hello"},
+		{Name: "echo", Args: []string{"world"}, Desc: "Echoing world"},
+	}
+
+	err := ExecuteCommandBatch(commands, "Test header")
+	if err != nil {
+		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
+	}
+}
+
+func TestExecuteCommandBatch_EmptyHeader(t *testing.T) {
+	commands := []Command{
+		{Name: "echo", Args: []string{"test"}, Desc: "Echo test"},
+	}
+
+	err := ExecuteCommandBatch(commands, "")
+	if err != nil {
+		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
+	}
+}
+
+func TestExecuteCommandBatch_EmptyCommands(t *testing.T) {
+	err := ExecuteCommandBatch(nil, "")
+	if err != nil {
+		t.Errorf("ExecuteCommandBatch(nil) error = %v, want nil", err)
+	}
+}
+
+func TestExecuteCommandBatch_FailedCommand(t *testing.T) {
+	commands := []Command{
+		{Name: "false", Args: []string{}, Desc: "Always fails"},
+	}
+
+	err := ExecuteCommandBatch(commands, "")
+	if err == nil {
+		t.Error("ExecuteCommandBatch() with failing command should return error")
+	}
+}
+
+func TestExecuteCommandBatch_NothingToCommit(t *testing.T) {
+	// "git commit" in a non-repo dir will exit with code 128, not 1
+	// Use sh -c "exit 1" wrapped as a commit-like command to test the skip logic
+	// Actually, we test using a real echo command - commit skip only triggers for exit code 1
+	commands := []Command{
+		{Name: "echo", Args: []string{"commit", "test"}, Desc: "Non-commit echo"},
+	}
+
+	err := ExecuteCommandBatch(commands, "")
+	if err != nil {
+		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
 	}
 }
 

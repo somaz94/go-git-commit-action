@@ -1,20 +1,3 @@
-# Logs
-logs
-*.log
-
-# Diagnostic reports (https://nodejs.org/api/report.html)
-report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
-
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
-
-# dotenv environment variables file
-.env
-.env.test
-
 # OS metadata
 .DS_Store
 Thumbs.db
@@ -23,4 +6,28 @@ Thumbs.db
 .idea
 .vscode
 *.code-workspace
-coverage.out
+
+# Logs
+logs
+*.log
+
+# dotenv environment variables file
+.env
+.env.test
+
+# Go build artifacts
+go-git-commit-action
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go test binary, built with `go test -c`
+*.test
+
+# Go coverage files
+*.out
+coverage.txt
+
+# Go dependency directories
+vendor/
