@@ -1,9 +1,6 @@
 # Test files
 *_test.go
-
-# Test data and coverage
-coverage.out
-*.coverprofile
+test/
 
 # Git files
 .git
@@ -15,6 +12,7 @@ README.md
 CHANGELOG.md
 LICENSE
 *.md
+docs/
 
 # GitHub workflows
 .github/
@@ -30,10 +28,8 @@ backup/
 # Build artifacts
 go-git-commit-action
 main
+coverage.out
 
 # OS files
 .DS_Store
 Thumbs.db
-
-# Test directories
-test/
