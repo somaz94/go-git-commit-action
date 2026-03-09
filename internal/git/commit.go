@@ -34,7 +34,7 @@ type FileBackup struct {
 // number of retries is reached. The delay between retries increases linearly.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	var lastErr error
-	for i := range make([]struct{}, maxRetries) {
+	for i := 0; i < maxRetries; i++ {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -110,7 +110,10 @@ func executeGitCommitWorkflow(config *config.GitConfig) error {
 // printDebugInfo outputs debug information about the current environment.
 // This includes the working directory and the contents of the directory.
 func printDebugInfo() {
-	currentDir, _ := os.Getwd()
+	currentDir, err := os.Getwd()
+	if err != nil {
+		currentDir = "(unknown)"
+	}
 	fmt.Println("\nStarting Git Commit Action\n" +
 		"================================")
 
@@ -118,7 +121,11 @@ func printDebugInfo() {
 	fmt.Printf("  - Working Directory: %s\n", currentDir)
 
 	fmt.Println("\nDirectory Contents:")
-	files, _ := os.ReadDir(".")
+	files, err := os.ReadDir(".")
+	if err != nil {
+		fmt.Printf("  - (failed to read directory: %v)\n", err)
+		return
+	}
 	for _, file := range files {
 		fmt.Printf("  - %s\n", file.Name())
 	}
@@ -188,7 +195,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	}
 
 	// Get the repository URL from git remote
-	cmd := exec.Command(gitcmd.CmdGit, "config", "--get", "remote.origin.url")
+	cmd := exec.Command(gitcmd.CmdGit, gitcmd.ConfigGetArgs("remote.origin.url")...)
 	output, err := cmd.Output()
 	if err != nil {
 		fmt.Println("[WARN] Could not get remote URL, skipping")
@@ -214,7 +221,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	}
 
 	// Update the remote URL
-	setURLCmd := exec.Command(gitcmd.CmdGit, "remote", "set-url", "origin", newURL)
+	setURLCmd := exec.Command(gitcmd.CmdGit, gitcmd.RemoteSetURLArgs(gitcmd.RefOrigin, newURL)...)
 	setURLCmd.Stderr = os.Stderr
 	if err := setURLCmd.Run(); err != nil {
 		fmt.Println("FAILED")
@@ -411,7 +418,8 @@ func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	)...)
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
-		// If error (likely new branch), consider it non-empty to proceed
+		// Likely a new branch or missing remote ref; log and treat as non-empty to proceed
+		fmt.Printf("  - [WARN] Branch diff failed (proceeding anyway): %v\n", err)
 		diffOutput = []byte("new-branch")
 	}
 

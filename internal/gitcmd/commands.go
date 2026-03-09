@@ -22,6 +22,7 @@ const (
 	SubCmdLsRemote = "ls-remote"
 	SubCmdDiff     = "diff"
 	SubCmdRevList  = "rev-list"
+	SubCmdRemote   = "remote"
 )
 
 // Git global options
@@ -29,6 +30,7 @@ const (
 	OptGlobal     = "--global"
 	OptAdd        = "--add"
 	OptList       = "--list"
+	OptGet        = "--get"
 	OptForce      = "-f"
 	OptHard       = "--hard"
 	OptUpstream   = "-u"
@@ -36,8 +38,10 @@ const (
 	OptVerify     = "--verify"
 	OptHeads      = "--heads"
 	OptTags       = "--tags"
-	OptNameOnly   = "--name-only"
-	OptNameStatus = "--name-status"
+	OptNameOnly      = "--name-only"
+	OptNameStatus    = "--name-status"
+	OptDeleteRemote  = "--delete"
+	OptSetURL        = "set-url"
 )
 
 // Git config specific options
@@ -276,5 +280,26 @@ func DiffNameStatusArgs(base, head string) []string {
 func RevListArgs(ref string) []string {
 	return NewArgsBuilder().
 		Add(SubCmdRevList, "-n1", ref).
+		Build()
+}
+
+// ConfigGetArgs builds arguments for getting a config value.
+func ConfigGetArgs(key string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdConfig, OptGet, key).
+		Build()
+}
+
+// RemoteSetURLArgs builds arguments for setting a remote URL.
+func RemoteSetURLArgs(remote, url string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdRemote, OptSetURL, remote, url).
+		Build()
+}
+
+// PushDeleteBranchArgs builds arguments for deleting a remote branch.
+func PushDeleteBranchArgs(remote, branch string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdPush, remote, OptDeleteRemote, branch).
 		Build()
 }

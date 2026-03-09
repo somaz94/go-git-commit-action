@@ -329,3 +329,30 @@ func TestArgsBuilderMultipleAdds(t *testing.T) {
 		t.Errorf("ArgsBuilder with multiple Add() = %v, want %v", args, expected)
 	}
 }
+
+func TestConfigGetArgs(t *testing.T) {
+	args := ConfigGetArgs("remote.origin.url")
+	expected := []string{SubCmdConfig, OptGet, "remote.origin.url"}
+
+	if !reflect.DeepEqual(args, expected) {
+		t.Errorf("ConfigGetArgs() = %v, want %v", args, expected)
+	}
+}
+
+func TestRemoteSetURLArgs(t *testing.T) {
+	args := RemoteSetURLArgs("origin", "https://github.com/test/repo.git")
+	expected := []string{SubCmdRemote, OptSetURL, "origin", "https://github.com/test/repo.git"}
+
+	if !reflect.DeepEqual(args, expected) {
+		t.Errorf("RemoteSetURLArgs() = %v, want %v", args, expected)
+	}
+}
+
+func TestPushDeleteBranchArgs(t *testing.T) {
+	args := PushDeleteBranchArgs("origin", "feature-branch")
+	expected := []string{SubCmdPush, "origin", OptDeleteRemote, "feature-branch"}
+
+	if !reflect.DeepEqual(args, expected) {
+		t.Errorf("PushDeleteBranchArgs() = %v, want %v", args, expected)
+	}
+}

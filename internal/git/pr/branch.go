@@ -86,7 +86,7 @@ func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 	}
 
 	fmt.Printf("\n  - Deleting source branch %s... ", sourceBranch)
-	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.SubCmdPush, gitcmd.RefOrigin, "--delete", sourceBranch)
+	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, sourceBranch)...)
 	if err := deleteCommand.Run(); err != nil {
 		fmt.Println("FAILED")
 		return fmt.Errorf("failed to delete source branch %s: %v", sourceBranch, err)

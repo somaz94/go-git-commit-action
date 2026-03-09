@@ -128,17 +128,6 @@ func TestNewConfigError(t *testing.T) {
 	}
 }
 
-func TestNewConfig(t *testing.T) {
-	configErr := NewConfig("test message")
-
-	if configErr.Field != "" {
-		t.Errorf("NewConfig() Field = %v, want empty", configErr.Field)
-	}
-	if configErr.Message != "test message" {
-		t.Errorf("NewConfig() Message = %v, want %v", configErr.Message, "test message")
-	}
-}
-
 func TestRetryError_Error(t *testing.T) {
 	originalErr := errors.New("connection timeout")
 	retryErr := &RetryError{

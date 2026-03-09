@@ -207,6 +207,7 @@ jobs:
           file_pattern: .
           skip_if_empty: true
           pr_title: "Test Skip If Empty - No Changes (should skip)"
+          pr_labels: "test,automated,skip-if-empty-test"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_closed: true
 

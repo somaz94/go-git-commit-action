@@ -63,13 +63,6 @@ func NewConfigError(field, message string) *ConfigError {
 	}
 }
 
-// NewConfig creates a new ConfigError with just a message (no specific field).
-func NewConfig(message string) *ConfigError {
-	return &ConfigError{
-		Message: message,
-	}
-}
-
 // RetryError represents an error after multiple retry attempts.
 type RetryError struct {
 	Attempts int    // Number of retry attempts made

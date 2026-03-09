@@ -72,7 +72,7 @@ func (c *Client) Repo() string {
 func (c *Client) request(method, endpoint string, data interface{}) (map[string]interface{}, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request data: %v", err)
+		return nil, errors.New("marshal request data", err)
 	}
 
 	url := fmt.Sprintf("%s/repos/%s%s", apiBaseURL, c.repo, endpoint)

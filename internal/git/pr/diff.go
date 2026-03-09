@@ -41,7 +41,10 @@ func (dc *DiffChecker) displayChangedFiles() error {
 		fmt.Sprintf("origin/%s", dc.config.PRBase),
 		fmt.Sprintf("origin/%s", dc.config.PRBranch),
 	)...)
-	filesOutput, _ := diffFiles.Output()
+	filesOutput, err := diffFiles.Output()
+	if err != nil {
+		fmt.Printf("[WARN] Failed to get diff: %v\n", err)
+	}
 
 	if len(filesOutput) == 0 {
 		fmt.Println("No changes detected")
