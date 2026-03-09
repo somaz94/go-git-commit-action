@@ -1,11 +1,13 @@
 # Changelog
 
-## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2026-02-20)
+## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2026-03-09)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.6.3)
 
 **Merged pull requests:**
 
+- build\(deps\): bump docker/setup-buildx-action from 3 to 4 [\#351](https://github.com/somaz94/go-git-commit-action/pull/351) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build\(deps\): bump docker/build-push-action from 6 to 7 [\#350](https://github.com/somaz94/go-git-commit-action/pull/350) ([dependabot[bot]](https://github.com/apps/dependabot))
 - build\(deps\): bump golang from 1.25-alpine to 1.26-alpine in the docker-minor group [\#338](https://github.com/somaz94/go-git-commit-action/pull/338) ([dependabot[bot]](https://github.com/apps/dependabot))
 
 ## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2025-11-27)
@@ -120,7 +122,11 @@
 
 ## [v1.0.1](https://github.com/somaz94/go-git-commit-action/tree/v1.0.1) (2025-02-05)
 
-[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.0.0...v1.0.1)
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/test1-22840099079...v1.0.1)
+
+## [test1-22840099079](https://github.com/somaz94/go-git-commit-action/tree/test1-22840099079) (2025-02-05)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.0.0...test1-22840099079)
 
 
 
