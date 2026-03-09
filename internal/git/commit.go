@@ -54,12 +54,23 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 // RunGitCommit executes the Git commit operation with the provided configuration.
 // It wraps the entire process in a retry mechanism to handle transient failures.
 func RunGitCommit(config *config.GitConfig, result *output.Result) error {
+	// Save the original working directory to restore before each retry
+	originalDir, err := os.Getwd()
+	if err != nil {
+		return errors.New("get working directory", err)
+	}
+
 	// Create a context with timeout for the entire operation
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Timeout)*time.Second)
 	defer cancel()
 
 	// Wrap the entire commit process in retry logic
 	return withRetry(ctx, config.RetryCount, func() error {
+		// Restore original working directory before each attempt
+		// to prevent relative path issues (e.g., chdir("test") applied twice)
+		if err := os.Chdir(originalDir); err != nil {
+			return errors.NewWithPath("restore working directory", originalDir, err)
+		}
 		return executeGitCommitWorkflow(config, result)
 	})
 }
@@ -485,12 +496,15 @@ func handlePullRequestFlow(config *config.GitConfig, result *output.Result) erro
 			return errors.New("create pull request with auto branch", err)
 		}
 	} else {
-		// First commit changes to the specified branch
-		if err := commitChanges(config, result); err != nil {
-			return err
+		// In dry run mode, skip actual commit/push since we only simulate PR creation
+		if !config.PRDryRun {
+			// First commit changes to the specified branch
+			if err := commitChanges(config, result); err != nil {
+				return err
+			}
 		}
 
-		// Then create a PR from that branch
+		// Then create a PR from that branch (or simulate in dry run mode)
 		if err := CreatePullRequest(config, result); err != nil {
 			return errors.New("create pull request", err)
 		}
