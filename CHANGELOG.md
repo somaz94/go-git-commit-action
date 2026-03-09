@@ -1,5 +1,9 @@
 # Changelog
 
+## [v1.7.1](https://github.com/somaz94/go-git-commit-action/tree/v1.7.1) (2026-03-09)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.7.0...v1.7.1)
+
 ## [v1.7.0](https://github.com/somaz94/go-git-commit-action/tree/v1.7.0) (2026-03-09)
 
 [Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.7.0)
@@ -126,7 +130,11 @@
 
 ## [test1-22840099079](https://github.com/somaz94/go-git-commit-action/tree/test1-22840099079) (2025-02-05)
 
-[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.0.0...test1-22840099079)
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/test1-22846002853...test1-22840099079)
+
+## [test1-22846002853](https://github.com/somaz94/go-git-commit-action/tree/test1-22846002853) (2025-02-05)
+
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.0.0...test1-22846002853)
 
 
 
