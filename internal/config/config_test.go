@@ -251,7 +251,7 @@ func TestGetIntEnv(t *testing.T) {
 	}
 }
 
-func TestParseLabels(t *testing.T) {
+func TestParseCommaSeparated(t *testing.T) {
 	tests := []struct {
 		name      string
 		labelsStr string
@@ -291,14 +291,14 @@ func TestParseLabels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseLabels(tt.labelsStr)
+			got := parseCommaSeparated(tt.labelsStr)
 			if len(got) != len(tt.want) {
-				t.Errorf("parseLabels() length = %v, want %v", len(got), len(tt.want))
+				t.Errorf("parseCommaSeparated() length = %v, want %v", len(got), len(tt.want))
 				return
 			}
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("parseLabels()[%d] = %v, want %v", i, got[i], tt.want[i])
+					t.Errorf("parseCommaSeparated()[%d] = %v, want %v", i, got[i], tt.want[i])
 				}
 			}
 		})

@@ -170,12 +170,12 @@ func NewGitConfig() (*GitConfig, error) {
 		PRBranch:           getEnvWithDefault(EnvPRBranch, DefaultPRBranch),
 		DeleteSourceBranch: getBoolEnv(EnvDeleteSourceBranch, DefaultDeleteSource),
 		GitHubToken:        getGitHubToken(),
-		PRLabels:           parseLabels(os.Getenv(EnvPRLabels)),
+		PRLabels:           parseCommaSeparated(os.Getenv(EnvPRLabels)),
 		PRBody:             os.Getenv(EnvPRBody),
 		PRClosed:           getBoolEnv(EnvPRClosed, DefaultPRClosed),
 		PRDraft:            getBoolEnv(EnvPRDraft, DefaultPRDraft),
-		PRReviewers:        parseLabels(os.Getenv(EnvPRReviewers)),
-		PRAssignees:        parseLabels(os.Getenv(EnvPRAssignees)),
+		PRReviewers:        parseCommaSeparated(os.Getenv(EnvPRReviewers)),
+		PRAssignees:        parseCommaSeparated(os.Getenv(EnvPRAssignees)),
 		PRDryRun:           getBoolEnv(EnvPRDryRun, DefaultPRDryRun),
 
 		// Operational settings
@@ -235,9 +235,10 @@ func getIntEnv(key string, defaultValue int) int {
 	return i
 }
 
-// parseLabels converts a comma-separated string of labels into a slice of strings.
-// It trims whitespace from each label and filters out empty ones.
-func parseLabels(labelsStr string) []string {
+// parseCommaSeparated converts a comma-separated string into a slice of strings.
+// It trims whitespace from each item and filters out empty ones.
+// Used for labels, reviewers, assignees, and other comma-delimited inputs.
+func parseCommaSeparated(labelsStr string) []string {
 	if labelsStr == "" {
 		return nil
 	}

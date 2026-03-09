@@ -8,8 +8,8 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
-	"github.com/somaz94/go-git-commit-action/internal/github"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
+	"github.com/somaz94/go-git-commit-action/internal/github"
 )
 
 // Creator handles pull request creation and management.

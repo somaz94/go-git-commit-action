@@ -27,21 +27,21 @@ const (
 
 // Git global options
 const (
-	OptGlobal     = "--global"
-	OptAdd        = "--add"
-	OptList       = "--list"
-	OptGet        = "--get"
-	OptForce      = "-f"
-	OptHard       = "--hard"
-	OptUpstream   = "-u"
-	OptPorcelain  = "--porcelain"
-	OptVerify     = "--verify"
-	OptHeads      = "--heads"
-	OptTags       = "--tags"
-	OptNameOnly      = "--name-only"
-	OptNameStatus    = "--name-status"
-	OptDeleteRemote  = "--delete"
-	OptSetURL        = "set-url"
+	OptGlobal       = "--global"
+	OptAdd          = "--add"
+	OptList         = "--list"
+	OptGet          = "--get"
+	OptForce        = "-f"
+	OptHard         = "--hard"
+	OptUpstream     = "-u"
+	OptPorcelain    = "--porcelain"
+	OptVerify       = "--verify"
+	OptHeads        = "--heads"
+	OptTags         = "--tags"
+	OptNameOnly     = "--name-only"
+	OptNameStatus   = "--name-status"
+	OptDeleteRemote = "--delete"
+	OptSetURL       = "set-url"
 )
 
 // Git config specific options

@@ -35,6 +35,11 @@ func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
 		return err
 	}
 
+	// Capture commit SHA (works for both auto-branch and manual branch flows)
+	if commitSHA, err := getCommitSHA(); err == nil {
+		result.Set(output.KeyCommitSHA, commitSHA)
+	}
+
 	// Capture PR outputs
 	if htmlURL, ok := prResponse["html_url"].(string); ok {
 		result.Set(output.KeyPRURL, htmlURL)

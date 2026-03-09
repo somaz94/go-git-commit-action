@@ -410,8 +410,10 @@ func restoreChanges(backups []FileBackup) error {
 	return nil
 }
 
-// checkIfEmpty determines if there are any changes to commit.
-// It checks both working directory changes and differences between branches.
+// checkIfEmpty determines if there are any local changes to commit.
+// The skip decision is based solely on local working directory changes (git status).
+// Branch differences are logged for informational purposes but do not affect the skip logic,
+// since existing branch differences are about PR content, not about new uncommitted work.
 func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	// Get local working directory changes
 	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
@@ -420,28 +422,27 @@ func checkIfEmpty(config *config.GitConfig) (bool, error) {
 		return false, errors.New("check git status", err)
 	}
 
-	// Check for differences between branches
+	hasLocalChanges := len(statusOutput) > 0
+
+	// Check for differences between branches (informational only)
+	var hasBranchDifferences bool
 	diffCmd := exec.Command(gitcmd.CmdGit, gitcmd.DiffNameOnlyArgs(
 		fmt.Sprintf("origin/%s", config.PRBase),
 		config.PRBranch,
 	)...)
 	diffOutput, err := diffCmd.Output()
 	if err != nil {
-		// Likely a new branch or missing remote ref; log and treat as non-empty to proceed
 		fmt.Printf("  - [WARN] Branch diff failed (proceeding anyway): %v\n", err)
-		diffOutput = []byte("new-branch")
+		hasBranchDifferences = false
+	} else {
+		hasBranchDifferences = len(diffOutput) > 0
 	}
-
-	// Determine if there are no changes to commit
-	hasLocalChanges := len(statusOutput) > 0
-	hasBranchDifferences := len(diffOutput) > 0
-	isEmpty := !hasLocalChanges && !hasBranchDifferences
 
 	// Print debug information for better visibility
 	printChangeDetectionInfo(statusOutput, diffOutput, hasLocalChanges, hasBranchDifferences)
 
-	// Return true only if empty and config says to skip empty commits
-	return isEmpty && config.SkipIfEmpty, nil
+	// Skip is determined only by local changes - no new files to commit means empty
+	return !hasLocalChanges && config.SkipIfEmpty, nil
 }
 
 // printChangeDetectionInfo outputs information about detected changes.

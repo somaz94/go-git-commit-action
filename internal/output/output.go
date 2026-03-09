@@ -61,14 +61,14 @@ func (r *Result) WriteToGitHubOutput() error {
 		return nil
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %v", err)
 	}
 	defer f.Close()
-
-	r.mu.Lock()
-	defer r.mu.Unlock()
 
 	var lines []string
 	for k, v := range r.values {
