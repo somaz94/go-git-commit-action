@@ -37,7 +37,7 @@ jobs:
         run: git config --global --add safe.directory ${{ github.workspace }}
 
       - name: Setup Docker BuildX
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
         with:
           install: true
           driver-opts: network=host
