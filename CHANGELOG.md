@@ -1,8 +1,8 @@
 # Changelog
 
-## [v1.6.3](https://github.com/somaz94/go-git-commit-action/tree/v1.6.3) (2026-03-09)
+## [v1.7.0](https://github.com/somaz94/go-git-commit-action/tree/v1.7.0) (2026-03-09)
 
-[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.6.3)
+[Full Changelog](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.7.0)
 
 **Merged pull requests:**
 
