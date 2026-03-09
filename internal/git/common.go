@@ -31,7 +31,7 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 
 		if err := command.Run(); err != nil {
 			// Special handling for "nothing to commit" case
-			if len(cmd.Args) > 0 && cmd.Args[0] == "commit" && err.Error() == "exit status 1" {
+			if isNothingToCommitError(cmd, err) {
 				fmt.Println("⚠️  Nothing to commit, skipping...")
 				continue
 			}
@@ -44,4 +44,16 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 	}
 
 	return nil
+}
+
+// isNothingToCommitError checks if an error is caused by "nothing to commit".
+// It uses the exit code from exec.ExitError instead of brittle string matching.
+func isNothingToCommitError(cmd Command, err error) bool {
+	if len(cmd.Args) == 0 || cmd.Args[0] != "commit" {
+		return false
+	}
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		return exitErr.ExitCode() == 1
+	}
+	return false
 }

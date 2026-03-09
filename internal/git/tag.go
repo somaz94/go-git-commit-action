@@ -133,11 +133,12 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 	return commitSHA, nil
 }
 
+const shortSHALength = 8
+
 // shortenCommitSHA creates a shorter version of a commit SHA for display.
-// It returns the first 8 characters of the commit SHA.
 func shortenCommitSHA(sha string) string {
-	if len(sha) > 8 {
-		return sha[:8]
+	if len(sha) > shortSHALength {
+		return sha[:shortSHALength]
 	}
 	return sha
 }

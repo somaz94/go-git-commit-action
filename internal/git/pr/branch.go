@@ -2,13 +2,16 @@ package pr
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
+)
+
+const (
+	timestampFormat = "20060102-150405"
 )
 
 // BranchManager handles branch operations for pull requests.
@@ -33,8 +36,7 @@ func (bm *BranchManager) PrepareSourceBranch() (string, error) {
 
 // createAutoBranch creates a new branch with a timestamp and commits changes to it.
 func (bm *BranchManager) createAutoBranch() (string, error) {
-	// Create a branch name with a timestamp
-	sourceBranch := fmt.Sprintf("update-files-%s", time.Now().Format("20060102-150405"))
+	sourceBranch := fmt.Sprintf("update-files-%s", time.Now().Format(timestampFormat))
 	bm.config.PRBranch = sourceBranch
 
 	// Create and switch to a new branch
@@ -45,13 +47,13 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 	}
 	fmt.Println("✅ Done")
 
-	// Stage files
-	if err := stageFiles(bm.config.FilePattern); err != nil {
+	// Stage files using shared utility
+	if err := shared.StageFiles(bm.config.FilePattern); err != nil {
 		return "", err
 	}
 
-	// Commit and push changes
-	if err := commitAndPush(bm.config, sourceBranch); err != nil {
+	// Commit and push using shared utility
+	if err := shared.CommitAndPush(bm.config.CommitMessage, sourceBranch); err != nil {
 		return "", err
 	}
 
@@ -73,7 +75,6 @@ func (bm *BranchManager) checkoutExistingBranch() (string, error) {
 
 // DeleteSourceBranch deletes the source branch from remote.
 func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
-	// Skip if in dry run mode
 	if bm.config.PRDryRun {
 		fmt.Printf("\n  • [DRY RUN] Would delete source branch %s... ✅ Skipped\n", sourceBranch)
 		return nil
@@ -97,7 +98,7 @@ func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 
 // FetchBranches fetches the latest from both the base and source branches.
 func (bm *BranchManager) FetchBranches() error {
-	fetchCommands := []struct {
+	branches := []struct {
 		branch string
 		desc   string
 	}{
@@ -105,72 +106,11 @@ func (bm *BranchManager) FetchBranches() error {
 		{bm.config.PRBranch, "Fetching source branch"},
 	}
 
-	for _, cmd := range fetchCommands {
-		if err := exec.Command(gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, cmd.branch)...).Run(); err != nil {
-			return fmt.Errorf("%s: %v", cmd.desc, err)
+	for _, b := range branches {
+		if err := exec.Command(gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, b.branch)...).Run(); err != nil {
+			return fmt.Errorf("%s: %v", b.desc, err)
 		}
 	}
-
-	return nil
-}
-
-// stageFiles adds the specified files to the Git staging area.
-// It handles multiple file patterns separated by spaces.
-func stageFiles(filePattern string) error {
-	fmt.Printf("  • Adding files... ")
-
-	// Handle multiple patterns separated by spaces
-	if strings.Contains(filePattern, " ") {
-		patterns := strings.Fields(filePattern)
-		for _, pattern := range patterns {
-			if err := executeGitAdd(pattern); err != nil {
-				fmt.Println("❌ Failed")
-				return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
-			}
-		}
-	} else {
-		// Single pattern case
-		if err := executeGitAdd(filePattern); err != nil {
-			fmt.Println("❌ Failed")
-			return fmt.Errorf("failed to add files: %v", err)
-		}
-	}
-
-	fmt.Println("✅ Done")
-	return nil
-}
-
-// executeGitAdd executes the git add command for a specific pattern.
-func executeGitAdd(pattern string) error {
-	addCmd := exec.Command(gitcmd.CmdGit, gitcmd.AddArgs(pattern)...)
-	addCmd.Stdout = os.Stdout
-	addCmd.Stderr = os.Stderr
-	return addCmd.Run()
-}
-
-// commitAndPush commits the staged changes and pushes them to the remote branch.
-func commitAndPush(cfg *config.GitConfig, branch string) error {
-	// Commit
-	fmt.Printf("  • Committing changes... ")
-	commitCmd := exec.Command(gitcmd.CmdGit, gitcmd.CommitArgs(cfg.CommitMessage)...)
-	commitCmd.Stdout = os.Stdout
-	commitCmd.Stderr = os.Stderr
-	if err := commitCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to commit: %v", err)
-	}
-	fmt.Println("✅ Done")
-
-	// Push
-	fmt.Printf("  • Pushing changes... ")
-	pushCmd := exec.Command(gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, branch)...)
-	pushCmd.Stdout = os.Stdout
-	pushCmd.Stderr = os.Stderr
-	if err := pushCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
-		return fmt.Errorf("failed to push: %v", err)
-	}
-	fmt.Println("✅ Done")
 
 	return nil
 }

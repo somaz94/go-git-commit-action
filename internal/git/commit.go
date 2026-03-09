@@ -108,27 +108,9 @@ func executeGitCommitWorkflow(config *config.GitConfig) error {
 }
 
 // validateConfig ensures all required configuration parameters are set.
-// It checks that the necessary fields for PR creation are specified when the
-// create_pr option is enabled.
-func validateConfig(config *config.GitConfig) error {
-	if !config.CreatePR {
-		return nil
-	}
-
-	// Validate PR-specific configuration
-	if !config.AutoBranch && config.PRBranch == "" {
-		return errors.NewConfig("pr_branch must be specified when auto_branch is false and create_pr is true")
-	}
-
-	if config.PRBase == "" {
-		return errors.NewConfig("pr_base must be specified when create_pr is true")
-	}
-
-	if config.GitHubToken == "" {
-		return errors.NewConfig("github_token must be specified when create_pr is true")
-	}
-
-	return nil
+// It delegates to config.Validate() to avoid duplication.
+func validateConfig(cfg *config.GitConfig) error {
+	return cfg.Validate()
 }
 
 // printDebugInfo outputs debug information about the current environment.

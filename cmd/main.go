@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	// 시그널 처리
+	// Handle OS signals for graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
