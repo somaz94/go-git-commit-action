@@ -100,6 +100,18 @@ inputs:
     description: 'Simulate PR creation without actually creating one (for testing)'
     required: false
     default: 'false'
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  timeout:
+    description: 'Operation timeout in seconds'
+    required: false
+    default: '30'
+  retry_count:
+    description: 'Number of retries for failed operations'
+    required: false
+    default: '3'
 
 outputs:
   commit_sha:
@@ -144,6 +156,9 @@ runs:
     PR_REVIEWERS: ${{ inputs.pr_reviewers }}
     PR_ASSIGNEES: ${{ inputs.pr_assignees }}
     PR_DRY_RUN: ${{ inputs.pr_dry_run }}
+    DEBUG: ${{ inputs.debug }}
+    TIMEOUT: ${{ inputs.timeout }}
+    RETRY_COUNT: ${{ inputs.retry_count }}
 branding:
   icon: 'git-commit'
   color: 'blue'
