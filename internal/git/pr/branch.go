@@ -40,12 +40,12 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 	bm.config.PRBranch = sourceBranch
 
 	// Create and switch to a new branch
-	fmt.Printf("  • Creating new branch %s... ", sourceBranch)
+	fmt.Printf("  - Creating new branch %s... ", sourceBranch)
 	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...).Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return "", fmt.Errorf("failed to create branch: %v", err)
 	}
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 
 	// Stage files using shared utility
 	if err := shared.StageFiles(bm.config.FilePattern); err != nil {
@@ -63,12 +63,12 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 // checkoutExistingBranch checks out the specified PR branch.
 func (bm *BranchManager) checkoutExistingBranch() (string, error) {
 	sourceBranch := bm.config.PRBranch
-	fmt.Printf("  • Checking out branch %s... ", sourceBranch)
+	fmt.Printf("  - Checking out branch %s... ", sourceBranch)
 	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutArgs(sourceBranch)...).Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return "", fmt.Errorf("failed to checkout branch: %v", err)
 	}
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 
 	return sourceBranch, nil
 }
@@ -76,7 +76,7 @@ func (bm *BranchManager) checkoutExistingBranch() (string, error) {
 // DeleteSourceBranch deletes the source branch from remote.
 func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 	if bm.config.PRDryRun {
-		fmt.Printf("\n  • [DRY RUN] Would delete source branch %s... ✅ Skipped\n", sourceBranch)
+		fmt.Printf("\n  - [DRY RUN] Would delete source branch %s... Skipped\n", sourceBranch)
 		return nil
 	}
 
@@ -85,14 +85,14 @@ func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 		return nil
 	}
 
-	fmt.Printf("\n  • Deleting source branch %s... ", sourceBranch)
+	fmt.Printf("\n  - Deleting source branch %s... ", sourceBranch)
 	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.SubCmdPush, gitcmd.RefOrigin, "--delete", sourceBranch)
 	if err := deleteCommand.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return fmt.Errorf("failed to delete source branch %s: %v", sourceBranch, err)
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
 }
 

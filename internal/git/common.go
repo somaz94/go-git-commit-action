@@ -24,7 +24,7 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 	}
 
 	for _, cmd := range commands {
-		fmt.Printf("  • %s... ", cmd.Desc)
+		fmt.Printf("  - %s... ", cmd.Desc)
 		command := exec.Command(cmd.Name, cmd.Args...)
 		command.Stdout = os.Stdout
 		command.Stderr = os.Stderr
@@ -32,15 +32,15 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 		if err := command.Run(); err != nil {
 			// Special handling for "nothing to commit" case
 			if isNothingToCommitError(cmd, err) {
-				fmt.Println("⚠️  Nothing to commit, skipping...")
+				fmt.Println("[WARN] Nothing to commit, skipping...")
 				continue
 			}
 
-			fmt.Println("❌ Failed")
+			fmt.Println("FAILED")
 			return fmt.Errorf("failed to execute %s: %v", cmd.Name, err)
 		}
 
-		fmt.Println("✅ Done")
+		fmt.Println("Done")
 	}
 
 	return nil

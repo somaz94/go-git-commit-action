@@ -29,7 +29,7 @@ func NewTagManager(config *config.GitConfig) *TagManager {
 // with retry capability for transient errors.
 func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 	return withRetry(ctx, tm.config.RetryCount, func() error {
-		fmt.Println("\n🏷️  Handling Git Tag:")
+		fmt.Println("\nHandling Git Tag:")
 
 		// Fetch all tags to ensure we're working with the latest data
 		if err := tm.fetchTags(); err != nil {
@@ -48,24 +48,24 @@ func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 // fetchTags retrieves all tags and references from the remote repository.
 // This ensures that tag operations have the most up-to-date information.
 func (tm *TagManager) fetchTags() error {
-	fmt.Printf("  • Fetching tags from remote... ")
+	fmt.Printf("  - Fetching tags from remote... ")
 	fetchCmd := exec.Command(gitcmd.CmdGit, gitcmd.FetchTagsArgs()...)
 	fetchCmd.Stdout = os.Stdout
 	fetchCmd.Stderr = os.Stderr
 
 	if err := fetchCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return errors.New("fetch tags", err)
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
 }
 
 // deleteTag removes both local and remote tags with the specified name.
 // It first deletes the local tag and then pushes the deletion to the remote.
 func (tm *TagManager) deleteTag() error {
-	fmt.Printf("\n  • Deleting tag: %s\n", tm.config.TagName)
+	fmt.Printf("\n  - Deleting tag: %s\n", tm.config.TagName)
 
 	commands := []Command{
 		{gitcmd.CmdGit, gitcmd.TagDeleteArgs(tm.config.TagName), "Deleting local tag"},
@@ -108,27 +108,27 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 	}
 
 	// Verify the reference is valid
-	fmt.Printf("  • Verifying reference '%s'... ", tm.config.TagReference)
+	fmt.Printf("  - Verifying reference '%s'... ", tm.config.TagReference)
 	verifyCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs(tm.config.TagReference)...)
 	verifyCmd.Stderr = os.Stderr
 
 	if err := verifyCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return "", errors.NewWithPath("verify git reference", tm.config.TagReference, err)
 	}
-	fmt.Println("✅ Valid")
+	fmt.Println("Valid")
 
 	// Get the full commit SHA for the reference
-	fmt.Printf("  • Resolving commit for '%s'... ", tm.config.TagReference)
+	fmt.Printf("  - Resolving commit for '%s'... ", tm.config.TagReference)
 	revListCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevListArgs(tm.config.TagReference)...)
 	output, err := revListCmd.Output()
 	if err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return "", errors.NewWithPath("resolve commit SHA", tm.config.TagReference, err)
 	}
 
 	commitSHA := strings.TrimSpace(string(output))
-	fmt.Printf("✅ Found: %s\n", shortenCommitSHA(commitSHA))
+	fmt.Printf("Found: %s\n", shortenCommitSHA(commitSHA))
 
 	return commitSHA, nil
 }

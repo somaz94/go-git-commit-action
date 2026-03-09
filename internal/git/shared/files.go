@@ -12,42 +12,42 @@ import (
 // StageFiles adds the specified files to the Git staging area.
 // It handles multiple file patterns separated by spaces.
 func StageFiles(filePattern string) error {
-	fmt.Printf("  • Adding files... ")
+	fmt.Printf("  - Adding files... ")
 
 	for _, pattern := range strings.Fields(filePattern) {
 		if err := executeGitAdd(pattern); err != nil {
-			fmt.Println("❌ Failed")
+			fmt.Println("FAILED")
 			return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
 		}
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
 }
 
 // CommitAndPush commits the staged changes and pushes them to the remote branch.
 func CommitAndPush(commitMessage, branch string) error {
 	// Commit
-	fmt.Printf("  • Committing changes... ")
+	fmt.Printf("  - Committing changes... ")
 	commitCmd := exec.Command(gitcmd.CmdGit, gitcmd.CommitArgs(commitMessage)...)
 	commitCmd.Stdout = os.Stdout
 	commitCmd.Stderr = os.Stderr
 	if err := commitCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return fmt.Errorf("failed to commit: %v", err)
 	}
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 
 	// Push
-	fmt.Printf("  • Pushing changes... ")
+	fmt.Printf("  - Pushing changes... ")
 	pushCmd := exec.Command(gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, branch)...)
 	pushCmd.Stdout = os.Stdout
 	pushCmd.Stderr = os.Stderr
 	if err := pushCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return fmt.Errorf("failed to push: %v", err)
 	}
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 
 	return nil
 }

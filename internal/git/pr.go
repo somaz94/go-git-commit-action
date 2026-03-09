@@ -11,7 +11,7 @@ import (
 // It handles the entire flow of preparing branches, creating the PR,
 // and processing post-creation tasks like adding labels or closing the PR.
 func CreatePullRequest(config *config.GitConfig) error {
-	fmt.Println("\n🔄 Creating Pull Request:")
+	fmt.Println("\nCreating Pull Request:")
 
 	// Step 1: Prepare the source branch
 	branchMgr := pr.NewBranchManager(config)
@@ -38,7 +38,7 @@ func CreatePullRequest(config *config.GitConfig) error {
 		return err
 	}
 
-	fmt.Println("\n✨ Git Commit Action Completed Successfully!\n" +
+	fmt.Println("\nGit Commit Action Completed Successfully!\n" +
 		"=========================================")
 
 	return nil

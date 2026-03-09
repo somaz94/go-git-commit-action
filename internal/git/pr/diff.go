@@ -22,7 +22,7 @@ func NewDiffChecker(cfg *config.GitConfig) *DiffChecker {
 // CheckBranchDifferences checks the differences between the PR base branch and the source branch.
 // It also shows the potential PR URL for manual creation if the API fails.
 func (dc *DiffChecker) CheckBranchDifferences() error {
-	fmt.Printf("\n📊 Changed files between %s and %s:\n", dc.config.PRBase, dc.config.PRBranch)
+	fmt.Printf("\nChanged files between %s and %s:\n", dc.config.PRBase, dc.config.PRBranch)
 
 	// Fetch the latest from both branches
 	branchMgr := NewBranchManager(dc.config)
@@ -61,10 +61,10 @@ func (dc *DiffChecker) displayChangedFiles() error {
 
 // displayPRURL shows the URL for manual PR creation.
 func (dc *DiffChecker) displayPRURL() {
-	fmt.Printf("\n✅ Branch '%s' is ready for PR.\n", dc.config.PRBranch)
+	fmt.Printf("\nBranch '%s' is ready for PR.\n", dc.config.PRBranch)
 	prURL := fmt.Sprintf("https://github.com/%s/compare/%s...%s",
 		os.Getenv("GITHUB_REPOSITORY"),
 		dc.config.PRBase,
 		dc.config.PRBranch)
-	fmt.Printf("✅ You can create a pull request by visiting:\n   %s\n", prURL)
+	fmt.Printf("You can create a pull request by visiting:\n   %s\n", prURL)
 }

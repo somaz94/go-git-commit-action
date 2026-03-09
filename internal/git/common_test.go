@@ -2,6 +2,7 @@ package git
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"testing"
 
@@ -275,9 +276,9 @@ func TestValidateConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateConfig(tt.cfg)
+			err := tt.cfg.Validate()
 			if (err != nil) != tt.wantErr {
-				t.Errorf("validateConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
@@ -443,6 +444,51 @@ func TestRestoreChanges_WithTempFile(t *testing.T) {
 	err := restoreChanges(backups)
 	if err != nil {
 		t.Fatalf("restoreChanges() error = %v", err)
+	}
+}
+
+func TestBackupChanges_ShortLines(t *testing.T) {
+	cfg := &config.GitConfig{RepoPath: "."}
+	// Lines shorter than 4 chars should be skipped without panic
+	statusOutput := "M\n\nXY\n"
+	backups, err := backupChanges(cfg, statusOutput)
+	if err != nil {
+		t.Fatalf("backupChanges() error = %v", err)
+	}
+	if len(backups) != 0 {
+		t.Errorf("backupChanges() returned %d backups, want 0", len(backups))
+	}
+}
+
+func TestBackupChanges_ValidLine(t *testing.T) {
+	tmpDir := t.TempDir()
+	cfg := &config.GitConfig{RepoPath: "."}
+
+	// Create a temp file to backup
+	tmpFile := tmpDir + "/test.txt"
+	if err := os.WriteFile(tmpFile, []byte("content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	statusOutput := fmt.Sprintf(" M %s\n", tmpFile)
+	backups, err := backupChanges(cfg, statusOutput)
+	if err != nil {
+		t.Fatalf("backupChanges() error = %v", err)
+	}
+	if len(backups) != 1 {
+		t.Errorf("backupChanges() returned %d backups, want 1", len(backups))
+	}
+}
+
+func TestBackupChanges_DeletedFileSkipped(t *testing.T) {
+	cfg := &config.GitConfig{RepoPath: "."}
+	statusOutput := " D deleted-file.txt\n"
+	backups, err := backupChanges(cfg, statusOutput)
+	if err != nil {
+		t.Fatalf("backupChanges() error = %v", err)
+	}
+	if len(backups) != 0 {
+		t.Errorf("backupChanges() returned %d backups for deleted file, want 0", len(backups))
 	}
 }
 

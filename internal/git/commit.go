@@ -66,7 +66,7 @@ func RunGitCommit(config *config.GitConfig) error {
 // executeGitCommitWorkflow runs all steps of the Git commit process
 func executeGitCommitWorkflow(config *config.GitConfig) error {
 	// Validate the configuration
-	if err := validateConfig(config); err != nil {
+	if err := config.Validate(); err != nil {
 		return err
 	}
 
@@ -95,7 +95,7 @@ func executeGitCommitWorkflow(config *config.GitConfig) error {
 	}
 
 	if isEmpty {
-		fmt.Println("\n⚠️  No changes detected and skip_if_empty is true. Skipping commit process.")
+		fmt.Println("\n[WARN] No changes detected and skip_if_empty is true. Skipping commit process.")
 		return nil
 	}
 
@@ -107,26 +107,20 @@ func executeGitCommitWorkflow(config *config.GitConfig) error {
 	return commitChanges(config)
 }
 
-// validateConfig ensures all required configuration parameters are set.
-// It delegates to config.Validate() to avoid duplication.
-func validateConfig(cfg *config.GitConfig) error {
-	return cfg.Validate()
-}
-
 // printDebugInfo outputs debug information about the current environment.
 // This includes the working directory and the contents of the directory.
 func printDebugInfo() {
 	currentDir, _ := os.Getwd()
-	fmt.Println("\n🚀 Starting Git Commit Action\n" +
+	fmt.Println("\nStarting Git Commit Action\n" +
 		"================================")
 
-	fmt.Println("\n📋 Configuration:")
-	fmt.Printf("  • Working Directory: %s\n", currentDir)
+	fmt.Println("\nConfiguration:")
+	fmt.Printf("  - Working Directory: %s\n", currentDir)
 
-	fmt.Println("\n📁 Directory Contents:")
+	fmt.Println("\nDirectory Contents:")
 	files, _ := os.ReadDir(".")
 	for _, file := range files {
-		fmt.Printf("  • %s\n", file.Name())
+		fmt.Printf("  - %s\n", file.Name())
 	}
 }
 
@@ -138,7 +132,7 @@ func changeWorkingDirectory(config *config.GitConfig) error {
 			return errors.NewWithPath("change directory", config.RepoPath, err)
 		}
 		newDir, _ := os.Getwd()
-		fmt.Printf("\n📂 Changed to directory: %s\n", newDir)
+		fmt.Printf("\nChanged to directory: %s\n", newDir)
 	}
 	return nil
 }
@@ -153,7 +147,7 @@ func setupGitConfig(config *config.GitConfig) error {
 		{gitcmd.CmdGit, gitcmd.ConfigUserNameArgs(config.UserName), "Configuring user name"},
 	}
 
-	if err := ExecuteCommandBatch(baseCommands, "\n⚙️  Executing Git Commands:"); err != nil {
+	if err := ExecuteCommandBatch(baseCommands, "\nExecuting Git Commands:"); err != nil {
 		return err
 	}
 
@@ -163,15 +157,15 @@ func setupGitConfig(config *config.GitConfig) error {
 	}
 
 	// Show final git configuration
-	fmt.Printf("  • Checking git configuration... ")
+	fmt.Printf("  - Checking git configuration... ")
 	cmd := exec.Command(gitcmd.CmdGit, gitcmd.ConfigListArgs()...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return err
 	}
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 
 	return nil
 }
@@ -180,7 +174,7 @@ func setupGitConfig(config *config.GitConfig) error {
 // Since checkout@v6 stores credentials in $RUNNER_TEMP which is not accessible in Docker containers,
 // we need to configure the remote URL with the token directly.
 func setupGitCredentials(config *config.GitConfig) error {
-	fmt.Printf("  • Configuring git credentials... ")
+	fmt.Printf("  - Configuring git credentials... ")
 
 	// Get GitHub token from environment or config
 	token := os.Getenv("GITHUB_TOKEN")
@@ -189,7 +183,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	}
 
 	if token == "" {
-		fmt.Println("⚠️  No token found, skipping")
+		fmt.Println("[WARN] No token found, skipping")
 		return nil
 	}
 
@@ -197,7 +191,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	cmd := exec.Command(gitcmd.CmdGit, "config", "--get", "remote.origin.url")
 	output, err := cmd.Output()
 	if err != nil {
-		fmt.Println("⚠️  Could not get remote URL, skipping")
+		fmt.Println("[WARN] Could not get remote URL, skipping")
 		return nil
 	}
 
@@ -205,7 +199,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 
 	// Only process GitHub URLs
 	if !strings.Contains(remoteURL, "github.com") {
-		fmt.Println("⚠️  Not a GitHub repository, skipping")
+		fmt.Println("[WARN] Not a GitHub repository, skipping")
 		return nil
 	}
 
@@ -215,7 +209,7 @@ func setupGitCredentials(config *config.GitConfig) error {
 	if strings.HasPrefix(remoteURL, "https://github.com/") {
 		newURL = strings.Replace(remoteURL, "https://github.com/", fmt.Sprintf("https://x-access-token:%s@github.com/", token), 1)
 	} else {
-		fmt.Println("⚠️  Unsupported URL format, skipping")
+		fmt.Println("[WARN] Unsupported URL format, skipping")
 		return nil
 	}
 
@@ -223,11 +217,11 @@ func setupGitCredentials(config *config.GitConfig) error {
 	setURLCmd := exec.Command(gitcmd.CmdGit, "remote", "set-url", "origin", newURL)
 	setURLCmd.Stderr = os.Stderr
 	if err := setURLCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return errors.New("set remote URL", err)
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
 }
 
@@ -255,7 +249,7 @@ func handleBranch(config *config.GitConfig) error {
 
 // createNewBranch creates a new branch and pushes it to the remote repository.
 func createNewBranch(config *config.GitConfig) error {
-	fmt.Printf("\n⚠️  Branch '%s' not found, creating it...\n", config.Branch)
+	fmt.Printf("\n[WARN] Branch '%s' not found, creating it...\n", config.Branch)
 	createCommands := []Command{
 		{gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(config.Branch), "Creating new branch"},
 		{gitcmd.CmdGit, gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, config.Branch), "Pushing new branch"},
@@ -267,7 +261,7 @@ func createNewBranch(config *config.GitConfig) error {
 // checkoutRemoteBranch checks out an existing remote branch while handling
 // local changes properly through backup, stash, and restore.
 func checkoutRemoteBranch(config *config.GitConfig) error {
-	fmt.Printf("\n⚠️  Checking out existing remote branch '%s'...\n", config.Branch)
+	fmt.Printf("\n[WARN] Checking out existing remote branch '%s'...\n", config.Branch)
 
 	// Get the current working directory state
 	statusOutput, err := getGitStatus()
@@ -308,12 +302,12 @@ func getGitStatus() (string, error) {
 // backupChanges creates backups of modified files that need to be preserved
 // during branch switching.
 func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup, error) {
-	fmt.Printf("  • Backing up changes... ")
+	fmt.Printf("  - Backing up changes... ")
 
 	var backups []FileBackup
 
 	for _, line := range strings.Split(statusOutput, "\n") {
-		if line == "" {
+		if len(line) < 4 {
 			continue
 		}
 
@@ -337,30 +331,30 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 		// Read and store file contents
 		content, err := os.ReadFile(relPath)
 		if err != nil {
-			fmt.Println("❌ Failed")
+			fmt.Println("FAILED")
 			return nil, errors.NewWithPath("read file for backup", relPath, err)
 		}
 
 		backups = append(backups, FileBackup{path: relPath, content: content})
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return backups, nil
 }
 
 // stashChanges safely stashes any local changes to avoid conflicts.
 func stashChanges() error {
-	fmt.Printf("  • Stashing changes... ")
+	fmt.Printf("  - Stashing changes... ")
 	stashCmd := exec.Command(gitcmd.CmdGit, gitcmd.StashPushArgs()...)
 	stashCmd.Stdout = os.Stdout
 	stashCmd.Stderr = os.Stderr
 
 	if err := stashCmd.Run(); err != nil {
-		fmt.Println("❌ Failed")
+		fmt.Println("FAILED")
 		return errors.New("stash changes", err)
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
 }
 
@@ -377,28 +371,30 @@ func fetchAndCheckout(config *config.GitConfig) error {
 
 // restoreChanges brings back the backed up files after branch switching.
 func restoreChanges(backups []FileBackup) error {
-	fmt.Printf("  • Restoring changes... ")
+	fmt.Printf("  - Restoring changes... ")
 
 	for _, backup := range backups {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir(backup.path)
 		if dir != "." {
 			if err := os.MkdirAll(dir, permDir); err != nil {
-				fmt.Println("❌ Failed")
+				fmt.Println("FAILED")
 				return errors.NewWithPath("create directory", dir, err)
 			}
 		}
 
 		// Write the file content
 		if err := os.WriteFile(backup.path, backup.content, permFile); err != nil {
-			fmt.Println("❌ Failed")
+			fmt.Println("FAILED")
 			return errors.NewWithPath("restore file", backup.path, err)
 		}
 	}
 
-	fmt.Println("✅ Done")
+	fmt.Println("Done")
 	return nil
-} // checkIfEmpty determines if there are any changes to commit.
+}
+
+// checkIfEmpty determines if there are any changes to commit.
 // It checks both working directory changes and differences between branches.
 func checkIfEmpty(config *config.GitConfig) (bool, error) {
 	// Get local working directory changes
@@ -433,16 +429,16 @@ func checkIfEmpty(config *config.GitConfig) (bool, error) {
 
 // printChangeDetectionInfo outputs information about detected changes.
 func printChangeDetectionInfo(statusOutput, diffOutput []byte, hasLocalChanges, hasBranchDifferences bool) {
-	fmt.Printf("\n📊 Change Detection:\n")
-	fmt.Printf("  • Local changes: %v\n", hasLocalChanges)
-	fmt.Printf("  • Branch differences: %v\n", hasBranchDifferences)
+	fmt.Printf("\nChange Detection:\n")
+	fmt.Printf("  - Local changes: %v\n", hasLocalChanges)
+	fmt.Printf("  - Branch differences: %v\n", hasBranchDifferences)
 
 	if hasLocalChanges {
-		fmt.Printf("  • Local changes details:\n%s\n", string(statusOutput))
+		fmt.Printf("  - Local changes details:\n%s\n", string(statusOutput))
 	}
 
 	if hasBranchDifferences {
-		fmt.Printf("  • Branch differences details:\n%s\n", string(diffOutput))
+		fmt.Printf("  - Branch differences details:\n%s\n", string(diffOutput))
 	}
 }
 
