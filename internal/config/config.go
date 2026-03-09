@@ -39,6 +39,9 @@ const (
 	EnvPRLabels           = "INPUT_PR_LABELS"
 	EnvPRBody             = "INPUT_PR_BODY"
 	EnvPRClosed           = "INPUT_PR_CLOSED"
+	EnvPRDraft            = "INPUT_PR_DRAFT"
+	EnvPRReviewers        = "INPUT_PR_REVIEWERS"
+	EnvPRAssignees        = "INPUT_PR_ASSIGNEES"
 	EnvPRDryRun           = "INPUT_PR_DRY_RUN"
 
 	// Operational settings
@@ -62,6 +65,7 @@ const (
 	DefaultPRBranch      = ""
 	DefaultDeleteSource  = false
 	DefaultPRClosed      = false
+	DefaultPRDraft       = false
 	DefaultPRDryRun      = false
 	DefaultDebug         = false
 	DefaultTimeout       = 30
@@ -100,6 +104,9 @@ type GitConfig struct {
 	PRLabels           []string
 	PRBody             string
 	PRClosed           bool
+	PRDraft            bool
+	PRReviewers        []string
+	PRAssignees        []string
 	PRDryRun           bool
 
 	// Operational settings
@@ -166,6 +173,9 @@ func NewGitConfig() (*GitConfig, error) {
 		PRLabels:           parseLabels(os.Getenv(EnvPRLabels)),
 		PRBody:             os.Getenv(EnvPRBody),
 		PRClosed:           getBoolEnv(EnvPRClosed, DefaultPRClosed),
+		PRDraft:            getBoolEnv(EnvPRDraft, DefaultPRDraft),
+		PRReviewers:        parseLabels(os.Getenv(EnvPRReviewers)),
+		PRAssignees:        parseLabels(os.Getenv(EnvPRAssignees)),
 		PRDryRun:           getBoolEnv(EnvPRDryRun, DefaultPRDryRun),
 
 		// Operational settings

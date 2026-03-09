@@ -9,6 +9,7 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/git"
+	"github.com/somaz94/go-git-commit-action/internal/output"
 )
 
 func main() {
@@ -28,14 +29,22 @@ func main() {
 		log.Fatalf("Failed to initialize configuration: %v", err)
 	}
 
-	if err := git.RunGitCommit(cfg); err != nil {
+	// Create result to collect action outputs
+	result := output.NewResult()
+
+	if err := git.RunGitCommit(cfg, result); err != nil {
 		log.Fatalf("Error executing git commands: %v", err)
 	}
 
 	if cfg.TagName != "" {
 		tagManager := git.NewTagManager(cfg)
-		if err := tagManager.HandleGitTag(ctx); err != nil {
+		if err := tagManager.HandleGitTag(ctx, result); err != nil {
 			log.Fatalf("Error handling git tag: %v", err)
 		}
+	}
+
+	// Write all outputs to GITHUB_OUTPUT
+	if err := result.WriteToGitHubOutput(); err != nil {
+		log.Printf("[WARN] Failed to write action outputs: %v", err)
 	}
 }

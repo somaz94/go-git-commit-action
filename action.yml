@@ -84,10 +84,36 @@ inputs:
     description: 'Whether to close the pull request after creation'
     required: false
     default: 'false'
+  pr_draft:
+    description: 'Create pull request as draft'
+    required: false
+    default: 'false'
+  pr_reviewers:
+    description: 'Reviewers to request for the pull request (comma-separated usernames)'
+    required: false
+    default: ''
+  pr_assignees:
+    description: 'Assignees for the pull request (comma-separated usernames)'
+    required: false
+    default: ''
   pr_dry_run:
     description: 'Simulate PR creation without actually creating one (for testing)'
     required: false
     default: 'false'
+
+outputs:
+  commit_sha:
+    description: 'The SHA of the created commit'
+  pr_number:
+    description: 'The number of the created pull request'
+  pr_url:
+    description: 'The URL of the created pull request'
+  tag_name:
+    description: 'The name of the created tag'
+  skipped:
+    description: 'Whether the action was skipped due to no changes (true/false)'
+  changed_files:
+    description: 'The number of changed files detected'
 
 runs:
   using: 'docker'
@@ -114,6 +140,9 @@ runs:
     PR_BODY: ${{ inputs.pr_body }}
     SKIP_IF_EMPTY: ${{ inputs.skip_if_empty }}
     PR_CLOSED: ${{ inputs.pr_closed }}
+    PR_DRAFT: ${{ inputs.pr_draft }}
+    PR_REVIEWERS: ${{ inputs.pr_reviewers }}
+    PR_ASSIGNEES: ${{ inputs.pr_assignees }}
     PR_DRY_RUN: ${{ inputs.pr_dry_run }}
 branding:
   icon: 'git-commit'

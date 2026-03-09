@@ -74,12 +74,18 @@ func (c *Creator) preparePRData() (map[string]interface{}, error) {
 
 	title, body := c.generatePRTitleAndBody(runID, commitSHA)
 
-	return map[string]interface{}{
+	data := map[string]interface{}{
 		"title": title,
 		"head":  c.config.PRBranch,
 		"base":  c.config.PRBase,
 		"body":  body,
-	}, nil
+	}
+
+	if c.config.PRDraft {
+		data["draft"] = true
+	}
+
+	return data, nil
 }
 
 // getCurrentCommitSHA retrieves the current commit SHA.
@@ -133,6 +139,18 @@ func (c *Creator) handleDryRunResponse(response map[string]interface{}) error {
 
 	if len(c.config.PRLabels) > 0 {
 		fmt.Printf("  - Labels: %s\n", strings.Join(c.config.PRLabels, ", "))
+	}
+
+	if c.config.PRDraft {
+		fmt.Printf("  - Draft PR: Yes\n")
+	}
+
+	if len(c.config.PRReviewers) > 0 {
+		fmt.Printf("  - Reviewers: %s\n", strings.Join(c.config.PRReviewers, ", "))
+	}
+
+	if len(c.config.PRAssignees) > 0 {
+		fmt.Printf("  - Assignees: %s\n", strings.Join(c.config.PRAssignees, ", "))
 	}
 
 	if c.config.PRClosed {
@@ -221,10 +239,22 @@ func (c *Creator) handleExistingPR() error {
 	return nil
 }
 
-// processExistingPR applies operations like adding labels or closing to an existing PR.
+// processExistingPR applies operations like adding labels, reviewers, assignees, or closing to an existing PR.
 func (c *Creator) processExistingPR(prNumber int) error {
 	if len(c.config.PRLabels) > 0 {
 		if err := c.addLabelsToIssue(prNumber); err != nil {
+			return err
+		}
+	}
+
+	if len(c.config.PRReviewers) > 0 {
+		if err := c.requestReviewers(prNumber); err != nil {
+			return err
+		}
+	}
+
+	if len(c.config.PRAssignees) > 0 {
+		if err := c.addAssignees(prNumber); err != nil {
 			return err
 		}
 	}
@@ -255,6 +285,52 @@ func (c *Creator) addLabelsToIssue(prNumber int) error {
 	if _, err := c.client.Post(endpoint, labelsData); err != nil {
 		fmt.Println("FAILED")
 		return errors.NewAPIError("add labels", err.Error())
+	}
+
+	fmt.Println("Done")
+	return nil
+}
+
+// requestReviewers requests reviewers for a pull request.
+func (c *Creator) requestReviewers(prNumber int) error {
+	if c.config.PRDryRun {
+		fmt.Printf("  - [DRY RUN] Would request reviewers %v for PR #%d... Skipped\n", c.config.PRReviewers, prNumber)
+		return nil
+	}
+
+	fmt.Printf("  - Requesting reviewers for PR #%d... ", prNumber)
+
+	endpoint := fmt.Sprintf("/pulls/%d/requested_reviewers", prNumber)
+	data := map[string]interface{}{
+		"reviewers": c.config.PRReviewers,
+	}
+
+	if _, err := c.client.Post(endpoint, data); err != nil {
+		fmt.Println("FAILED")
+		return errors.NewAPIError("request reviewers", err.Error())
+	}
+
+	fmt.Println("Done")
+	return nil
+}
+
+// addAssignees adds assignees to a pull request.
+func (c *Creator) addAssignees(prNumber int) error {
+	if c.config.PRDryRun {
+		fmt.Printf("  - [DRY RUN] Would add assignees %v to PR #%d... Skipped\n", c.config.PRAssignees, prNumber)
+		return nil
+	}
+
+	fmt.Printf("  - Adding assignees to PR #%d... ", prNumber)
+
+	endpoint := fmt.Sprintf("/issues/%d/assignees", prNumber)
+	data := map[string]interface{}{
+		"assignees": c.config.PRAssignees,
+	}
+
+	if _, err := c.client.Post(endpoint, data); err != nil {
+		fmt.Println("FAILED")
+		return errors.NewAPIError("add assignees", err.Error())
 	}
 
 	fmt.Println("Done")

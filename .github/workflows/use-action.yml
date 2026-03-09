@@ -129,6 +129,7 @@ jobs:
           token: ${{ secrets.PAT_TOKEN }}
 
       - name: Test Skip If Empty (should skip - no changes)
+        id: skip-test
         uses: somaz94/go-git-commit-action@v1
         with:
           user_email: actions@github.com
@@ -146,12 +147,22 @@ jobs:
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_closed: true
 
+      - name: Verify Skip Output
+        run: |
+          echo "skipped=${{ steps.skip-test.outputs.skipped }}"
+          if [ "${{ steps.skip-test.outputs.skipped }}" != "true" ]; then
+            echo "FAIL: expected skipped=true"
+            exit 1
+          fi
+          echo "PASS: skip output verified"
+
       # Verify skip does not happen when changes exist
       - name: Create Test File
         run: |
           echo "$(date +%s)-$RANDOM" > test/skip-test.txt
 
       - name: Test Skip If Empty (should not skip - with changes)
+        id: no-skip-test
         uses: somaz94/go-git-commit-action@v1
         with:
           user_email: actions@github.com
@@ -168,6 +179,16 @@ jobs:
           pr_labels: "test,automated,skip-if-empty-test"
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_closed: true
+
+      - name: Verify No-Skip Output
+        run: |
+          echo "skipped=${{ steps.no-skip-test.outputs.skipped }}"
+          echo "pr_number=${{ steps.no-skip-test.outputs.pr_number }}"
+          if [ "${{ steps.no-skip-test.outputs.skipped }}" = "true" ]; then
+            echo "FAIL: expected skipped!=true"
+            exit 1
+          fi
+          echo "PASS: no-skip output verified"
 
   smoke-test-pr-auto-close:
     name: Smoke Test (PR Auto Close)
@@ -223,6 +244,43 @@ jobs:
           pr_base: test
           pr_branch: main
           pr_labels: "test,automated,dry-run-test"
+          repository_path: "test"
+          file_pattern: "pr-dry-run-test.txt"
+          github_token: ${{ secrets.PAT_TOKEN }}
+          pr_dry_run: true
+
+      - name: Test PR Dry Run with Draft
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: main
+          create_pr: true
+          auto_branch: false
+          pr_title: "Test PR Dry Run (Draft)"
+          pr_base: test
+          pr_branch: main
+          pr_labels: "test,automated,draft-pr-test"
+          repository_path: "test"
+          file_pattern: "pr-dry-run-test.txt"
+          github_token: ${{ secrets.PAT_TOKEN }}
+          pr_draft: true
+          pr_dry_run: true
+
+      - name: Test PR Dry Run with Reviewers and Assignees
+        uses: somaz94/go-git-commit-action@v1
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: main
+          create_pr: true
+          auto_branch: false
+          pr_title: "Test PR Dry Run (Reviewers/Assignees)"
+          pr_base: test
+          pr_branch: main
+          pr_labels: "test,automated,reviewers-test"
+          pr_reviewers: "somaz94"
+          pr_assignees: "somaz94"
           repository_path: "test"
           file_pattern: "pr-dry-run-test.txt"
           github_token: ${{ secrets.PAT_TOKEN }}

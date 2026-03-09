@@ -67,6 +67,9 @@ func TestGitConfig_Defaults(t *testing.T) {
 	if cfg.SkipIfEmpty != DefaultSkipIfEmpty {
 		t.Errorf("SkipIfEmpty = %v, want %v", cfg.SkipIfEmpty, DefaultSkipIfEmpty)
 	}
+	if cfg.PRDraft != DefaultPRDraft {
+		t.Errorf("PRDraft = %v, want %v", cfg.PRDraft, DefaultPRDraft)
+	}
 }
 
 func TestGitConfig_ValidatePR(t *testing.T) {

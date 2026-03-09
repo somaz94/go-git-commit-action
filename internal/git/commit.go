@@ -12,6 +12,7 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
+	"github.com/somaz94/go-git-commit-action/internal/output"
 )
 
 const (
@@ -52,19 +53,19 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 
 // RunGitCommit executes the Git commit operation with the provided configuration.
 // It wraps the entire process in a retry mechanism to handle transient failures.
-func RunGitCommit(config *config.GitConfig) error {
+func RunGitCommit(config *config.GitConfig, result *output.Result) error {
 	// Create a context with timeout for the entire operation
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Timeout)*time.Second)
 	defer cancel()
 
 	// Wrap the entire commit process in retry logic
 	return withRetry(ctx, config.RetryCount, func() error {
-		return executeGitCommitWorkflow(config)
+		return executeGitCommitWorkflow(config, result)
 	})
 }
 
 // executeGitCommitWorkflow runs all steps of the Git commit process
-func executeGitCommitWorkflow(config *config.GitConfig) error {
+func executeGitCommitWorkflow(config *config.GitConfig, result *output.Result) error {
 	// Validate the configuration
 	if err := config.Validate(); err != nil {
 		return err
@@ -96,15 +97,23 @@ func executeGitCommitWorkflow(config *config.GitConfig) error {
 
 	if isEmpty {
 		fmt.Println("\n[WARN] No changes detected and skip_if_empty is true. Skipping commit process.")
+		result.Set(output.KeySkipped, "true")
+		result.Set(output.KeyChangedFiles, "0")
 		return nil
 	}
 
+	result.Set(output.KeySkipped, "false")
+
+	// Count changed files
+	changedFiles := countChangedFiles()
+	result.Set(output.KeyChangedFiles, fmt.Sprintf("%d", changedFiles))
+
 	// Create a PR or commit directly based on configuration
 	if config.CreatePR {
-		return handlePullRequestFlow(config)
+		return handlePullRequestFlow(config, result)
 	}
 
-	return commitChanges(config)
+	return commitChanges(config, result)
 }
 
 // printDebugInfo outputs debug information about the current environment.
@@ -450,22 +459,38 @@ func printChangeDetectionInfo(statusOutput, diffOutput []byte, hasLocalChanges, 
 	}
 }
 
+// countChangedFiles counts the number of changed files in the working directory.
+func countChangedFiles() int {
+	statusCmd := exec.Command(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
+	statusOutput, err := statusCmd.Output()
+	if err != nil {
+		return 0
+	}
+	count := 0
+	for _, line := range strings.Split(string(statusOutput), "\n") {
+		if strings.TrimSpace(line) != "" {
+			count++
+		}
+	}
+	return count
+}
+
 // handlePullRequestFlow manages the creation of pull requests
 // based on the auto_branch configuration.
-func handlePullRequestFlow(config *config.GitConfig) error {
+func handlePullRequestFlow(config *config.GitConfig, result *output.Result) error {
 	if config.AutoBranch {
 		// Auto branch creation and PR creation in one step
-		if err := CreatePullRequest(config); err != nil {
+		if err := CreatePullRequest(config, result); err != nil {
 			return errors.New("create pull request with auto branch", err)
 		}
 	} else {
 		// First commit changes to the specified branch
-		if err := commitChanges(config); err != nil {
+		if err := commitChanges(config, result); err != nil {
 			return err
 		}
 
 		// Then create a PR from that branch
-		if err := CreatePullRequest(config); err != nil {
+		if err := CreatePullRequest(config, result); err != nil {
 			return errors.New("create pull request", err)
 		}
 	}
@@ -473,14 +498,34 @@ func handlePullRequestFlow(config *config.GitConfig) error {
 }
 
 // commitChanges stages, commits, and pushes the specified files.
-func commitChanges(config *config.GitConfig) error {
+func commitChanges(config *config.GitConfig, result *output.Result) error {
 	// Stage files first
 	if err := StageFiles(config.FilePattern); err != nil {
 		return err
 	}
 
 	// Perform commit and push
-	return performCommitAndPush(config)
+	if err := performCommitAndPush(config); err != nil {
+		return err
+	}
+
+	// Capture commit SHA for output
+	commitSHA, err := getCommitSHA()
+	if err == nil {
+		result.Set(output.KeyCommitSHA, commitSHA)
+	}
+
+	return nil
+}
+
+// getCommitSHA retrieves the current HEAD commit SHA.
+func getCommitSHA() (string, error) {
+	cmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // performCommitAndPush commits the staged changes and pushes them to the remote.

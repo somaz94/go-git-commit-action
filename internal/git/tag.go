@@ -10,6 +10,7 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
+	"github.com/somaz94/go-git-commit-action/internal/output"
 )
 
 // TagManager handles all operations related to Git tags.
@@ -27,7 +28,7 @@ func NewTagManager(config *config.GitConfig) *TagManager {
 // HandleGitTag orchestrates the Git tag operations based on configuration.
 // It determines whether to create or delete tags and handles the operation
 // with retry capability for transient errors.
-func (tm *TagManager) HandleGitTag(ctx context.Context) error {
+func (tm *TagManager) HandleGitTag(ctx context.Context, result *output.Result) error {
 	return withRetry(ctx, tm.config.RetryCount, func() error {
 		fmt.Println("\nHandling Git Tag:")
 
@@ -41,7 +42,12 @@ func (tm *TagManager) HandleGitTag(ctx context.Context) error {
 			return tm.deleteTag()
 		}
 
-		return tm.createTag()
+		if err := tm.createTag(); err != nil {
+			return err
+		}
+
+		result.Set(output.KeyTagName, tm.config.TagName)
+		return nil
 	})
 }
 
