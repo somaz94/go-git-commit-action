@@ -2,6 +2,10 @@
 
 GitHub Action to automatically commit, push, tag, and create pull requests using Go.
 
+## Commit Guidelines
+
+- Do not include `Co-Authored-By` lines in commit messages.
+
 ## Project Structure
 
 ```
@@ -85,3 +89,7 @@ unit-tests → build-and-push-docker → test-auto-branch-false → test-auto-br
 - **cliff.toml**: Skip `^Merge`, `^Update changelog`, `^Auto commit`
 - **paths-ignore**: `.github/workflows/**`, `**/*.md`, `test/**`, `backup/**`
 - Do NOT commit directly - recommend commit messages only
+
+## Language
+
+- Communicate with the user in Korean.
