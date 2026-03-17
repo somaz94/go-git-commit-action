@@ -7,7 +7,7 @@ COPY . .
 RUN go build -o /go-git-commit-action ./cmd/main.go
 
 # Final stage
-FROM alpine:latest
+FROM alpine:3.23
 
 # Install required git packages
 RUN apk add --no-cache \
