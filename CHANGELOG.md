@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased (2026-03-16)
+## [v1.7.2](https://github.com/somaz94/go-git-commit-action/compare/v1.7.1...v1.7.2) (2026-03-25)
 
 ### Features
 
@@ -10,11 +10,25 @@ All notable changes to this project will be documented in this file.
 
 ### Bug Fixes
 
+- add HTTP status validation, SHA format check, and remove raw response logging ([c653a64](https://github.com/somaz94/go-git-commit-action/commit/c653a6476971efcf07a2244583824e100de21e8e))
+- Dockerfile ([63dd617](https://github.com/somaz94/go-git-commit-action/commit/63dd6176e71a229b66f0bdd22c8c5ca2238d051f))
 - apache license -> mit license ([0078300](https://github.com/somaz94/go-git-commit-action/commit/0078300c1df9acb99907970dc43706717c44ae81))
 - skip major version tag deletion on first release ([46f1e41](https://github.com/somaz94/go-git-commit-action/commit/46f1e41b7091b9b55290f4abbb21fb9345bbf6e5))
 
+### Documentation
+
+- add missing inputs to README table, optimize Docker build ([54782a8](https://github.com/somaz94/go-git-commit-action/commit/54782a85cfca42082e769b0836c1b94516898294))
+- add no-push rule to CLAUDE.md ([8f324c5](https://github.com/somaz94/go-git-commit-action/commit/8f324c5b54d0f23559f348f29c5de4b4d930ef3e))
+- update CLAUDE.md with commit guidelines and language ([7979814](https://github.com/somaz94/go-git-commit-action/commit/7979814215dcf3f33e71b3cda5d8cbcf6c73401e))
+
 ### Continuous Integration
 
+- skip auto-generated changelog and contributors commits in release notes ([1d3416a](https://github.com/somaz94/go-git-commit-action/commit/1d3416a4cda2b53324568a2df5328feb41d05546))
+- revert to body_path RELEASE.md in release workflow ([fba8198](https://github.com/somaz94/go-git-commit-action/commit/fba819825c7eb964f5dbca5f6ef635f2f3787a90))
+- use generate_release_notes instead of RELEASE.md ([d59ba82](https://github.com/somaz94/go-git-commit-action/commit/d59ba82f88c1349e2f18c8394147eed1b1ff7ee6))
+- migrate gitlab-mirror workflow to multi-git-mirror action ([550a4bc](https://github.com/somaz94/go-git-commit-action/commit/550a4bc1ced59131748d04c9879342f517dee7fd))
+- use somaz94/contributors-action@v1 for contributors generation ([858b7fa](https://github.com/somaz94/go-git-commit-action/commit/858b7fac375dbb4afbdc04a862d1d29a637bf469))
+- use major-tag-action for version tag updates ([764e283](https://github.com/somaz94/go-git-commit-action/commit/764e28375bcaf611f1dec992bef18de5aa2686c1))
 - migrate changelog generator to go-changelog-action ([e25955f](https://github.com/somaz94/go-git-commit-action/commit/e25955f44b25f865f3283bb9292aced65666cdc8))
 - add release config, contributors and dependabot auto-merge workflows ([32e08de](https://github.com/somaz94/go-git-commit-action/commit/32e08deddbc2b0790238a3ce47deaf446ce55c80))
 - update Go version from 1.23 to 1.26 ([2eab530](https://github.com/somaz94/go-git-commit-action/commit/2eab53081accd7b53a387487ed14068ed5f5204b))
@@ -23,14 +37,15 @@ All notable changes to this project will be documented in this file.
 
 ### Chores
 
+- upgrade Go version to 1.26 ([7a76830](https://github.com/somaz94/go-git-commit-action/commit/7a768303c94c7d5f9da156e61b216f8c49336042))
 - change license from MIT to Apache 2.0 ([67cc84a](https://github.com/somaz94/go-git-commit-action/commit/67cc84addc6374d8004901b10c2d788b3777b51d))
 - migrate devcontainer feature from devcontainers-contrib to devcontainers-extra ([f73b6e4](https://github.com/somaz94/go-git-commit-action/commit/f73b6e4c19c1d9782d4ffec437e62eea26553c82))
 
 ### Contributors
 
-- GitHub Action
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.7.1](https://github.com/somaz94/go-git-commit-action/compare/v1.7.0...v1.7.1) (2026-03-09)
 
@@ -40,9 +55,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Action
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.7.0](https://github.com/somaz94/go-git-commit-action/compare/v1.6.3...v1.7.0) (2026-03-09)
 
@@ -77,9 +92,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
-- dependabot[bot]
 - somaz
+
+<br/>
 
 ## [v1.6.3](https://github.com/somaz94/go-git-commit-action/compare/v1.6.2...v1.6.3) (2025-11-27)
 
@@ -93,8 +108,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.6.2](https://github.com/somaz94/go-git-commit-action/compare/v1.6.1...v1.6.2) (2025-11-25)
 
@@ -115,8 +131,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.6.1](https://github.com/somaz94/go-git-commit-action/compare/v1.6.0...v1.6.1) (2025-11-25)
 
@@ -140,8 +157,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.6.0](https://github.com/somaz94/go-git-commit-action/compare/v1.5.3...v1.6.0) (2025-11-24)
 
@@ -162,9 +180,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
-- dependabot[bot]
 - somaz
+
+<br/>
 
 ## [v1.5.3](https://github.com/somaz94/go-git-commit-action/compare/v1.5.2...v1.5.3) (2025-10-28)
 
@@ -175,8 +193,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.5.2](https://github.com/somaz94/go-git-commit-action/compare/v1.5.1...v1.5.2) (2025-10-28)
 
@@ -192,9 +211,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
-- dependabot[bot]
 - somaz
+
+<br/>
 
 ## [v1.5.1](https://github.com/somaz94/go-git-commit-action/compare/v1.5.0...v1.5.1) (2025-04-15)
 
@@ -207,8 +226,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.5.0](https://github.com/somaz94/go-git-commit-action/compare/v1.4.2...v1.5.0) (2025-04-14)
 
@@ -249,8 +269,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.4.2](https://github.com/somaz94/go-git-commit-action/compare/v1.4.1...v1.4.2) (2025-03-04)
 
@@ -265,8 +286,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.4.1](https://github.com/somaz94/go-git-commit-action/compare/v1.4.0...v1.4.1) (2025-02-27)
 
@@ -283,8 +305,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.4.0](https://github.com/somaz94/go-git-commit-action/compare/v1.3.2...v1.4.0) (2025-02-17)
 
@@ -299,8 +322,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.3.2](https://github.com/somaz94/go-git-commit-action/compare/v1.3.1...v1.3.2) (2025-02-17)
 
@@ -310,8 +334,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.3.1](https://github.com/somaz94/go-git-commit-action/compare/v1.3.0...v1.3.1) (2025-02-17)
 
@@ -343,9 +368,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
-- dependabot[bot]
 - somaz
+
+<br/>
 
 ## [v1.3.0](https://github.com/somaz94/go-git-commit-action/compare/v1.2.4...v1.3.0) (2025-02-17)
 
@@ -362,8 +387,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.2.4](https://github.com/somaz94/go-git-commit-action/compare/v1.2.3...v1.2.4) (2025-02-13)
 
@@ -375,8 +401,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.2.3](https://github.com/somaz94/go-git-commit-action/compare/v1.2.2...v1.2.3) (2025-02-12)
 
@@ -386,8 +413,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.2.2](https://github.com/somaz94/go-git-commit-action/compare/v1.2.1...v1.2.2) (2025-02-12)
 
@@ -401,8 +429,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.2.1](https://github.com/somaz94/go-git-commit-action/compare/v1.2.0...v1.2.1) (2025-02-12)
 
@@ -413,6 +442,8 @@ All notable changes to this project will be documented in this file.
 ### Contributors
 
 - somaz
+
+<br/>
 
 ## [v1.2.0](https://github.com/somaz94/go-git-commit-action/compare/v1.1.4...v1.2.0) (2025-02-12)
 
@@ -498,9 +529,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Action
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.1.4](https://github.com/somaz94/go-git-commit-action/compare/v1.1.3...v1.1.4) (2025-02-07)
 
@@ -512,8 +543,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.1.3](https://github.com/somaz94/go-git-commit-action/compare/v1.1.2...v1.1.3) (2025-02-07)
 
@@ -523,9 +555,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Action
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.1.2](https://github.com/somaz94/go-git-commit-action/compare/v1.1.1...v1.1.2) (2025-02-07)
 
@@ -535,8 +567,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.1.1](https://github.com/somaz94/go-git-commit-action/compare/v1.1.0...v1.1.1) (2025-02-06)
 
@@ -546,8 +579,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.1.0](https://github.com/somaz94/go-git-commit-action/compare/v1.0.2...v1.1.0) (2025-02-06)
 
@@ -572,9 +606,9 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Action
-- GitHub Actions
 - somaz
+
+<br/>
 
 ## [v1.0.2](https://github.com/somaz94/go-git-commit-action/compare/v1.0.1...v1.0.2) (2025-02-06)
 
@@ -592,9 +626,10 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Actions
 - somaz
 - test1
+
+<br/>
 
 ## [v1.0.1](https://github.com/somaz94/go-git-commit-action/compare/v1.0.0...v1.0.1) (2025-02-05)
 
@@ -620,11 +655,12 @@ All notable changes to this project will be documented in this file.
 
 ### Contributors
 
-- GitHub Action
 - somaz
 - test1
 
-## v1.0.0 (2025-02-05)
+<br/>
+
+## [v1.0.0](https://github.com/somaz94/go-git-commit-action/releases/tag/v1.0.0) (2025-02-05)
 
 ### Bug Fixes
 
@@ -651,4 +687,6 @@ All notable changes to this project will be documented in this file.
 
 - somaz
 - test1
+
+<br/>
 
