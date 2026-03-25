@@ -62,6 +62,77 @@ func TestConstants(t *testing.T) {
 	}
 }
 
+func TestParseHTTPResponse_Success(t *testing.T) {
+	input := []byte(`{"key":"value"}
+200`)
+	body, code, err := parseHTTPResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 200 {
+		t.Errorf("status code = %d, want 200", code)
+	}
+	if string(body) != `{"key":"value"}` {
+		t.Errorf("body = %q, want %q", string(body), `{"key":"value"}`)
+	}
+}
+
+func TestParseHTTPResponse_ErrorStatus(t *testing.T) {
+	input := []byte(`{"message":"Not Found"}
+404`)
+	body, code, err := parseHTTPResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 404 {
+		t.Errorf("status code = %d, want 404", code)
+	}
+	if string(body) != `{"message":"Not Found"}` {
+		t.Errorf("body = %q", string(body))
+	}
+}
+
+func TestParseHTTPResponse_OnlyStatusCode(t *testing.T) {
+	input := []byte("204")
+	body, code, err := parseHTTPResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 204 {
+		t.Errorf("status code = %d, want 204", code)
+	}
+	if body != nil {
+		t.Errorf("body = %q, want nil", string(body))
+	}
+}
+
+func TestParseHTTPResponse_InvalidStatusCode(t *testing.T) {
+	input := []byte(`{"data":"test"}
+abc`)
+	_, _, err := parseHTTPResponse(input)
+	if err == nil {
+		t.Error("expected error for invalid status code")
+	}
+}
+
+func TestParseHTTPResponse_MultilineBody(t *testing.T) {
+	input := []byte(`{
+  "key": "value",
+  "nested": true
+}
+201`)
+	body, code, err := parseHTTPResponse(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if code != 201 {
+		t.Errorf("status code = %d, want 201", code)
+	}
+	if len(body) == 0 {
+		t.Error("expected non-empty body")
+	}
+}
+
 func TestPost_MarshalError(t *testing.T) {
 	client := NewClient("token")
 	// channels cannot be marshaled to JSON

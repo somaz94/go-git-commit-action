@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -134,10 +135,17 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 	}
 
 	commitSHA := strings.TrimSpace(string(output))
+	if !validSHAPattern.MatchString(commitSHA) {
+		fmt.Println("FAILED")
+		return "", fmt.Errorf("invalid commit SHA format: %q", shortenCommitSHA(commitSHA))
+	}
 	fmt.Printf("Found: %s\n", shortenCommitSHA(commitSHA))
 
 	return commitSHA, nil
 }
+
+// validSHAPattern matches a valid git commit SHA (40 hex chars for SHA-1, 64 for SHA-256).
+var validSHAPattern = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
 
 const shortSHALength = 8
 

@@ -492,6 +492,31 @@ func TestBackupChanges_DeletedFileSkipped(t *testing.T) {
 	}
 }
 
+func TestValidSHAPattern(t *testing.T) {
+	tests := []struct {
+		name  string
+		sha   string
+		valid bool
+	}{
+		{"valid SHA-1 (40 hex)", "1234567890abcdef1234567890abcdef12345678", true},
+		{"valid SHA-256 (64 hex)", "1234567890abcdef1234567890abcdef12345678aabbccdd1234567890abcdef", true},
+		{"too short", "abc123", false},
+		{"contains uppercase", "1234567890ABCDEF1234567890abcdef12345678", false},
+		{"contains non-hex", "1234567890abcdef1234567890abcdef1234567g", false},
+		{"empty", "", false},
+		{"41 chars", "1234567890abcdef1234567890abcdef123456789", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validSHAPattern.MatchString(tt.sha)
+			if got != tt.valid {
+				t.Errorf("validSHAPattern.MatchString(%q) = %v, want %v", tt.sha, got, tt.valid)
+			}
+		})
+	}
+}
+
 func BenchmarkShortenCommitSHA(b *testing.B) {
 	sha := "1234567890abcdef1234567890abcdef12345678"
 	for i := 0; i < b.N; i++ {
