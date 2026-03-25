@@ -32,7 +32,7 @@ jobs:
           output_file: CONTRIBUTORS.md
           format: table
           columns: 6
-          exclude: 'github-actions[bot],actions-user'
+          exclude: 'github-actions[bot],actions-user,dependabot[bot],weblineuser'
 
       - name: Commit changes
         uses: somaz94/go-git-commit-action@v1
