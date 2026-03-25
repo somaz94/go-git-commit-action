@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7.3](https://github.com/somaz94/go-git-commit-action/compare/v1.7.2...v1.7.3) (2026-03-25)
+
+### Bug Fixes
+
+- return parsed JSON body on HTTP 4xx for API error handling ([a7d7f57](https://github.com/somaz94/go-git-commit-action/commit/a7d7f57f626f4ac1a20bf0dd89081ea85b322741))
+
+### Continuous Integration
+
+- exclude bot and test-only users from contributors list ([ad9926c](https://github.com/somaz94/go-git-commit-action/commit/ad9926c39d98acc95ff62e0c631087da2c7872a6))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.2](https://github.com/somaz94/go-git-commit-action/compare/v1.7.1...v1.7.2) (2026-03-25)
 
 ### Features
