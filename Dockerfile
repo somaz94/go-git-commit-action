@@ -4,7 +4,7 @@ FROM golang:1.26-alpine AS builder
 WORKDIR /app
 COPY . .
 
-RUN go build -o /go-git-commit-action ./cmd/main.go
+RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /go-git-commit-action ./cmd/main.go
 
 # Final stage
 FROM alpine:3.23

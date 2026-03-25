@@ -101,7 +101,13 @@ A GitHub Action that automates git commit, push, tag, and pull request operation
 | `pr_body`           | No       | Custom body message for pull request | -                          |
 | `skip_if_empty`     | No       | Skip the action if there are no changes | false                   |
 | `pr_closed`         | No       | Whether to close the pull request after creation | false          |
+| `pr_draft`          | No       | Create pull request as draft   | false                             |
+| `pr_reviewers`      | No       | Reviewers for PR (comma-separated usernames) | -                  |
+| `pr_assignees`      | No       | Assignees for PR (comma-separated usernames) | -                  |
 | `pr_dry_run`        | No       | Simulate PR creation without actually creating one | false         |
+| `debug`             | No       | Enable debug logging           | false                             |
+| `timeout`           | No       | Operation timeout in seconds   | 30                                |
+| `retry_count`       | No       | Number of retries for failed operations | 3                      |
 
 **See [Configuration](docs/CONFIGURATION.md) for detailed descriptions and validation rules.**
 
