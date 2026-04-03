@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -397,24 +398,11 @@ func TestBuildTagDescription(t *testing.T) {
 				},
 			}
 			desc := tm.buildTagDescription(tt.targetCommit)
-			if !contains(desc, tt.wantContains) {
+			if !strings.Contains(desc, tt.wantContains) {
 				t.Errorf("buildTagDescription() = %q, want to contain %q", desc, tt.wantContains)
 			}
 		})
 	}
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && searchSubstring(s, substr)
-}
-
-func searchSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }
 
 func TestPrintChangeDetectionInfo(t *testing.T) {

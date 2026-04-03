@@ -19,6 +19,8 @@ const (
 	curlMaxTimeSec = "30"
 )
 
+var statusCodePattern = regexp.MustCompile(`^\d{3}$`)
+
 // Client handles GitHub API interactions.
 type Client struct {
 	token string
@@ -46,15 +48,9 @@ func (c *Client) Patch(endpoint string, data interface{}) (map[string]interface{
 // GetArray sends a GET request to the GitHub API and returns an array response.
 func (c *Client) GetArray(endpoint string) ([]map[string]interface{}, error) {
 	url := fmt.Sprintf("%s/repos/%s%s", apiBaseURL, c.repo, endpoint)
+	args := c.buildBaseArgs(url)
 
-	cmd := exec.Command("curl", "-s", "--max-time", curlMaxTimeSec,
-		"-w", "\n%{http_code}",
-		"-H", fmt.Sprintf("Authorization: Bearer %s", c.token),
-		"-H", fmt.Sprintf("Accept: %s", acceptHeader),
-		"-H", fmt.Sprintf("X-GitHub-Api-Version: %s", apiVersion),
-		url)
-
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("curl", args...).CombinedOutput()
 	if err != nil {
 		return nil, errors.New("GitHub API GET", err)
 	}
@@ -81,6 +77,18 @@ func (c *Client) Repo() string {
 	return c.repo
 }
 
+// buildBaseArgs returns common curl arguments with authentication and API headers.
+func (c *Client) buildBaseArgs(url string) []string {
+	return []string{
+		"-s", "--max-time", curlMaxTimeSec,
+		"-w", "\n%{http_code}",
+		"-H", fmt.Sprintf("Authorization: Bearer %s", c.token),
+		"-H", fmt.Sprintf("Accept: %s", acceptHeader),
+		"-H", fmt.Sprintf("X-GitHub-Api-Version: %s", apiVersion),
+		url,
+	}
+}
+
 // parseHTTPResponse splits curl output (with -w "\n%{http_code}") into body and status code.
 func parseHTTPResponse(output []byte) ([]byte, int, error) {
 	raw := strings.TrimSpace(string(output))
@@ -98,7 +106,7 @@ func parseHTTPResponse(output []byte) ([]byte, int, error) {
 	codeStr := strings.TrimSpace(raw[lastNewline+1:])
 
 	// Validate status code is numeric (3 digits)
-	if !regexp.MustCompile(`^\d{3}$`).MatchString(codeStr) {
+	if !statusCodePattern.MatchString(codeStr) {
 		return []byte(body), 0, errors.New("parse HTTP status code", fmt.Errorf("invalid status code: %q", codeStr))
 	}
 
@@ -114,17 +122,10 @@ func (c *Client) request(method, endpoint string, data interface{}) (map[string]
 	}
 
 	url := fmt.Sprintf("%s/repos/%s%s", apiBaseURL, c.repo, endpoint)
+	args := append([]string{"-X", method, "-H", "Content-Type: application/json"}, c.buildBaseArgs(url)...)
+	args = append(args, "-d", string(jsonData))
 
-	cmd := exec.Command("curl", "-s", "--max-time", curlMaxTimeSec,
-		"-w", "\n%{http_code}",
-		"-X", method,
-		"-H", fmt.Sprintf("Authorization: Bearer %s", c.token),
-		"-H", fmt.Sprintf("Accept: %s", acceptHeader),
-		"-H", "Content-Type: application/json",
-		url,
-		"-d", string(jsonData))
-
-	output, err := cmd.CombinedOutput()
+	output, err := exec.Command("curl", args...).CombinedOutput()
 	if err != nil {
 		return nil, errors.New("GitHub API "+method, err)
 	}
