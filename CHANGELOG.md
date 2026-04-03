@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7.4](https://github.com/somaz94/go-git-commit-action/compare/v1.7.3...v1.7.4) (2026-04-03)
+
+### Code Refactoring
+
+- precompile regex, extract curl helper, and replace custom contains with strings.Contains ([0ebb864](https://github.com/somaz94/go-git-commit-action/commit/0ebb8649525ac7cc555dcde2b3d555715a4e77a9))
+
+### Documentation
+
+- remove duplicate rules covered by global CLAUDE.md ([e1ee75c](https://github.com/somaz94/go-git-commit-action/commit/e1ee75c126d3f3105d50e75f8d5dd66789d663cb))
+
+### Chores
+
+- remove duplicate rules from CLAUDE.md (moved to global) ([f173e35](https://github.com/somaz94/go-git-commit-action/commit/f173e359be3ea32afb10547857356f29a275a53a))
+- add git config protection to CLAUDE.md ([13634b1](https://github.com/somaz94/go-git-commit-action/commit/13634b192ab69d4134e09a10036d629a99bd6d4b))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.3](https://github.com/somaz94/go-git-commit-action/compare/v1.7.2...v1.7.3) (2026-03-25)
 
 ### Bug Fixes
