@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Builds
 
+- **deps:** bump softprops/action-gh-release from 2 to 3 ([7d2b5a9](https://github.com/somaz94/go-git-commit-action/commit/7d2b5a960262a274917bd4c99dfe3ba7c8799b85))
 - **deps:** bump dependabot/fetch-metadata from 2 to 3 ([72d2fd3](https://github.com/somaz94/go-git-commit-action/commit/72d2fd35a32747cba0460d967db94844d0b00d72))
 
 <br/>
