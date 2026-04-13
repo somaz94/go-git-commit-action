@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased (2026-04-13)
+
+### Builds
+
+- **deps:** bump dependabot/fetch-metadata from 2 to 3 ([72d2fd3](https://github.com/somaz94/go-git-commit-action/commit/72d2fd35a32747cba0460d967db94844d0b00d72))
+
+<br/>
+
 ## [v1.7.4](https://github.com/somaz94/go-git-commit-action/compare/v1.7.3...v1.7.4) (2026-04-03)
 
 ### Code Refactoring
