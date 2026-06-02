@@ -2,13 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased (2026-04-13)
+## [v1.7.5](https://github.com/somaz94/go-git-commit-action/compare/v1.7.4...v1.7.5) (2026-06-02)
+
+### Bug Fixes
+
+- propagate cancellable ctx and capture GITHUB_OUTPUT close error ([3d9441e](https://github.com/somaz94/go-git-commit-action/commit/3d9441e2e6d4def984f76e1323e3b58ce369b391))
 
 ### Builds
 
 - **deps:** bump actions/github-script from 8 to 9 ([9818d21](https://github.com/somaz94/go-git-commit-action/commit/9818d212551f816603b1dfdb4b0ff6942d4ad4a8))
 - **deps:** bump softprops/action-gh-release from 2 to 3 ([7d2b5a9](https://github.com/somaz94/go-git-commit-action/commit/7d2b5a960262a274917bd4c99dfe3ba7c8799b85))
 - **deps:** bump dependabot/fetch-metadata from 2 to 3 ([72d2fd3](https://github.com/somaz94/go-git-commit-action/commit/72d2fd35a32747cba0460d967db94844d0b00d72))
+
+### Continuous Integration
+
+- add concurrency guards to recurring workflows ([aa97c18](https://github.com/somaz94/go-git-commit-action/commit/aa97c18c3351ac24fc101ab3fe02a4277ed3a28b))
+- use go-docker-action-ci-action@v1 (replace inline prelude) ([8d58da8](https://github.com/somaz94/go-git-commit-action/commit/8d58da85aadf8ec484d31d11a4492fe67fb5ef4b))
+
+### Contributors
+
+- somaz
 
 <br/>
 
