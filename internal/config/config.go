@@ -186,7 +186,7 @@ func NewGitConfig() (*GitConfig, error) {
 
 	// Validate the configuration after setting all values
 	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %v", err)
+		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
 
 	return cfg, nil

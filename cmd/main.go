@@ -32,7 +32,7 @@ func main() {
 	// Create result to collect action outputs
 	result := output.NewResult()
 
-	if err := git.RunGitCommit(cfg, result); err != nil {
+	if err := git.RunGitCommit(ctx, cfg, result); err != nil {
 		log.Fatalf("Error executing git commands: %v", err)
 	}
 

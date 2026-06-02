@@ -3,12 +3,11 @@ package pr
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
-	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/github"
 )
 
@@ -67,7 +66,7 @@ func (c *Creator) createActualPR() (map[string]interface{}, error) {
 func (c *Creator) preparePRData() (map[string]interface{}, error) {
 	runID := os.Getenv("GITHUB_RUN_ID")
 
-	commitSHA, err := getCurrentCommitSHA()
+	commitSHA, err := shared.CurrentCommitSHA()
 	if err != nil {
 		return nil, err
 	}
@@ -86,16 +85,6 @@ func (c *Creator) preparePRData() (map[string]interface{}, error) {
 	}
 
 	return data, nil
-}
-
-// getCurrentCommitSHA retrieves the current commit SHA.
-func getCurrentCommitSHA() (string, error) {
-	commitCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...)
-	commitSHA, err := commitCmd.Output()
-	if err != nil {
-		return "", errors.New("get commit SHA", err)
-	}
-	return strings.TrimSpace(string(commitSHA)), nil
 }
 
 // generatePRTitleAndBody creates default PR title and body if not specified.

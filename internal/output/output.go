@@ -46,7 +46,7 @@ func (r *Result) Get(key string) string {
 
 // WriteToGitHubOutput writes all stored values to the GITHUB_OUTPUT file.
 // In GitHub Actions, this file path is provided via the GITHUB_OUTPUT env var.
-func (r *Result) WriteToGitHubOutput() error {
+func (r *Result) WriteToGitHubOutput() (err error) {
 	outputFile := os.Getenv("GITHUB_OUTPUT")
 	if outputFile == "" {
 		// Not running in GitHub Actions; print outputs to stdout instead
@@ -66,9 +66,15 @@ func (r *Result) WriteToGitHubOutput() error {
 
 	f, err := os.OpenFile(outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %v", err)
+		return fmt.Errorf("failed to open GITHUB_OUTPUT file: %w", err)
 	}
-	defer f.Close()
+	// Surface a flush/close failure (e.g. ENOSPC) as the function error
+	// so dropped action outputs are not silently ignored.
+	defer func() {
+		if cerr := f.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close GITHUB_OUTPUT file: %w", cerr)
+		}
+	}()
 
 	var lines []string
 	for k, v := range r.values {
@@ -78,7 +84,7 @@ func (r *Result) WriteToGitHubOutput() error {
 	if len(lines) > 0 {
 		_, err = fmt.Fprintln(f, strings.Join(lines, "\n"))
 		if err != nil {
-			return fmt.Errorf("failed to write to GITHUB_OUTPUT: %v", err)
+			return fmt.Errorf("failed to write to GITHUB_OUTPUT: %w", err)
 		}
 	}
 

@@ -17,7 +17,7 @@ func StageFiles(filePattern string) error {
 	for _, pattern := range strings.Fields(filePattern) {
 		if err := executeGitAdd(pattern); err != nil {
 			fmt.Println("FAILED")
-			return fmt.Errorf("failed to add pattern %s: %v", pattern, err)
+			return fmt.Errorf("failed to add pattern %s: %w", pattern, err)
 		}
 	}
 
@@ -34,7 +34,7 @@ func CommitAndPush(commitMessage, branch string) error {
 	commitCmd.Stderr = os.Stderr
 	if err := commitCmd.Run(); err != nil {
 		fmt.Println("FAILED")
-		return fmt.Errorf("failed to commit: %v", err)
+		return fmt.Errorf("failed to commit: %w", err)
 	}
 	fmt.Println("Done")
 
@@ -45,11 +45,20 @@ func CommitAndPush(commitMessage, branch string) error {
 	pushCmd.Stderr = os.Stderr
 	if err := pushCmd.Run(); err != nil {
 		fmt.Println("FAILED")
-		return fmt.Errorf("failed to push: %v", err)
+		return fmt.Errorf("failed to push: %w", err)
 	}
 	fmt.Println("Done")
 
 	return nil
+}
+
+// CurrentCommitSHA retrieves the current HEAD commit SHA.
+func CurrentCommitSHA() (string, error) {
+	out, err := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...).Output()
+	if err != nil {
+		return "", fmt.Errorf("get commit SHA: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }
 
 // executeGitAdd executes the git add command for a specific pattern.

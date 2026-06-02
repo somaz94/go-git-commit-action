@@ -43,7 +43,7 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 	fmt.Printf("  - Creating new branch %s... ", sourceBranch)
 	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...).Run(); err != nil {
 		fmt.Println("FAILED")
-		return "", fmt.Errorf("failed to create branch: %v", err)
+		return "", fmt.Errorf("failed to create branch: %w", err)
 	}
 	fmt.Println("Done")
 
@@ -66,7 +66,7 @@ func (bm *BranchManager) checkoutExistingBranch() (string, error) {
 	fmt.Printf("  - Checking out branch %s... ", sourceBranch)
 	if err := exec.Command(gitcmd.CmdGit, gitcmd.CheckoutArgs(sourceBranch)...).Run(); err != nil {
 		fmt.Println("FAILED")
-		return "", fmt.Errorf("failed to checkout branch: %v", err)
+		return "", fmt.Errorf("failed to checkout branch: %w", err)
 	}
 	fmt.Println("Done")
 
@@ -89,7 +89,7 @@ func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, sourceBranch)...)
 	if err := deleteCommand.Run(); err != nil {
 		fmt.Println("FAILED")
-		return fmt.Errorf("failed to delete source branch %s: %v", sourceBranch, err)
+		return fmt.Errorf("failed to delete source branch %s: %w", sourceBranch, err)
 	}
 
 	fmt.Println("Done")
@@ -108,7 +108,7 @@ func (bm *BranchManager) FetchBranches() error {
 
 	for _, b := range branches {
 		if err := exec.Command(gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, b.branch)...).Run(); err != nil {
-			return fmt.Errorf("%s: %v", b.desc, err)
+			return fmt.Errorf("%s: %w", b.desc, err)
 		}
 	}
 

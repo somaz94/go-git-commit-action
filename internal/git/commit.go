@@ -11,6 +11,7 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 	"github.com/somaz94/go-git-commit-action/internal/output"
 )
@@ -42,7 +43,13 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 		default:
 			if err := operation(); err != nil {
 				lastErr = err
-				time.Sleep(retryBaseDelay * time.Duration(i+1))
+				// Honor context cancellation during backoff instead of
+				// blocking for the full linear delay.
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				case <-time.After(retryBaseDelay * time.Duration(i+1)):
+				}
 				continue
 			}
 			return nil
@@ -53,15 +60,16 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 
 // RunGitCommit executes the Git commit operation with the provided configuration.
 // It wraps the entire process in a retry mechanism to handle transient failures.
-func RunGitCommit(config *config.GitConfig, result *output.Result) error {
+func RunGitCommit(ctx context.Context, config *config.GitConfig, result *output.Result) error {
 	// Save the original working directory to restore before each retry
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return errors.New("get working directory", err)
 	}
 
-	// Create a context with timeout for the entire operation
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(config.Timeout)*time.Second)
+	// Derive the timeout context from the caller's context so that an
+	// upstream SIGINT/SIGTERM cancellation aborts an in-flight commit.
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(config.Timeout)*time.Second)
 	defer cancel()
 
 	// Wrap the entire commit process in retry logic
@@ -525,22 +533,12 @@ func commitChanges(config *config.GitConfig, result *output.Result) error {
 	}
 
 	// Capture commit SHA for output
-	commitSHA, err := getCommitSHA()
+	commitSHA, err := shared.CurrentCommitSHA()
 	if err == nil {
 		result.Set(output.KeyCommitSHA, commitSHA)
 	}
 
 	return nil
-}
-
-// getCommitSHA retrieves the current HEAD commit SHA.
-func getCommitSHA() (string, error) {
-	cmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs("HEAD")...)
-	out, err := cmd.Output()
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(out)), nil
 }
 
 // performCommitAndPush commits the staged changes and pushes them to the remote.

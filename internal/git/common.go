@@ -37,7 +37,7 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 			}
 
 			fmt.Println("FAILED")
-			return fmt.Errorf("failed to execute %s: %v", cmd.Name, err)
+			return fmt.Errorf("failed to execute %s: %w", cmd.Name, err)
 		}
 
 		fmt.Println("Done")

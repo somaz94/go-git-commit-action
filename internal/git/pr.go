@@ -6,6 +6,7 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/git/pr"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/output"
 )
 
@@ -36,7 +37,7 @@ func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
 	}
 
 	// Capture commit SHA (works for both auto-branch and manual branch flows)
-	if commitSHA, err := getCommitSHA(); err == nil {
+	if commitSHA, err := shared.CurrentCommitSHA(); err == nil {
 		result.Set(output.KeyCommitSHA, commitSHA)
 	}
 
