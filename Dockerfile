@@ -7,7 +7,7 @@ COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /go-git-commit-action ./cmd/main.go
 
 # Final stage
-FROM alpine:3.23
+FROM alpine:3.24
 
 # Install required git packages
 RUN apk add --no-cache \
