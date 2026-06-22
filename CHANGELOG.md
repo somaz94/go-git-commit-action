@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased (2026-06-22)
+
+### Builds
+
+- **deps:** bump actions/checkout from 6 to 7 ([b62e901](https://github.com/somaz94/go-git-commit-action/commit/b62e9010aeb971e8d0b880a115f603833470ae20))
+- **deps:** bump alpine from 3.23 to 3.24 in the docker-minor group (#452) ([#452](https://github.com/somaz94/go-git-commit-action/pull/452)) ([b243272](https://github.com/somaz94/go-git-commit-action/commit/b2432724d9f2de611c16aafe4752b8696157f779))
+
+### Continuous Integration
+
+- add DCO check via shared reusable workflow ([47a94de](https://github.com/somaz94/go-git-commit-action/commit/47a94dec9cd4c1f21aabc7fd8630b71f4ea2d863))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.5](https://github.com/somaz94/go-git-commit-action/compare/v1.7.4...v1.7.5) (2026-06-02)
 
 ### Bug Fixes
