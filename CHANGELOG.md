@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased (2026-06-22)
+## [v1.7.6](https://github.com/somaz94/go-git-commit-action/compare/v1.7.5...v1.7.6) (2026-06-24)
+
+### Documentation
+
+- front-load tag and PR operations in action.yml description ([0f26789](https://github.com/somaz94/go-git-commit-action/commit/0f2678979f1fd2c759f4e1121d6d278a3324b5c8))
 
 ### Builds
 
