@@ -1,6 +1,7 @@
 package github
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -75,7 +76,7 @@ func TestConstants(t *testing.T) {
 func TestPost_MarshalError(t *testing.T) {
 	client := NewClient("token")
 	// channels cannot be marshaled to JSON
-	_, err := client.Post("/test", make(chan int))
+	_, err := client.Post(context.Background(), "/test", make(chan int))
 	if err == nil {
 		t.Error("Post() with unmarshalable data should return error")
 	}
@@ -83,7 +84,7 @@ func TestPost_MarshalError(t *testing.T) {
 
 func TestPatch_MarshalError(t *testing.T) {
 	client := NewClient("token")
-	_, err := client.Patch("/test", make(chan int))
+	_, err := client.Patch(context.Background(), "/test", make(chan int))
 	if err == nil {
 		t.Error("Patch() with unmarshalable data should return error")
 	}
@@ -134,7 +135,7 @@ func TestPost_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := testClient(srv.URL).Post("/pulls", map[string]interface{}{"title": "hello"})
+	resp, err := testClient(srv.URL).Post(context.Background(), "/pulls", map[string]interface{}{"title": "hello"})
 	if err != nil {
 		t.Fatalf("Post() error = %v", err)
 	}
@@ -154,7 +155,7 @@ func TestPost_ArraySuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := testClient(srv.URL).Post("/issues/1/labels", map[string]interface{}{"labels": []string{"bug"}})
+	resp, err := testClient(srv.URL).Post(context.Background(), "/issues/1/labels", map[string]interface{}{"labels": []string{"bug"}})
 	if err != nil {
 		t.Fatalf("Post() error = %v", err)
 	}
@@ -172,7 +173,7 @@ func TestRequest_ErrorBodyWithMessage(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := testClient(srv.URL).Post("/pulls", map[string]interface{}{"title": "x"})
+	resp, err := testClient(srv.URL).Post(context.Background(), "/pulls", map[string]interface{}{"title": "x"})
 	if err != nil {
 		t.Fatalf("Post() error = %v, want nil (error body returned to caller)", err)
 	}
@@ -188,7 +189,7 @@ func TestRequest_ErrorUnparseableBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := testClient(srv.URL).Post("/pulls", map[string]interface{}{"title": "x"})
+	_, err := testClient(srv.URL).Post(context.Background(), "/pulls", map[string]interface{}{"title": "x"})
 	if err == nil {
 		t.Fatal("Post() with 500 + non-JSON body should return an error")
 	}
@@ -204,7 +205,7 @@ func TestPatch_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	resp, err := testClient(srv.URL).Patch("/pulls/1", map[string]string{"state": "closed"})
+	resp, err := testClient(srv.URL).Patch(context.Background(), "/pulls/1", map[string]string{"state": "closed"})
 	if err != nil {
 		t.Fatalf("Patch() error = %v", err)
 	}
@@ -226,7 +227,7 @@ func TestGetArray_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	result, err := testClient(srv.URL).GetArray("/pulls?head=x")
+	result, err := testClient(srv.URL).GetArray(context.Background(), "/pulls?head=x")
 	if err != nil {
 		t.Fatalf("GetArray() error = %v", err)
 	}
@@ -245,7 +246,7 @@ func TestGetArray_ErrorStatus(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, err := testClient(srv.URL).GetArray("/pulls")
+	_, err := testClient(srv.URL).GetArray(context.Background(), "/pulls")
 	if err == nil {
 		t.Fatal("GetArray() with 404 should return an error")
 	}

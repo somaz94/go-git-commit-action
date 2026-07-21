@@ -1,6 +1,7 @@
 package pr
 
 import (
+	"context"
 	"os"
 	"reflect"
 	"strings"
@@ -145,7 +146,7 @@ func TestCreatePullRequest_DryRun(t *testing.T) {
 	defer os.Unsetenv("GITHUB_REPOSITORY")
 
 	c := NewCreator(cfg)
-	response, err := c.CreatePullRequest()
+	response, err := c.CreatePullRequest(context.Background())
 	if err != nil {
 		t.Fatalf("CreatePullRequest() dry run error = %v", err)
 	}
@@ -226,7 +227,7 @@ func TestHandlePRResponse_DryRun(t *testing.T) {
 		DryRun:  true,
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err != nil {
 		t.Errorf("HandlePRResponse() dry run error = %v", err)
 	}
@@ -240,7 +241,7 @@ func TestHandlePRResponse_Error(t *testing.T) {
 		Message: "Validation Failed",
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err == nil {
 		t.Error("HandlePRResponse() with error response should return error")
 	}
@@ -256,7 +257,7 @@ func TestAddLabelsToIssue_DryRun(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.addLabelsToIssue(1)
+	err := c.addLabelsToIssue(context.Background(), 1)
 	if err != nil {
 		t.Errorf("addLabelsToIssue() dry run error = %v", err)
 	}
@@ -268,7 +269,7 @@ func TestClosePullRequest_DryRun(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.closePullRequest(1)
+	err := c.closePullRequest(context.Background(), 1)
 	if err != nil {
 		t.Errorf("closePullRequest() dry run error = %v", err)
 	}
@@ -295,7 +296,7 @@ func TestProcessExistingPR_NoLabelsNoClosed(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.processExistingPR(1)
+	err := c.processExistingPR(context.Background(), 1)
 	if err != nil {
 		t.Errorf("processExistingPR() error = %v", err)
 	}
@@ -325,7 +326,7 @@ func TestCreatePullRequest_DryRun_ContainsURL(t *testing.T) {
 		PRBase:   "main",
 	}
 	c := NewCreator(cfg)
-	response, err := c.CreatePullRequest()
+	response, err := c.CreatePullRequest(context.Background())
 	if err != nil {
 		t.Fatalf("CreatePullRequest() error = %v", err)
 	}
@@ -357,7 +358,7 @@ func TestHandlePRResponse_DryRun_WithDeleteSourceBranch(t *testing.T) {
 		DryRun:  true,
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err != nil {
 		t.Errorf("HandlePRResponse() error = %v", err)
 	}
@@ -377,7 +378,7 @@ func TestHandlePRResponse_DryRun_DeleteSourceBranchNoAuto(t *testing.T) {
 		DryRun:  true,
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err != nil {
 		t.Errorf("HandlePRResponse() error = %v", err)
 	}
@@ -396,7 +397,7 @@ func TestHandlePRResponse_ErrorWithDetails(t *testing.T) {
 		},
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err == nil {
 		t.Error("HandlePRResponse() should return error")
 	}
@@ -422,7 +423,7 @@ func TestHandlePRResponse_ExistingPRError(t *testing.T) {
 	}
 
 	// This will try to call GitHub API which will fail, but tests the path
-	_ = c.HandlePRResponse(response, "feature")
+	_ = c.HandlePRResponse(context.Background(), response, "feature")
 }
 
 func TestHandlePRResponse_SuccessNoURL(t *testing.T) {
@@ -433,7 +434,7 @@ func TestHandlePRResponse_SuccessNoURL(t *testing.T) {
 	// still hits the empty-HTMLURL error branch.
 	response := PRResponse{}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err == nil {
 		t.Error("HandlePRResponse() without html_url should return error")
 	}
@@ -447,7 +448,7 @@ func TestProcessExistingPR_WithLabelsAndClose(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.processExistingPR(42)
+	err := c.processExistingPR(context.Background(), 42)
 	if err != nil {
 		t.Errorf("processExistingPR() dry run error = %v", err)
 	}
@@ -461,7 +462,7 @@ func TestProcessExistingPR_LabelsOnly(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.processExistingPR(10)
+	err := c.processExistingPR(context.Background(), 10)
 	if err != nil {
 		t.Errorf("processExistingPR() error = %v", err)
 	}
@@ -475,7 +476,7 @@ func TestProcessExistingPR_CloseOnly(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.processExistingPR(10)
+	err := c.processExistingPR(context.Background(), 10)
 	if err != nil {
 		t.Errorf("processExistingPR() error = %v", err)
 	}
@@ -530,7 +531,7 @@ func TestCreatePullRequest_DryRun_Draft(t *testing.T) {
 		PRBase:   "main",
 	}
 	c := NewCreator(cfg)
-	response, err := c.CreatePullRequest()
+	response, err := c.CreatePullRequest(context.Background())
 	if err != nil {
 		t.Fatalf("CreatePullRequest() draft dry run error = %v", err)
 	}
@@ -552,7 +553,7 @@ func TestHandlePRResponse_DryRun_Draft(t *testing.T) {
 		DryRun:  true,
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err != nil {
 		t.Errorf("HandlePRResponse() draft dry run error = %v", err)
 	}
@@ -580,7 +581,7 @@ func TestRequestReviewers_DryRun(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.requestReviewers(1)
+	err := c.requestReviewers(context.Background(), 1)
 	if err != nil {
 		t.Errorf("requestReviewers() dry run error = %v", err)
 	}
@@ -593,7 +594,7 @@ func TestAddAssignees_DryRun(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.addAssignees(1)
+	err := c.addAssignees(context.Background(), 1)
 	if err != nil {
 		t.Errorf("addAssignees() dry run error = %v", err)
 	}
@@ -609,7 +610,7 @@ func TestProcessExistingPR_WithReviewersAndAssignees(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	err := c.processExistingPR(42)
+	err := c.processExistingPR(context.Background(), 42)
 	if err != nil {
 		t.Errorf("processExistingPR() with reviewers/assignees error = %v", err)
 	}
@@ -629,7 +630,7 @@ func TestHandlePRResponse_DryRun_WithReviewersAndAssignees(t *testing.T) {
 		DryRun:  true,
 	}
 
-	err := c.HandlePRResponse(response, "feature")
+	err := c.HandlePRResponse(context.Background(), response, "feature")
 	if err != nil {
 		t.Errorf("HandlePRResponse() with reviewers/assignees error = %v", err)
 	}

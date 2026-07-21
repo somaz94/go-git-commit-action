@@ -2,6 +2,7 @@ package github
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -38,18 +39,18 @@ func NewClient(token string) *Client {
 }
 
 // Post sends a POST request to the GitHub API.
-func (c *Client) Post(endpoint string, data interface{}) (map[string]interface{}, error) {
-	return c.request(http.MethodPost, endpoint, data)
+func (c *Client) Post(ctx context.Context, endpoint string, data interface{}) (map[string]interface{}, error) {
+	return c.request(ctx, http.MethodPost, endpoint, data)
 }
 
 // Patch sends a PATCH request to the GitHub API.
-func (c *Client) Patch(endpoint string, data interface{}) (map[string]interface{}, error) {
-	return c.request(http.MethodPatch, endpoint, data)
+func (c *Client) Patch(ctx context.Context, endpoint string, data interface{}) (map[string]interface{}, error) {
+	return c.request(ctx, http.MethodPatch, endpoint, data)
 }
 
 // GetArray sends a GET request to the GitHub API and returns an array response.
-func (c *Client) GetArray(endpoint string) ([]map[string]interface{}, error) {
-	body, statusCode, err := c.do(http.MethodGet, endpoint, nil)
+func (c *Client) GetArray(ctx context.Context, endpoint string) ([]map[string]interface{}, error) {
+	body, statusCode, err := c.do(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, errors.New("GitHub API GET", err)
 	}
@@ -73,7 +74,7 @@ func (c *Client) Repo() string {
 
 // do performs an HTTP request against the GitHub API and returns the response
 // body and status code. payload is nil for requests without a body.
-func (c *Client) do(method, endpoint string, payload []byte) ([]byte, int, error) {
+func (c *Client) do(ctx context.Context, method, endpoint string, payload []byte) ([]byte, int, error) {
 	url := fmt.Sprintf("%s/repos/%s%s", c.baseURL, c.repo, endpoint)
 
 	var reqBody io.Reader
@@ -81,7 +82,7 @@ func (c *Client) do(method, endpoint string, payload []byte) ([]byte, int, error
 		reqBody = bytes.NewReader(payload)
 	}
 
-	req, err := http.NewRequest(method, url, reqBody)
+	req, err := http.NewRequestWithContext(ctx, method, url, reqBody)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -108,13 +109,13 @@ func (c *Client) do(method, endpoint string, payload []byte) ([]byte, int, error
 }
 
 // request sends a POST/PATCH request with a JSON body to the GitHub API.
-func (c *Client) request(method, endpoint string, data interface{}) (map[string]interface{}, error) {
+func (c *Client) request(ctx context.Context, method, endpoint string, data interface{}) (map[string]interface{}, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, errors.New("marshal request data", err)
 	}
 
-	body, statusCode, err := c.do(method, endpoint, jsonData)
+	body, statusCode, err := c.do(ctx, method, endpoint, jsonData)
 	if err != nil {
 		return nil, errors.New("GitHub API "+method, err)
 	}

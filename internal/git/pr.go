@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 
@@ -13,7 +14,7 @@ import (
 // CreatePullRequest is the main function to create a GitHub pull request.
 // It handles the entire flow of preparing branches, creating the PR,
 // and processing post-creation tasks like adding labels or closing the PR.
-func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
+func CreatePullRequest(ctx context.Context, config *config.GitConfig, result *output.Result) error {
 	fmt.Println("\nCreating Pull Request:")
 
 	// Step 1: Prepare the source branch
@@ -31,7 +32,7 @@ func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
 
 	// Step 3: Create the actual pull request via GitHub API
 	creator := pr.NewCreator(config)
-	prResponse, err := creator.CreatePullRequest()
+	prResponse, err := creator.CreatePullRequest(ctx)
 	if err != nil {
 		return err
 	}
@@ -50,7 +51,7 @@ func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
 	}
 
 	// Step 4: Process the PR response (labels, closing, etc.)
-	if err := creator.HandlePRResponse(prResponse, sourceBranch); err != nil {
+	if err := creator.HandlePRResponse(ctx, prResponse, sourceBranch); err != nil {
 		return err
 	}
 

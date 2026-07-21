@@ -79,12 +79,12 @@ func RunGitCommit(ctx context.Context, config *config.GitConfig, result *output.
 		if err := os.Chdir(originalDir); err != nil {
 			return errors.NewWithPath("restore working directory", originalDir, err)
 		}
-		return executeGitCommitWorkflow(config, result)
+		return executeGitCommitWorkflow(ctx, config, result)
 	})
 }
 
 // executeGitCommitWorkflow runs all steps of the Git commit process
-func executeGitCommitWorkflow(config *config.GitConfig, result *output.Result) error {
+func executeGitCommitWorkflow(ctx context.Context, config *config.GitConfig, result *output.Result) error {
 	// Validate the configuration
 	if err := config.Validate(); err != nil {
 		return err
@@ -131,7 +131,7 @@ func executeGitCommitWorkflow(config *config.GitConfig, result *output.Result) e
 
 	// Create a PR or commit directly based on configuration
 	if config.CreatePR {
-		return handlePullRequestFlow(config, result)
+		return handlePullRequestFlow(ctx, config, result)
 	}
 
 	return commitChanges(config, result)
@@ -493,10 +493,10 @@ func countChangedFiles() int {
 
 // handlePullRequestFlow manages the creation of pull requests
 // based on the auto_branch configuration.
-func handlePullRequestFlow(config *config.GitConfig, result *output.Result) error {
+func handlePullRequestFlow(ctx context.Context, config *config.GitConfig, result *output.Result) error {
 	if config.AutoBranch {
 		// Auto branch creation and PR creation in one step
-		if err := CreatePullRequest(config, result); err != nil {
+		if err := CreatePullRequest(ctx, config, result); err != nil {
 			return errors.New("create pull request with auto branch", err)
 		}
 	} else {
@@ -509,7 +509,7 @@ func handlePullRequestFlow(config *config.GitConfig, result *output.Result) erro
 		}
 
 		// Then create a PR from that branch (or simulate in dry run mode)
-		if err := CreatePullRequest(config, result); err != nil {
+		if err := CreatePullRequest(ctx, config, result); err != nil {
 			return errors.New("create pull request", err)
 		}
 	}

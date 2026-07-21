@@ -1,6 +1,7 @@
 package pr
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -63,11 +64,11 @@ func parsePRResponse(m map[string]any) PRResponse {
 }
 
 // CreatePullRequest creates a GitHub pull request via API.
-func (c *Creator) CreatePullRequest() (PRResponse, error) {
+func (c *Creator) CreatePullRequest(ctx context.Context) (PRResponse, error) {
 	if c.config.PRDryRun {
 		return c.createDryRunPR()
 	}
-	return c.createActualPR()
+	return c.createActualPR(ctx)
 }
 
 // createDryRunPR simulates PR creation in dry run mode.
@@ -87,7 +88,7 @@ func (c *Creator) createDryRunPR() (PRResponse, error) {
 }
 
 // createActualPR creates an actual pull request via GitHub API.
-func (c *Creator) createActualPR() (PRResponse, error) {
+func (c *Creator) createActualPR(ctx context.Context) (PRResponse, error) {
 	fmt.Printf("  - Creating pull request from %s to %s... ", c.config.PRBranch, c.config.PRBase)
 
 	prData, err := c.preparePRData()
@@ -95,7 +96,7 @@ func (c *Creator) createActualPR() (PRResponse, error) {
 		return PRResponse{}, err
 	}
 
-	resp, err := c.client.Post("/pulls", prData)
+	resp, err := c.client.Post(ctx, "/pulls", prData)
 	if err != nil {
 		return PRResponse{}, err
 	}
@@ -145,16 +146,16 @@ func (c *Creator) generatePRTitleAndBody(runID string, commitSHA string) (string
 }
 
 // HandlePRResponse processes the PR creation response and performs follow-up actions.
-func (c *Creator) HandlePRResponse(response PRResponse, sourceBranch string) error {
+func (c *Creator) HandlePRResponse(ctx context.Context, response PRResponse, sourceBranch string) error {
 	if response.DryRun {
 		return c.handleDryRunResponse(response)
 	}
 
 	if response.Message != "" {
-		return c.handleErrorResponse(response, response.Message)
+		return c.handleErrorResponse(ctx, response, response.Message)
 	}
 
-	return c.handleSuccessfulPR(response, sourceBranch)
+	return c.handleSuccessfulPR(ctx, response, sourceBranch)
 }
 
 // handleDryRunResponse handles the dry run response without making actual changes.
@@ -199,7 +200,7 @@ func (c *Creator) handleDryRunResponse(response PRResponse) error {
 }
 
 // handleErrorResponse processes error responses from the GitHub API.
-func (c *Creator) handleErrorResponse(response PRResponse, errMsg string) error {
+func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, errMsg string) error {
 	fmt.Printf("GitHub API Error: %s\n", errMsg)
 
 	if response.Errors != nil {
@@ -210,7 +211,7 @@ func (c *Creator) handleErrorResponse(response PRResponse, errMsg string) error 
 
 				if message, ok := errMap["message"].(string); ok &&
 					strings.Contains(message, "A pull request already exists") {
-					return c.handleExistingPR()
+					return c.handleExistingPR(ctx)
 				}
 			}
 		}
@@ -220,7 +221,7 @@ func (c *Creator) handleErrorResponse(response PRResponse, errMsg string) error 
 }
 
 // handleSuccessfulPR processes a successful PR creation response.
-func (c *Creator) handleSuccessfulPR(response PRResponse, sourceBranch string) error {
+func (c *Creator) handleSuccessfulPR(ctx context.Context, response PRResponse, sourceBranch string) error {
 	if response.HTMLURL == "" {
 		fmt.Println("[WARN] Failed to create PR")
 		fmt.Printf("Response: %v\n", response)
@@ -231,7 +232,7 @@ func (c *Creator) handleSuccessfulPR(response PRResponse, sourceBranch string) e
 	fmt.Printf("Pull request created: %s\n", response.HTMLURL)
 
 	if response.HasNumber {
-		if err := c.processExistingPR(response.Number); err != nil {
+		if err := c.processExistingPR(ctx, response.Number); err != nil {
 			return err
 		}
 	}
@@ -248,11 +249,11 @@ func (c *Creator) handleSuccessfulPR(response PRResponse, sourceBranch string) e
 }
 
 // handleExistingPR processes the case when a PR already exists.
-func (c *Creator) handleExistingPR() error {
+func (c *Creator) handleExistingPR(ctx context.Context) error {
 	fmt.Println("[WARN] Pull request already exists")
 
 	endpoint := fmt.Sprintf("/pulls?head=%s&base=%s", c.config.PRBranch, c.config.PRBase)
-	prs, err := c.client.GetArray(endpoint)
+	prs, err := c.client.GetArray(ctx, endpoint)
 	if err != nil {
 		return err
 	}
@@ -261,7 +262,7 @@ func (c *Creator) handleExistingPR() error {
 		if number, ok := prs[0]["number"].(float64); ok {
 			prNumber := int(number)
 			fmt.Printf("Found existing PR #%d\n", prNumber)
-			return c.processExistingPR(prNumber)
+			return c.processExistingPR(ctx, prNumber)
 		}
 	}
 
@@ -269,27 +270,27 @@ func (c *Creator) handleExistingPR() error {
 }
 
 // processExistingPR applies operations like adding labels, reviewers, assignees, or closing to an existing PR.
-func (c *Creator) processExistingPR(prNumber int) error {
+func (c *Creator) processExistingPR(ctx context.Context, prNumber int) error {
 	if len(c.config.PRLabels) > 0 {
-		if err := c.addLabelsToIssue(prNumber); err != nil {
+		if err := c.addLabelsToIssue(ctx, prNumber); err != nil {
 			return err
 		}
 	}
 
 	if len(c.config.PRReviewers) > 0 {
-		if err := c.requestReviewers(prNumber); err != nil {
+		if err := c.requestReviewers(ctx, prNumber); err != nil {
 			return err
 		}
 	}
 
 	if len(c.config.PRAssignees) > 0 {
-		if err := c.addAssignees(prNumber); err != nil {
+		if err := c.addAssignees(ctx, prNumber); err != nil {
 			return err
 		}
 	}
 
 	if c.config.PRClosed {
-		if err := c.closePullRequest(prNumber); err != nil {
+		if err := c.closePullRequest(ctx, prNumber); err != nil {
 			return err
 		}
 	}
@@ -303,8 +304,9 @@ func (c *Creator) processExistingPR(prNumber int) error {
 // mode; progress is the in-progress label; apiErrOp names the operation for the
 // wrapped APIError; call is the client method (Post / Patch) to invoke.
 func (c *Creator) applyToPR(
+	ctx context.Context,
 	dryRunMsg, progress, apiErrOp, endpoint string,
-	call func(string, interface{}) (map[string]interface{}, error),
+	call func(context.Context, string, interface{}) (map[string]interface{}, error),
 	payload interface{},
 ) error {
 	if c.config.PRDryRun {
@@ -313,7 +315,7 @@ func (c *Creator) applyToPR(
 	}
 
 	fmt.Printf("  - %s... ", progress)
-	if _, err := call(endpoint, payload); err != nil {
+	if _, err := call(ctx, endpoint, payload); err != nil {
 		fmt.Println("FAILED")
 		return errors.NewAPIErrorFrom(apiErrOp, err)
 	}
@@ -323,8 +325,9 @@ func (c *Creator) applyToPR(
 }
 
 // addLabelsToIssue adds labels to an issue/PR.
-func (c *Creator) addLabelsToIssue(prNumber int) error {
+func (c *Creator) addLabelsToIssue(ctx context.Context, prNumber int) error {
 	return c.applyToPR(
+		ctx,
 		fmt.Sprintf("  - [DRY RUN] Would add labels %v to PR #%d... Skipped", c.config.PRLabels, prNumber),
 		fmt.Sprintf("Adding labels to PR #%d", prNumber),
 		"add labels",
@@ -335,8 +338,9 @@ func (c *Creator) addLabelsToIssue(prNumber int) error {
 }
 
 // requestReviewers requests reviewers for a pull request.
-func (c *Creator) requestReviewers(prNumber int) error {
+func (c *Creator) requestReviewers(ctx context.Context, prNumber int) error {
 	return c.applyToPR(
+		ctx,
 		fmt.Sprintf("  - [DRY RUN] Would request reviewers %v for PR #%d... Skipped", c.config.PRReviewers, prNumber),
 		fmt.Sprintf("Requesting reviewers for PR #%d", prNumber),
 		"request reviewers",
@@ -347,8 +351,9 @@ func (c *Creator) requestReviewers(prNumber int) error {
 }
 
 // addAssignees adds assignees to a pull request.
-func (c *Creator) addAssignees(prNumber int) error {
+func (c *Creator) addAssignees(ctx context.Context, prNumber int) error {
 	return c.applyToPR(
+		ctx,
 		fmt.Sprintf("  - [DRY RUN] Would add assignees %v to PR #%d... Skipped", c.config.PRAssignees, prNumber),
 		fmt.Sprintf("Adding assignees to PR #%d", prNumber),
 		"add assignees",
@@ -359,8 +364,9 @@ func (c *Creator) addAssignees(prNumber int) error {
 }
 
 // closePullRequest closes a pull request.
-func (c *Creator) closePullRequest(prNumber int) error {
+func (c *Creator) closePullRequest(ctx context.Context, prNumber int) error {
 	return c.applyToPR(
+		ctx,
 		fmt.Sprintf("  - [DRY RUN] Would close pull request #%d... Skipped", prNumber),
 		fmt.Sprintf("Closing pull request #%d", prNumber),
 		"close PR",
