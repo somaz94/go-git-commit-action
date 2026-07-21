@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.8.0](https://github.com/somaz94/go-git-commit-action/compare/v1.7.8...v1.8.0) (2026-07-21)
+
+### Features
+
+- **pr:** propagate context to GitHub API calls for cancellable HTTP requests ([c483530](https://github.com/somaz94/go-git-commit-action/commit/c483530753cc890617fbd29317939e94389cad2a))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.8](https://github.com/somaz94/go-git-commit-action/compare/v1.7.7...v1.7.8) (2026-07-21)
 
 ### Code Refactoring
