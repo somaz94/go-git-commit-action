@@ -90,8 +90,10 @@ func executeGitCommitWorkflow(config *config.GitConfig, result *output.Result) e
 		return err
 	}
 
-	// Print debug information
-	printDebugInfo()
+	// Print debug information only when debug logging is enabled (INPUT_DEBUG).
+	if config.Debug {
+		printDebugInfo()
+	}
 
 	// Change the working directory
 	if err := changeWorkingDirectory(config); err != nil {
