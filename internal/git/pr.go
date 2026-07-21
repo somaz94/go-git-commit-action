@@ -42,11 +42,11 @@ func CreatePullRequest(config *config.GitConfig, result *output.Result) error {
 	}
 
 	// Capture PR outputs
-	if htmlURL, ok := prResponse["html_url"].(string); ok {
-		result.Set(output.KeyPRURL, htmlURL)
+	if prResponse.HTMLURL != "" {
+		result.Set(output.KeyPRURL, prResponse.HTMLURL)
 	}
-	if number, ok := prResponse["number"].(float64); ok {
-		result.Set(output.KeyPRNumber, strconv.Itoa(int(number)))
+	if prResponse.HasNumber {
+		result.Set(output.KeyPRNumber, strconv.Itoa(prResponse.Number))
 	}
 
 	// Step 4: Process the PR response (labels, closing, etc.)

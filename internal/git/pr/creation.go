@@ -25,8 +25,45 @@ func NewCreator(cfg *config.GitConfig) *Creator {
 	}
 }
 
+// PRResponse is the typed view of a GitHub PR-creation API response, or of the
+// internal dry-run mock. It models only the fields the PR path consumes; any
+// other API fields are dropped. Errors is left as []any so the diagnostic
+// "  - %v" detail print stays byte-identical to the pre-refactor map form.
+type PRResponse struct {
+	HTMLURL   string // "html_url"; "" when absent (error responses)
+	Number    int    // "number"; meaningful only when HasNumber is true
+	HasNumber bool   // true when the response carried a numeric "number"
+	DryRun    bool   // internal marker; set by the dry-run path, never from the API
+	Message   string // "message"; non-empty on API error responses
+	Errors    []any  // "errors"; nil when the key is absent (presence == old ",ok")
+}
+
+// parsePRResponse decodes the generic client map into a typed PRResponse.
+// Presence semantics mirror the pre-refactor ",ok" type assertions: the client
+// always yields JSON numbers as float64, and an absent key leaves the zero value.
+func parsePRResponse(m map[string]any) PRResponse {
+	var r PRResponse
+	if v, ok := m["html_url"].(string); ok {
+		r.HTMLURL = v
+	}
+	if v, ok := m["number"].(float64); ok {
+		r.Number = int(v)
+		r.HasNumber = true
+	}
+	if v, ok := m["dry_run"].(bool); ok {
+		r.DryRun = v
+	}
+	if v, ok := m["message"].(string); ok {
+		r.Message = v
+	}
+	if v, ok := m["errors"].([]any); ok {
+		r.Errors = v
+	}
+	return r
+}
+
 // CreatePullRequest creates a GitHub pull request via API.
-func (c *Creator) CreatePullRequest() (map[string]interface{}, error) {
+func (c *Creator) CreatePullRequest() (PRResponse, error) {
 	if c.config.PRDryRun {
 		return c.createDryRunPR()
 	}
@@ -34,32 +71,36 @@ func (c *Creator) CreatePullRequest() (map[string]interface{}, error) {
 }
 
 // createDryRunPR simulates PR creation in dry run mode.
-func (c *Creator) createDryRunPR() (map[string]interface{}, error) {
+func (c *Creator) createDryRunPR() (PRResponse, error) {
 	fmt.Printf("  - [DRY RUN] Would create pull request from %s to %s... ", c.config.PRBranch, c.config.PRBase)
 	fmt.Println("Skipped (Dry Run mode)")
 
-	mockResponse := map[string]interface{}{
-		"html_url": fmt.Sprintf("https://github.com/%s/compare/%s...%s?dry_run=1",
+	return PRResponse{
+		HTMLURL: fmt.Sprintf("https://github.com/%s/compare/%s...%s?dry_run=1",
 			c.client.Repo(),
 			c.config.PRBase,
 			c.config.PRBranch),
-		"number":  float64(0),
-		"dry_run": true,
-	}
-
-	return mockResponse, nil
+		Number:    0,
+		HasNumber: true, // preserves pre-refactor pr_number="0" output in dry-run
+		DryRun:    true,
+	}, nil
 }
 
 // createActualPR creates an actual pull request via GitHub API.
-func (c *Creator) createActualPR() (map[string]interface{}, error) {
+func (c *Creator) createActualPR() (PRResponse, error) {
 	fmt.Printf("  - Creating pull request from %s to %s... ", c.config.PRBranch, c.config.PRBase)
 
 	prData, err := c.preparePRData()
 	if err != nil {
-		return nil, err
+		return PRResponse{}, err
 	}
 
-	return c.client.Post("/pulls", prData)
+	resp, err := c.client.Post("/pulls", prData)
+	if err != nil {
+		return PRResponse{}, err
+	}
+
+	return parsePRResponse(resp), nil
 }
 
 // preparePRData creates the data structure needed for the PR creation API call.
@@ -104,21 +145,21 @@ func (c *Creator) generatePRTitleAndBody(runID string, commitSHA string) (string
 }
 
 // HandlePRResponse processes the PR creation response and performs follow-up actions.
-func (c *Creator) HandlePRResponse(response map[string]interface{}, sourceBranch string) error {
-	if dryRun, ok := response["dry_run"].(bool); ok && dryRun {
+func (c *Creator) HandlePRResponse(response PRResponse, sourceBranch string) error {
+	if response.DryRun {
 		return c.handleDryRunResponse(response)
 	}
 
-	if errMsg, ok := response["message"].(string); ok {
-		return c.handleErrorResponse(response, errMsg)
+	if response.Message != "" {
+		return c.handleErrorResponse(response, response.Message)
 	}
 
 	return c.handleSuccessfulPR(response, sourceBranch)
 }
 
 // handleDryRunResponse handles the dry run response without making actual changes.
-func (c *Creator) handleDryRunResponse(response map[string]interface{}) error {
-	fmt.Printf("\n[DRY RUN] Pull request would be created at: %s\n", response["html_url"])
+func (c *Creator) handleDryRunResponse(response PRResponse) error {
+	fmt.Printf("\n[DRY RUN] Pull request would be created at: %s\n", response.HTMLURL)
 	fmt.Printf("No actual PR was created (dry run mode)\n")
 
 	fmt.Printf("\nPR details that would be submitted:\n")
@@ -158,13 +199,13 @@ func (c *Creator) handleDryRunResponse(response map[string]interface{}) error {
 }
 
 // handleErrorResponse processes error responses from the GitHub API.
-func (c *Creator) handleErrorResponse(response map[string]interface{}, errMsg string) error {
+func (c *Creator) handleErrorResponse(response PRResponse, errMsg string) error {
 	fmt.Printf("GitHub API Error: %s\n", errMsg)
 
-	if apiErrors, ok := response["errors"].([]interface{}); ok {
+	if response.Errors != nil {
 		fmt.Println("Error details:")
-		for _, err := range apiErrors {
-			if errMap, ok := err.(map[string]interface{}); ok {
+		for _, err := range response.Errors {
+			if errMap, ok := err.(map[string]any); ok {
 				fmt.Printf("  - %v\n", errMap)
 
 				if message, ok := errMap["message"].(string); ok &&
@@ -179,19 +220,18 @@ func (c *Creator) handleErrorResponse(response map[string]interface{}, errMsg st
 }
 
 // handleSuccessfulPR processes a successful PR creation response.
-func (c *Creator) handleSuccessfulPR(response map[string]interface{}, sourceBranch string) error {
-	htmlURL, ok := response["html_url"].(string)
-	if !ok {
+func (c *Creator) handleSuccessfulPR(response PRResponse, sourceBranch string) error {
+	if response.HTMLURL == "" {
 		fmt.Println("[WARN] Failed to create PR")
 		fmt.Printf("Response: %v\n", response)
 		return errors.NewAPIError("create PR", "failed to get PR URL from response")
 	}
 
 	fmt.Println("Done")
-	fmt.Printf("Pull request created: %s\n", htmlURL)
+	fmt.Printf("Pull request created: %s\n", response.HTMLURL)
 
-	if number, ok := response["number"].(float64); ok {
-		if err := c.processExistingPR(int(number)); err != nil {
+	if response.HasNumber {
+		if err := c.processExistingPR(response.Number); err != nil {
 			return err
 		}
 	}

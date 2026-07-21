@@ -2,6 +2,7 @@ package pr
 
 import (
 	"os"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -149,16 +150,66 @@ func TestCreatePullRequest_DryRun(t *testing.T) {
 		t.Fatalf("CreatePullRequest() dry run error = %v", err)
 	}
 
-	if response == nil {
-		t.Fatal("CreatePullRequest() dry run returned nil response")
-	}
-
-	if dryRun, ok := response["dry_run"].(bool); !ok || !dryRun {
+	if !response.DryRun {
 		t.Error("dry run response should have dry_run=true")
 	}
 
-	if htmlURL, ok := response["html_url"].(string); !ok || htmlURL == "" {
+	if response.HTMLURL == "" {
 		t.Error("dry run response should have html_url")
+	}
+}
+
+func TestParsePRResponse(t *testing.T) {
+	tests := []struct {
+		name string
+		in   map[string]any
+		want PRResponse
+	}{
+		{
+			name: "success response with number",
+			in:   map[string]any{"html_url": "https://example.com/pr/7", "number": float64(7)},
+			want: PRResponse{HTMLURL: "https://example.com/pr/7", Number: 7, HasNumber: true},
+		},
+		{
+			name: "number zero is still present",
+			in:   map[string]any{"number": float64(0)},
+			want: PRResponse{Number: 0, HasNumber: true},
+		},
+		{
+			name: "error response with details",
+			in: map[string]any{
+				"message": "Validation Failed",
+				"errors":  []any{map[string]any{"message": "detail"}},
+			},
+			want: PRResponse{
+				Message: "Validation Failed",
+				Errors:  []any{map[string]any{"message": "detail"}},
+			},
+		},
+		{
+			name: "empty map yields zero value",
+			in:   map[string]any{},
+			want: PRResponse{},
+		},
+		{
+			name: "unknown keys are dropped",
+			in:   map[string]any{"id": float64(123)},
+			want: PRResponse{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parsePRResponse(tt.in)
+			if got.HTMLURL != tt.want.HTMLURL ||
+				got.Number != tt.want.Number ||
+				got.HasNumber != tt.want.HasNumber ||
+				got.DryRun != tt.want.DryRun ||
+				got.Message != tt.want.Message ||
+				!reflect.DeepEqual(got.Errors, tt.want.Errors) {
+				t.Errorf("parsePRResponse() = %+v, want %+v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -170,9 +221,9 @@ func TestHandlePRResponse_DryRun(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"html_url": "https://github.com/test/repo/pull/1",
-		"dry_run":  true,
+	response := PRResponse{
+		HTMLURL: "https://github.com/test/repo/pull/1",
+		DryRun:  true,
 	}
 
 	err := c.HandlePRResponse(response, "feature")
@@ -185,8 +236,8 @@ func TestHandlePRResponse_Error(t *testing.T) {
 	cfg := &config.GitConfig{}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"message": "Validation Failed",
+	response := PRResponse{
+		Message: "Validation Failed",
 	}
 
 	err := c.HandlePRResponse(response, "feature")
@@ -279,7 +330,7 @@ func TestCreatePullRequest_DryRun_ContainsURL(t *testing.T) {
 		t.Fatalf("CreatePullRequest() error = %v", err)
 	}
 
-	htmlURL := response["html_url"].(string)
+	htmlURL := response.HTMLURL
 	if !strings.Contains(htmlURL, "owner/repo") {
 		t.Errorf("html_url should contain repo, got %q", htmlURL)
 	}
@@ -301,9 +352,9 @@ func TestHandlePRResponse_DryRun_WithDeleteSourceBranch(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"html_url": "https://github.com/test/repo/pull/1",
-		"dry_run":  true,
+	response := PRResponse{
+		HTMLURL: "https://github.com/test/repo/pull/1",
+		DryRun:  true,
 	}
 
 	err := c.HandlePRResponse(response, "feature")
@@ -321,9 +372,9 @@ func TestHandlePRResponse_DryRun_DeleteSourceBranchNoAuto(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"html_url": "https://github.com/test/repo/pull/1",
-		"dry_run":  true,
+	response := PRResponse{
+		HTMLURL: "https://github.com/test/repo/pull/1",
+		DryRun:  true,
 	}
 
 	err := c.HandlePRResponse(response, "feature")
@@ -336,10 +387,10 @@ func TestHandlePRResponse_ErrorWithDetails(t *testing.T) {
 	cfg := &config.GitConfig{}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"message": "Validation Failed",
-		"errors": []interface{}{
-			map[string]interface{}{
+	response := PRResponse{
+		Message: "Validation Failed",
+		Errors: []any{
+			map[string]any{
 				"message": "Some validation error",
 			},
 		},
@@ -361,10 +412,10 @@ func TestHandlePRResponse_ExistingPRError(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"message": "Validation Failed",
-		"errors": []interface{}{
-			map[string]interface{}{
+	response := PRResponse{
+		Message: "Validation Failed",
+		Errors: []any{
+			map[string]any{
 				"message": "A pull request already exists for feature",
 			},
 		},
@@ -378,9 +429,9 @@ func TestHandlePRResponse_SuccessNoURL(t *testing.T) {
 	cfg := &config.GitConfig{}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"id": float64(123),
-	}
+	// A response with no html_url (unknown fields dropped by the typed decoder)
+	// still hits the empty-HTMLURL error branch.
+	response := PRResponse{}
 
 	err := c.HandlePRResponse(response, "feature")
 	if err == nil {
@@ -483,8 +534,8 @@ func TestCreatePullRequest_DryRun_Draft(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreatePullRequest() draft dry run error = %v", err)
 	}
-	if response == nil {
-		t.Fatal("CreatePullRequest() draft dry run returned nil")
+	if !response.DryRun {
+		t.Fatal("CreatePullRequest() draft dry run should return a dry-run response")
 	}
 }
 
@@ -496,9 +547,9 @@ func TestHandlePRResponse_DryRun_Draft(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"html_url": "https://github.com/test/repo/pull/1",
-		"dry_run":  true,
+	response := PRResponse{
+		HTMLURL: "https://github.com/test/repo/pull/1",
+		DryRun:  true,
 	}
 
 	err := c.HandlePRResponse(response, "feature")
@@ -573,9 +624,9 @@ func TestHandlePRResponse_DryRun_WithReviewersAndAssignees(t *testing.T) {
 	}
 	c := NewCreator(cfg)
 
-	response := map[string]interface{}{
-		"html_url": "https://github.com/test/repo/pull/1",
-		"dry_run":  true,
+	response := PRResponse{
+		HTMLURL: "https://github.com/test/repo/pull/1",
+		DryRun:  true,
 	}
 
 	err := c.HandlePRResponse(response, "feature")
