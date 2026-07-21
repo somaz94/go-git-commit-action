@@ -9,4 +9,11 @@ permissions:
 
 jobs:
   semantic-pr:
+    # Skip this repo's own E2E self-test PRs: the `test` fixture branch and the
+    # auto-generated `update-files-*` branches opened by use-action.yml. Their
+    # titles are intentionally non-conventional, so the title lint would always
+    # fail on them. Real contributor PRs (any other head branch) still run.
+    if: >-
+      github.event.pull_request.head.ref != 'test' &&
+      !startsWith(github.event.pull_request.head.ref, 'update-files-')
     uses: somaz94/.github/.github/workflows/semantic-pr-reusable.yml@main
