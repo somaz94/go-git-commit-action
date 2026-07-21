@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7.7](https://github.com/somaz94/go-git-commit-action/compare/v1.7.6...v1.7.7) (2026-07-21)
+
+### Bug Fixes
+
+- honor debug input to gate debug logging output ([dd90940](https://github.com/somaz94/go-git-commit-action/commit/dd90940e838494d61f8197cb916598dbaa375771))
+
+### Code Refactoring
+
+- replace curl subprocess with net/http in github client ([c1a7739](https://github.com/somaz94/go-git-commit-action/commit/c1a7739206750b0b3c7e8a7f58e50174e9540471))
+- extract RunStep, unify commit/push, dedup PR API calls ([9d7e418](https://github.com/somaz94/go-git-commit-action/commit/9d7e418f3aed44b256f9c319c6412386b925cc58))
+
+### Continuous Integration
+
+- remove DCO workflow ([d29df0b](https://github.com/somaz94/go-git-commit-action/commit/d29df0bb36b729331db89b315804bd48a9568aaf))
+- adopt semantic-pr, labels, lock-threads, PR size, and auto-assign reusables ([8c08de5](https://github.com/somaz94/go-git-commit-action/commit/8c08de57a70a652c942ec1d52b7fb6c74a638f28))
+- use reusable stale-issues workflow ([1f6a359](https://github.com/somaz94/go-git-commit-action/commit/1f6a359e09c7d0ea16cc8cfd3d0bd5e18a7bbc96))
+- use reusable issue-greeting workflow ([b30f705](https://github.com/somaz94/go-git-commit-action/commit/b30f705a7dde66e06c1e6cece140a09320057144))
+- use reusable dependabot-auto-merge workflow ([6262f85](https://github.com/somaz94/go-git-commit-action/commit/6262f8533eec242de84380f371beb8d64ac738d1))
+- use reusable contributors workflow ([7545b35](https://github.com/somaz94/go-git-commit-action/commit/7545b35d063417ed302fddf05e0b7ce07e7c0b02))
+- add ok-to-test workflow stub ([479081a](https://github.com/somaz94/go-git-commit-action/commit/479081a9cc9077abf1ab83b72c3d9146f53efd9e))
+- add PR welcome workflow stub ([7e71b3c](https://github.com/somaz94/go-git-commit-action/commit/7e71b3c58f61747b5654aecaaa259cc668aa99c7))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.6](https://github.com/somaz94/go-git-commit-action/compare/v1.7.5...v1.7.6) (2026-06-24)
 
 ### Documentation
