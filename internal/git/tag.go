@@ -10,6 +10,7 @@ import (
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 	"github.com/somaz94/go-git-commit-action/internal/output"
 )
@@ -55,17 +56,14 @@ func (tm *TagManager) HandleGitTag(ctx context.Context, result *output.Result) e
 // fetchTags retrieves all tags and references from the remote repository.
 // This ensures that tag operations have the most up-to-date information.
 func (tm *TagManager) fetchTags() error {
-	fmt.Printf("  - Fetching tags from remote... ")
 	fetchCmd := exec.Command(gitcmd.CmdGit, gitcmd.FetchTagsArgs()...)
 	fetchCmd.Stdout = os.Stdout
 	fetchCmd.Stderr = os.Stderr
 
-	if err := fetchCmd.Run(); err != nil {
-		fmt.Println("FAILED")
+	if err := shared.RunStep("Fetching tags from remote", fetchCmd); err != nil {
 		return errors.New("fetch tags", err)
 	}
 
-	fmt.Println("Done")
 	return nil
 }
 

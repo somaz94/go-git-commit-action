@@ -95,6 +95,7 @@ type APIError struct {
 	StatusCode int                    // HTTP status code (if applicable)
 	Message    string                 // Error message from API
 	Details    map[string]interface{} // Additional error details
+	Err        error                  // Underlying error (optional, for error chain support)
 }
 
 // Error implements the error interface.
@@ -105,11 +106,28 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("GitHub API error (%s): %s", e.Operation, e.Message)
 }
 
+// Unwrap returns the underlying error for error chain support.
+// It returns nil when the APIError was created without an underlying error.
+func (e *APIError) Unwrap() error {
+	return e.Err
+}
+
 // NewAPIError creates a new APIError.
 func NewAPIError(operation, message string) *APIError {
 	return &APIError{
 		Operation: operation,
 		Message:   message,
+	}
+}
+
+// NewAPIErrorFrom creates a new APIError from an underlying error, preserving
+// the error chain (Unwrap) while keeping the same Error() output as
+// NewAPIError(operation, err.Error()).
+func NewAPIErrorFrom(operation string, err error) *APIError {
+	return &APIError{
+		Operation: operation,
+		Message:   err.Error(),
+		Err:       err,
 	}
 }
 

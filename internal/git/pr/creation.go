@@ -175,7 +175,7 @@ func (c *Creator) handleErrorResponse(response map[string]interface{}, errMsg st
 		}
 	}
 
-	return fmt.Errorf("GitHub API error: %s", errMsg)
+	return errors.NewAPIError("create PR", errMsg)
 }
 
 // handleSuccessfulPR processes a successful PR creation response.
@@ -184,7 +184,7 @@ func (c *Creator) handleSuccessfulPR(response map[string]interface{}, sourceBran
 	if !ok {
 		fmt.Println("[WARN] Failed to create PR")
 		fmt.Printf("Response: %v\n", response)
-		return fmt.Errorf("failed to get PR URL from response")
+		return errors.NewAPIError("create PR", "failed to get PR URL from response")
 	}
 
 	fmt.Println("Done")
@@ -257,94 +257,75 @@ func (c *Creator) processExistingPR(prNumber int) error {
 	return nil
 }
 
-// addLabelsToIssue adds labels to an issue/PR.
-func (c *Creator) addLabelsToIssue(prNumber int) error {
+// applyToPR performs a single PR-mutation API call with the standard dry-run
+// guard and "  - <progress>... " → "Done" / "FAILED" progress feedback.
+// dryRunMsg is the full line printed (and short-circuit returned) in dry-run
+// mode; progress is the in-progress label; apiErrOp names the operation for the
+// wrapped APIError; call is the client method (Post / Patch) to invoke.
+func (c *Creator) applyToPR(
+	dryRunMsg, progress, apiErrOp, endpoint string,
+	call func(string, interface{}) (map[string]interface{}, error),
+	payload interface{},
+) error {
 	if c.config.PRDryRun {
-		fmt.Printf("  - [DRY RUN] Would add labels %v to PR #%d... Skipped\n", c.config.PRLabels, prNumber)
+		fmt.Println(dryRunMsg)
 		return nil
 	}
 
-	fmt.Printf("  - Adding labels to PR #%d... ", prNumber)
-
-	endpoint := fmt.Sprintf("/issues/%d/labels", prNumber)
-	labelsData := map[string]interface{}{
-		"labels": c.config.PRLabels,
-	}
-
-	if _, err := c.client.Post(endpoint, labelsData); err != nil {
+	fmt.Printf("  - %s... ", progress)
+	if _, err := call(endpoint, payload); err != nil {
 		fmt.Println("FAILED")
-		return errors.NewAPIError("add labels", err.Error())
+		return errors.NewAPIErrorFrom(apiErrOp, err)
 	}
 
 	fmt.Println("Done")
 	return nil
+}
+
+// addLabelsToIssue adds labels to an issue/PR.
+func (c *Creator) addLabelsToIssue(prNumber int) error {
+	return c.applyToPR(
+		fmt.Sprintf("  - [DRY RUN] Would add labels %v to PR #%d... Skipped", c.config.PRLabels, prNumber),
+		fmt.Sprintf("Adding labels to PR #%d", prNumber),
+		"add labels",
+		fmt.Sprintf("/issues/%d/labels", prNumber),
+		c.client.Post,
+		map[string]interface{}{"labels": c.config.PRLabels},
+	)
 }
 
 // requestReviewers requests reviewers for a pull request.
 func (c *Creator) requestReviewers(prNumber int) error {
-	if c.config.PRDryRun {
-		fmt.Printf("  - [DRY RUN] Would request reviewers %v for PR #%d... Skipped\n", c.config.PRReviewers, prNumber)
-		return nil
-	}
-
-	fmt.Printf("  - Requesting reviewers for PR #%d... ", prNumber)
-
-	endpoint := fmt.Sprintf("/pulls/%d/requested_reviewers", prNumber)
-	data := map[string]interface{}{
-		"reviewers": c.config.PRReviewers,
-	}
-
-	if _, err := c.client.Post(endpoint, data); err != nil {
-		fmt.Println("FAILED")
-		return errors.NewAPIError("request reviewers", err.Error())
-	}
-
-	fmt.Println("Done")
-	return nil
+	return c.applyToPR(
+		fmt.Sprintf("  - [DRY RUN] Would request reviewers %v for PR #%d... Skipped", c.config.PRReviewers, prNumber),
+		fmt.Sprintf("Requesting reviewers for PR #%d", prNumber),
+		"request reviewers",
+		fmt.Sprintf("/pulls/%d/requested_reviewers", prNumber),
+		c.client.Post,
+		map[string]interface{}{"reviewers": c.config.PRReviewers},
+	)
 }
 
 // addAssignees adds assignees to a pull request.
 func (c *Creator) addAssignees(prNumber int) error {
-	if c.config.PRDryRun {
-		fmt.Printf("  - [DRY RUN] Would add assignees %v to PR #%d... Skipped\n", c.config.PRAssignees, prNumber)
-		return nil
-	}
-
-	fmt.Printf("  - Adding assignees to PR #%d... ", prNumber)
-
-	endpoint := fmt.Sprintf("/issues/%d/assignees", prNumber)
-	data := map[string]interface{}{
-		"assignees": c.config.PRAssignees,
-	}
-
-	if _, err := c.client.Post(endpoint, data); err != nil {
-		fmt.Println("FAILED")
-		return errors.NewAPIError("add assignees", err.Error())
-	}
-
-	fmt.Println("Done")
-	return nil
+	return c.applyToPR(
+		fmt.Sprintf("  - [DRY RUN] Would add assignees %v to PR #%d... Skipped", c.config.PRAssignees, prNumber),
+		fmt.Sprintf("Adding assignees to PR #%d", prNumber),
+		"add assignees",
+		fmt.Sprintf("/issues/%d/assignees", prNumber),
+		c.client.Post,
+		map[string]interface{}{"assignees": c.config.PRAssignees},
+	)
 }
 
 // closePullRequest closes a pull request.
 func (c *Creator) closePullRequest(prNumber int) error {
-	if c.config.PRDryRun {
-		fmt.Printf("  - [DRY RUN] Would close pull request #%d... Skipped\n", prNumber)
-		return nil
-	}
-
-	fmt.Printf("  - Closing pull request #%d... ", prNumber)
-
-	endpoint := fmt.Sprintf("/pulls/%d", prNumber)
-	closeData := map[string]string{
-		"state": "closed",
-	}
-
-	if _, err := c.client.Patch(endpoint, closeData); err != nil {
-		fmt.Println("FAILED")
-		return errors.NewAPIError("close PR", err.Error())
-	}
-
-	fmt.Println("Done")
-	return nil
+	return c.applyToPR(
+		fmt.Sprintf("  - [DRY RUN] Would close pull request #%d... Skipped", prNumber),
+		fmt.Sprintf("Closing pull request #%d", prNumber),
+		"close PR",
+		fmt.Sprintf("/pulls/%d", prNumber),
+		c.client.Patch,
+		map[string]string{"state": "closed"},
+	)
 }

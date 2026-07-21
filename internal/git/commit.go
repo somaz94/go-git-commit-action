@@ -192,15 +192,12 @@ func setupGitConfig(config *config.GitConfig) error {
 	}
 
 	// Show final git configuration
-	fmt.Printf("  - Checking git configuration... ")
 	cmd := exec.Command(gitcmd.CmdGit, gitcmd.ConfigListArgs()...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Println("FAILED")
+	if err := shared.RunStep("Checking git configuration", cmd); err != nil {
 		return err
 	}
-	fmt.Println("Done")
 
 	return nil
 }
@@ -379,17 +376,14 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 
 // stashChanges safely stashes any local changes to avoid conflicts.
 func stashChanges() error {
-	fmt.Printf("  - Stashing changes... ")
 	stashCmd := exec.Command(gitcmd.CmdGit, gitcmd.StashPushArgs()...)
 	stashCmd.Stdout = os.Stdout
 	stashCmd.Stderr = os.Stderr
 
-	if err := stashCmd.Run(); err != nil {
-		fmt.Println("FAILED")
+	if err := shared.RunStep("Stashing changes", stashCmd); err != nil {
 		return errors.New("stash changes", err)
 	}
 
-	fmt.Println("Done")
 	return nil
 }
 
@@ -527,8 +521,11 @@ func commitChanges(config *config.GitConfig, result *output.Result) error {
 		return err
 	}
 
-	// Perform commit and push
-	if err := performCommitAndPush(config); err != nil {
+	// Perform commit and push (existing tracked branch — no upstream flag).
+	// TolerateNothingToCommit preserves the prior batch behavior where an empty
+	// commit is a skipped no-op rather than a failure.
+	if err := shared.CommitAndPush(config.CommitMessage, config.Branch,
+		shared.CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
 		return err
 	}
 
@@ -539,14 +536,4 @@ func commitChanges(config *config.GitConfig, result *output.Result) error {
 	}
 
 	return nil
-}
-
-// performCommitAndPush commits the staged changes and pushes them to the remote.
-func performCommitAndPush(config *config.GitConfig) error {
-	commitPushCommands := []Command{
-		{gitcmd.CmdGit, gitcmd.CommitArgs(config.CommitMessage), "Committing changes"},
-		{gitcmd.CmdGit, gitcmd.PushArgs(gitcmd.RefOrigin, config.Branch), "Pushing to remote"},
-	}
-
-	return ExecuteCommandBatch(commitPushCommands, "")
 }

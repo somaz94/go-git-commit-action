@@ -222,6 +222,33 @@ func TestNewAPIError(t *testing.T) {
 	}
 }
 
+func TestNewAPIErrorFrom(t *testing.T) {
+	underlying := errors.New("boom")
+	apiErr := NewAPIErrorFrom("add labels", underlying)
+
+	if apiErr.Operation != "add labels" {
+		t.Errorf("NewAPIErrorFrom() Operation = %v, want %v", apiErr.Operation, "add labels")
+	}
+	// Error() output must match NewAPIError("add labels", underlying.Error()).
+	if got, want := apiErr.Error(), "GitHub API error (add labels): boom"; got != want {
+		t.Errorf("NewAPIErrorFrom() Error() = %v, want %v", got, want)
+	}
+	// The underlying error must remain unwrappable for error-chain support.
+	if !errors.Is(apiErr, underlying) {
+		t.Error("errors.Is() should return true for the wrapped underlying error")
+	}
+	if errors.Unwrap(apiErr) != underlying {
+		t.Error("Unwrap() should return the underlying error")
+	}
+}
+
+func TestNewAPIError_UnwrapNil(t *testing.T) {
+	// An APIError created without an underlying error unwraps to nil.
+	if errors.Unwrap(NewAPIError("op", "msg")) != nil {
+		t.Error("NewAPIError() Unwrap() should be nil when no underlying error is set")
+	}
+}
+
 func TestNewAPIErrorWithDetails(t *testing.T) {
 	details := map[string]interface{}{
 		"field": "value",
