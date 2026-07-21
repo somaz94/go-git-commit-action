@@ -1,13 +1,13 @@
 package github
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
-	"os/exec"
-	"regexp"
-	"strconv"
-	"strings"
+	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/errors"
 )
@@ -16,48 +16,42 @@ const (
 	apiBaseURL     = "https://api.github.com"
 	apiVersion     = "2022-11-28"
 	acceptHeader   = "application/vnd.github+json"
-	curlMaxTimeSec = "30"
+	requestTimeout = 30 * time.Second
 )
-
-var statusCodePattern = regexp.MustCompile(`^\d{3}$`)
 
 // Client handles GitHub API interactions.
 type Client struct {
-	token string
-	repo  string
+	token      string
+	repo       string
+	baseURL    string
+	httpClient *http.Client
 }
 
 // NewClient creates a new GitHub API client.
 func NewClient(token string) *Client {
 	return &Client{
-		token: token,
-		repo:  os.Getenv("GITHUB_REPOSITORY"),
+		token:      token,
+		repo:       os.Getenv("GITHUB_REPOSITORY"),
+		baseURL:    apiBaseURL,
+		httpClient: &http.Client{Timeout: requestTimeout},
 	}
 }
 
 // Post sends a POST request to the GitHub API.
 func (c *Client) Post(endpoint string, data interface{}) (map[string]interface{}, error) {
-	return c.request("POST", endpoint, data)
+	return c.request(http.MethodPost, endpoint, data)
 }
 
 // Patch sends a PATCH request to the GitHub API.
 func (c *Client) Patch(endpoint string, data interface{}) (map[string]interface{}, error) {
-	return c.request("PATCH", endpoint, data)
+	return c.request(http.MethodPatch, endpoint, data)
 }
 
 // GetArray sends a GET request to the GitHub API and returns an array response.
 func (c *Client) GetArray(endpoint string) ([]map[string]interface{}, error) {
-	url := fmt.Sprintf("%s/repos/%s%s", apiBaseURL, c.repo, endpoint)
-	args := c.buildBaseArgs(url)
-
-	output, err := exec.Command("curl", args...).CombinedOutput()
+	body, statusCode, err := c.do(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, errors.New("GitHub API GET", err)
-	}
-
-	body, statusCode, err := parseHTTPResponse(output)
-	if err != nil {
-		return nil, err
 	}
 
 	if statusCode < 200 || statusCode >= 300 {
@@ -77,70 +71,60 @@ func (c *Client) Repo() string {
 	return c.repo
 }
 
-// buildBaseArgs returns common curl arguments with authentication and API headers.
-func (c *Client) buildBaseArgs(url string) []string {
-	return []string{
-		"-s", "--max-time", curlMaxTimeSec,
-		"-w", "\n%{http_code}",
-		"-H", fmt.Sprintf("Authorization: Bearer %s", c.token),
-		"-H", fmt.Sprintf("Accept: %s", acceptHeader),
-		"-H", fmt.Sprintf("X-GitHub-Api-Version: %s", apiVersion),
-		url,
+// do performs an HTTP request against the GitHub API and returns the response
+// body and status code. payload is nil for requests without a body.
+func (c *Client) do(method, endpoint string, payload []byte) ([]byte, int, error) {
+	url := fmt.Sprintf("%s/repos/%s%s", c.baseURL, c.repo, endpoint)
+
+	var reqBody io.Reader
+	if payload != nil {
+		reqBody = bytes.NewReader(payload)
 	}
+
+	req, err := http.NewRequest(method, url, reqBody)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Accept", acceptHeader)
+	req.Header.Set("X-GitHub-Api-Version", apiVersion)
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+
+	return respBody, resp.StatusCode, nil
 }
 
-// parseHTTPResponse splits curl output (with -w "\n%{http_code}") into body and status code.
-func parseHTTPResponse(output []byte) ([]byte, int, error) {
-	raw := strings.TrimSpace(string(output))
-	lastNewline := strings.LastIndex(raw, "\n")
-	if lastNewline == -1 {
-		// Only status code, no body
-		code, err := strconv.Atoi(raw)
-		if err != nil {
-			return output, 0, errors.New("parse HTTP status code", err)
-		}
-		return nil, code, nil
-	}
-
-	body := raw[:lastNewline]
-	codeStr := strings.TrimSpace(raw[lastNewline+1:])
-
-	// Validate status code is numeric (3 digits)
-	if !statusCodePattern.MatchString(codeStr) {
-		return []byte(body), 0, errors.New("parse HTTP status code", fmt.Errorf("invalid status code: %q", codeStr))
-	}
-
-	code, _ := strconv.Atoi(codeStr)
-	return []byte(body), code, nil
-}
-
-// request sends an HTTP request to the GitHub API.
+// request sends a POST/PATCH request with a JSON body to the GitHub API.
 func (c *Client) request(method, endpoint string, data interface{}) (map[string]interface{}, error) {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return nil, errors.New("marshal request data", err)
 	}
 
-	url := fmt.Sprintf("%s/repos/%s%s", apiBaseURL, c.repo, endpoint)
-	args := append([]string{"-X", method, "-H", "Content-Type: application/json"}, c.buildBaseArgs(url)...)
-	args = append(args, "-d", string(jsonData))
-
-	output, err := exec.Command("curl", args...).CombinedOutput()
+	body, statusCode, err := c.do(method, endpoint, jsonData)
 	if err != nil {
 		return nil, errors.New("GitHub API "+method, err)
 	}
 
-	body, statusCode, err := parseHTTPResponse(output)
-	if err != nil {
-		return nil, err
-	}
-
-	// For client/server errors, try to parse JSON body so the caller
+	// For client/server errors, try to parse the JSON body so the caller
 	// can inspect API error details (e.g., "A pull request already exists").
 	if statusCode < 200 || statusCode >= 300 {
 		var errResult map[string]interface{}
 		if json.Unmarshal(body, &errResult) == nil {
-			// Return the parsed error response — caller checks for "message" key
+			// Return the parsed error response — caller checks for "message" key.
 			return errResult, nil
 		}
 		return nil, errors.NewAPIError("GitHub API "+method, fmt.Sprintf("HTTP %d", statusCode))
