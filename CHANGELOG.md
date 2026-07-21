@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.7.8](https://github.com/somaz94/go-git-commit-action/compare/v1.7.7...v1.7.8) (2026-07-21)
+
+### Code Refactoring
+
+- replace untyped PR response map with typed PRResponse struct ([7f05428](https://github.com/somaz94/go-git-commit-action/commit/7f054283b9b7dcc1104bf564c79dc1e19534c844))
+
+### Continuous Integration
+
+- use reusable skip-head-ref-prefixes for semantic-pr self-test skip ([5328540](https://github.com/somaz94/go-git-commit-action/commit/532854031ba0e98625013e78174118c02a018d57))
+- skip semantic-pr title lint on E2E self-test PRs ([fb6f25d](https://github.com/somaz94/go-git-commit-action/commit/fb6f25d027029e140ef13c762fddcd29264f9241))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.7.7](https://github.com/somaz94/go-git-commit-action/compare/v1.7.6...v1.7.7) (2026-07-21)
 
 ### Bug Fixes
