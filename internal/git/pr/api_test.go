@@ -236,6 +236,39 @@ func TestHandlePRResponse_ClosesPR(t *testing.T) {
 	}
 }
 
+// A failing label call must surface as an error, not be swallowed.
+func TestHandlePRResponse_LabelFailurePropagates(t *testing.T) {
+	api := newFakeAPI(t) // no route → 404
+	cfg := prConfig()
+	cfg.PRLabels = []string{"automated"}
+	c, _ := newAPICreator(t, cfg, api)
+
+	resp := PRResponse{HTMLURL: "u", Number: 7, HasNumber: true}
+	err := c.HandlePRResponse(context.Background(), resp, "feature")
+	if err == nil {
+		t.Fatal("HandlePRResponse() error = nil, want the label failure to propagate")
+	}
+}
+
+// A rejected label call must surface as an error. GitHub returns 4xx with a
+// JSON body, which the client hands back as (body, nil) rather than an error.
+func TestApplyToPR_RejectedCloseFails(t *testing.T) {
+	api := newFakeAPI(t).
+		route("PATCH /pulls/7", http.StatusForbidden, `{"message":"Resource not accessible"}`)
+	cfg := prConfig()
+	cfg.PRClosed = true
+	c, _ := newAPICreator(t, cfg, api)
+
+	resp := PRResponse{HTMLURL: "u", Number: 7, HasNumber: true}
+	err := c.HandlePRResponse(context.Background(), resp, "feature")
+	if err == nil {
+		t.Fatal("HandlePRResponse() error = nil, want the rejected close to fail")
+	}
+	if !strings.Contains(err.Error(), "Resource not accessible") {
+		t.Errorf("error = %q, want it to carry the API message", err.Error())
+	}
+}
+
 // An "already exists" error must look up the open PR and apply operations to it
 // rather than failing the action.
 func TestHandlePRResponse_ExistingPRIsReused(t *testing.T) {

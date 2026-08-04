@@ -331,9 +331,19 @@ func (c *Creator) applyToPR(
 	}
 
 	fmt.Printf("  - %s... ", progress)
-	if _, err := call(ctx, endpoint, payload); err != nil {
+	resp, err := call(ctx, endpoint, payload)
+	if err != nil {
 		fmt.Println("FAILED")
 		return errors.NewAPIErrorFrom(apiErrOp, err)
+	}
+
+	// A non-2xx response with a parseable JSON body comes back as (body, nil)
+	// so the PR-creation path can inspect its "message". Every other caller
+	// must treat that message as the failure it is, or a rejected label /
+	// reviewer / assignee / close would be reported as success.
+	if msg, ok := resp["message"].(string); ok && msg != "" {
+		fmt.Println("FAILED")
+		return errors.NewAPIError(apiErrOp, msg)
 	}
 
 	fmt.Println("Done")
