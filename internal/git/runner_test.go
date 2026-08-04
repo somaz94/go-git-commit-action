@@ -204,13 +204,14 @@ func TestHandleBranch_ExistingLocalBranchDoesNothing(t *testing.T) {
 	}
 }
 
+// The real-world shape of a missing branch: rev-parse fails, and ls-remote
+// succeeds while listing nothing.
 func TestHandleBranch_CreatesMissingBranch(t *testing.T) {
 	cfg := baseConfig()
 	cfg.Branch = "feature"
-	// Neither the local nor the remote branch resolves; everything else succeeds.
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.RevParseArgs("feature")), gitcmd.FakeResult{Err: gitcmd.Fail(1)}).
-		Stub(key(gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, "feature")), gitcmd.FakeResult{Err: gitcmd.Fail(2)})
+		Stub(key(gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, "feature")), gitcmd.FakeResult{Stdout: ""})
 
 	if err := handleBranch(f, cfg); err != nil {
 		t.Fatalf("handleBranch() error = %v, want nil", err)
@@ -221,12 +222,30 @@ func TestHandleBranch_CreatesMissingBranch(t *testing.T) {
 	})
 }
 
+// An unreachable remote must not be read as "the branch exists".
+func TestHandleBranch_UnreachableRemoteCreatesBranch(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Branch = "feature"
+	f := gitcmd.NewFakeRunner().
+		Stub(key(gitcmd.RevParseArgs("feature")), gitcmd.FakeResult{Err: gitcmd.Fail(1)}).
+		Stub(key(gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, "feature")), gitcmd.FakeResult{Err: gitcmd.Fail(128)})
+
+	if err := handleBranch(f, cfg); err != nil {
+		t.Fatalf("handleBranch() error = %v, want nil", err)
+	}
+	if !f.Ran(key(gitcmd.CheckoutNewBranchArgs("feature"))) {
+		t.Errorf("Keys() = %v, want a new branch to be created", f.Keys())
+	}
+}
+
 func TestHandleBranch_ChecksOutRemoteOnlyBranch(t *testing.T) {
 	cfg := baseConfig()
 	cfg.Branch = "feature"
-	// Local rev-parse fails, remote ls-remote succeeds.
+	// Local rev-parse fails; ls-remote lists the branch.
 	f := gitcmd.NewFakeRunner().
-		Stub(key(gitcmd.RevParseArgs("feature")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
+		Stub(key(gitcmd.RevParseArgs("feature")), gitcmd.FakeResult{Err: gitcmd.Fail(1)}).
+		Stub(key(gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, "feature")),
+			gitcmd.FakeResult{Stdout: "9f1c0de\trefs/heads/feature\n"})
 
 	if err := handleBranch(f, cfg); err != nil {
 		t.Fatalf("handleBranch() error = %v, want nil", err)

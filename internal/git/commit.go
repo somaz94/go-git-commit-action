@@ -267,8 +267,11 @@ func handleBranch(r gitcmd.Runner, config *config.GitConfig) error {
 	_, localErr := r.Output(gitcmd.CmdGit, gitcmd.RevParseArgs(config.Branch)...)
 	localBranchExists := localErr == nil
 
-	_, remoteErr := r.Output(gitcmd.CmdGit, gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, config.Branch)...)
-	remoteBranchExists := remoteErr == nil
+	// "git ls-remote --heads" exits 0 with empty output when nothing matches, so
+	// the exit status alone would report every branch as existing whenever the
+	// remote is merely reachable. The listing itself is the answer.
+	remoteRefs, remoteErr := r.Output(gitcmd.CmdGit, gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, config.Branch)...)
+	remoteBranchExists := remoteErr == nil && len(strings.TrimSpace(string(remoteRefs))) > 0
 
 	// Determine the appropriate action based on branch existence
 	if !localBranchExists && !remoteBranchExists {
