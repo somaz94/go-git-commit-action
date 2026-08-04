@@ -28,9 +28,16 @@ func NewCreator(cfg *config.GitConfig) *Creator {
 // NewCreatorWithRunner creates a Creator with an explicit command Runner,
 // allowing tests to assert the emitted git commands.
 func NewCreatorWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *Creator {
+	return NewCreatorWithClient(cfg, r, github.NewClient(cfg.GitHubToken))
+}
+
+// NewCreatorWithClient creates a Creator with both seams supplied explicitly:
+// the command Runner for git and the API client for GitHub. Tests use it to
+// drive the PR paths against an httptest server.
+func NewCreatorWithClient(cfg *config.GitConfig, r gitcmd.Runner, client *github.Client) *Creator {
 	return &Creator{
 		config: cfg,
-		client: github.NewClient(cfg.GitHubToken),
+		client: client,
 		runner: r,
 	}
 }

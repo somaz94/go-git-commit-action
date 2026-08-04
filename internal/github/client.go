@@ -30,10 +30,17 @@ type Client struct {
 
 // NewClient creates a new GitHub API client.
 func NewClient(token string) *Client {
+	return NewClientWithBaseURL(token, apiBaseURL)
+}
+
+// NewClientWithBaseURL creates a client that targets baseURL instead of the
+// public GitHub API. It is the seam that lets tests in other packages drive the
+// PR paths against a local httptest server; production code uses NewClient.
+func NewClientWithBaseURL(token, baseURL string) *Client {
 	return &Client{
 		token:      token,
 		repo:       os.Getenv("GITHUB_REPOSITORY"),
-		baseURL:    apiBaseURL,
+		baseURL:    baseURL,
 		httpClient: &http.Client{Timeout: requestTimeout},
 	}
 }
