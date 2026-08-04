@@ -4,6 +4,8 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
 func TestIsNothingToCommitExit(t *testing.T) {
@@ -34,14 +36,14 @@ func TestIsNothingToCommitExit(t *testing.T) {
 func TestStageFiles_EmptyPattern(t *testing.T) {
 	// strings.Fields("") returns empty slice, so no git add is called
 	// This should succeed with no operations
-	err := StageFiles("")
+	err := StageFiles(gitcmd.NewFakeRunner(), "")
 	if err != nil {
 		t.Errorf("StageFiles('') error = %v, want nil", err)
 	}
 }
 
 func TestStageFiles_WhitespaceOnly(t *testing.T) {
-	err := StageFiles("   ")
+	err := StageFiles(gitcmd.NewFakeRunner(), "   ")
 	if err != nil {
 		t.Errorf("StageFiles('   ') error = %v, want nil", err)
 	}

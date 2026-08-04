@@ -3,8 +3,6 @@ package git
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -19,12 +17,19 @@ import (
 // It provides methods for creating, deleting, and managing Git tags.
 type TagManager struct {
 	config *config.GitConfig
+	runner gitcmd.Runner
 }
 
 // NewTagManager creates a new TagManager instance with the provided configuration.
 // This is the entry point for all tag-related operations.
 func NewTagManager(config *config.GitConfig) *TagManager {
-	return &TagManager{config: config}
+	return NewTagManagerWithRunner(config, gitcmd.NewExecRunner())
+}
+
+// NewTagManagerWithRunner creates a TagManager with an explicit command Runner,
+// allowing tests to assert the emitted git commands without a real repository.
+func NewTagManagerWithRunner(config *config.GitConfig, r gitcmd.Runner) *TagManager {
+	return &TagManager{config: config, runner: r}
 }
 
 // HandleGitTag orchestrates the Git tag operations based on configuration.
@@ -56,11 +61,7 @@ func (tm *TagManager) HandleGitTag(ctx context.Context, result *output.Result) e
 // fetchTags retrieves all tags and references from the remote repository.
 // This ensures that tag operations have the most up-to-date information.
 func (tm *TagManager) fetchTags() error {
-	fetchCmd := exec.Command(gitcmd.CmdGit, gitcmd.FetchTagsArgs()...)
-	fetchCmd.Stdout = os.Stdout
-	fetchCmd.Stderr = os.Stderr
-
-	if err := shared.RunStep("Fetching tags from remote", fetchCmd); err != nil {
+	if err := shared.RunStep(tm.runner, "Fetching tags from remote", gitcmd.CmdGit, gitcmd.FetchTagsArgs()...); err != nil {
 		return errors.New("fetch tags", err)
 	}
 
@@ -77,7 +78,7 @@ func (tm *TagManager) deleteTag() error {
 		{gitcmd.CmdGit, gitcmd.DeleteRemoteTagArgs(tm.config.TagName), "Deleting remote tag"},
 	}
 
-	return ExecuteCommandBatch(commands, "")
+	return ExecuteCommandBatch(tm.runner, commands, "")
 }
 
 // createTag creates a new Git tag and pushes it to the remote repository.
@@ -101,7 +102,7 @@ func (tm *TagManager) createTag() error {
 		{gitcmd.CmdGit, gitcmd.PushTagArgs(tm.config.TagName, true), "Pushing tag to remote"},
 	}
 
-	return ExecuteCommandBatch(commands, "")
+	return ExecuteCommandBatch(tm.runner, commands, "")
 }
 
 // resolveTargetCommit determines the exact commit that will be tagged.
@@ -112,12 +113,10 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 		return "", nil
 	}
 
-	// Verify the reference is valid
+	// Verify the reference is valid. Output is used rather than Run because the
+	// probe's own stdout (the resolved SHA) must not reach the log here.
 	fmt.Printf("  - Verifying reference '%s'... ", tm.config.TagReference)
-	verifyCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevParseArgs(tm.config.TagReference)...)
-	verifyCmd.Stderr = os.Stderr
-
-	if err := verifyCmd.Run(); err != nil {
+	if _, err := tm.runner.Output(gitcmd.CmdGit, gitcmd.RevParseArgs(tm.config.TagReference)...); err != nil {
 		fmt.Println("FAILED")
 		return "", errors.NewWithPath("verify git reference", tm.config.TagReference, err)
 	}
@@ -125,8 +124,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 
 	// Get the full commit SHA for the reference
 	fmt.Printf("  - Resolving commit for '%s'... ", tm.config.TagReference)
-	revListCmd := exec.Command(gitcmd.CmdGit, gitcmd.RevListArgs(tm.config.TagReference)...)
-	output, err := revListCmd.Output()
+	output, err := tm.runner.Output(gitcmd.CmdGit, gitcmd.RevListArgs(tm.config.TagReference)...)
 	if err != nil {
 		fmt.Println("FAILED")
 		return "", errors.NewWithPath("resolve commit SHA", tm.config.TagReference, err)

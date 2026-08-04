@@ -2,8 +2,8 @@ package git
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
+
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
 
 // Command defines a command to be executed.
@@ -18,18 +18,15 @@ type Command struct {
 // ExecuteCommandBatch runs a batch of commands with consistent output
 // formatting and error handling. It provides visual feedback for each
 // command execution and handles errors gracefully.
-func ExecuteCommandBatch(commands []Command, headerMessage string) error {
+func ExecuteCommandBatch(r gitcmd.Runner, commands []Command, headerMessage string) error {
 	if headerMessage != "" {
 		fmt.Println(headerMessage)
 	}
 
 	for _, cmd := range commands {
 		fmt.Printf("  - %s... ", cmd.Desc)
-		command := exec.Command(cmd.Name, cmd.Args...)
-		command.Stdout = os.Stdout
-		command.Stderr = os.Stderr
 
-		if err := command.Run(); err != nil {
+		if err := r.Run(cmd.Name, cmd.Args...); err != nil {
 			// Special handling for "nothing to commit" case
 			if isNothingToCommitError(cmd, err) {
 				fmt.Println("[WARN] Nothing to commit, skipping...")
@@ -47,13 +44,11 @@ func ExecuteCommandBatch(commands []Command, headerMessage string) error {
 }
 
 // isNothingToCommitError checks if an error is caused by "nothing to commit".
-// It uses the exit code from exec.ExitError instead of brittle string matching.
+// It uses the exit code from the command failure instead of brittle string matching.
 func isNothingToCommitError(cmd Command, err error) bool {
 	if len(cmd.Args) == 0 || cmd.Args[0] != "commit" {
 		return false
 	}
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		return exitErr.ExitCode() == 1
-	}
-	return false
+	code, ok := gitcmd.ExitCodeOf(err)
+	return ok && code == 1
 }

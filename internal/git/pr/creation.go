@@ -9,6 +9,7 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/errors"
 	"github.com/somaz94/go-git-commit-action/internal/git/shared"
+	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 	"github.com/somaz94/go-git-commit-action/internal/github"
 )
 
@@ -16,13 +17,21 @@ import (
 type Creator struct {
 	config *config.GitConfig
 	client *github.Client
+	runner gitcmd.Runner
 }
 
 // NewCreator creates a new Creator instance.
 func NewCreator(cfg *config.GitConfig) *Creator {
+	return NewCreatorWithRunner(cfg, gitcmd.NewExecRunner())
+}
+
+// NewCreatorWithRunner creates a Creator with an explicit command Runner,
+// allowing tests to assert the emitted git commands.
+func NewCreatorWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *Creator {
 	return &Creator{
 		config: cfg,
 		client: github.NewClient(cfg.GitHubToken),
+		runner: r,
 	}
 }
 
@@ -108,7 +117,7 @@ func (c *Creator) createActualPR(ctx context.Context) (PRResponse, error) {
 func (c *Creator) preparePRData() (map[string]interface{}, error) {
 	runID := os.Getenv("GITHUB_RUN_ID")
 
-	commitSHA, err := shared.CurrentCommitSHA()
+	commitSHA, err := shared.CurrentCommitSHA(c.runner)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +248,7 @@ func (c *Creator) handleSuccessfulPR(ctx context.Context, response PRResponse, s
 
 	// Delete the source branch if auto-branch and delete-source-branch are enabled
 	if c.config.DeleteSourceBranch && c.config.AutoBranch {
-		branchMgr := NewBranchManager(c.config)
+		branchMgr := NewBranchManagerWithRunner(c.config, c.runner)
 		if err := branchMgr.DeleteSourceBranch(sourceBranch); err != nil {
 			return err
 		}

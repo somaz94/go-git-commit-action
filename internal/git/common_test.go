@@ -162,7 +162,7 @@ func TestExecuteCommandBatch_Success(t *testing.T) {
 		{Name: "echo", Args: []string{"world"}, Desc: "Echoing world"},
 	}
 
-	err := ExecuteCommandBatch(commands, "Test header")
+	err := ExecuteCommandBatch(gitcmd.NewExecRunner(), commands, "Test header")
 	if err != nil {
 		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
 	}
@@ -173,14 +173,14 @@ func TestExecuteCommandBatch_EmptyHeader(t *testing.T) {
 		{Name: "echo", Args: []string{"test"}, Desc: "Echo test"},
 	}
 
-	err := ExecuteCommandBatch(commands, "")
+	err := ExecuteCommandBatch(gitcmd.NewExecRunner(), commands, "")
 	if err != nil {
 		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
 	}
 }
 
 func TestExecuteCommandBatch_EmptyCommands(t *testing.T) {
-	err := ExecuteCommandBatch(nil, "")
+	err := ExecuteCommandBatch(gitcmd.NewExecRunner(), nil, "")
 	if err != nil {
 		t.Errorf("ExecuteCommandBatch(nil) error = %v, want nil", err)
 	}
@@ -191,7 +191,7 @@ func TestExecuteCommandBatch_FailedCommand(t *testing.T) {
 		{Name: "false", Args: []string{}, Desc: "Always fails"},
 	}
 
-	err := ExecuteCommandBatch(commands, "")
+	err := ExecuteCommandBatch(gitcmd.NewExecRunner(), commands, "")
 	if err == nil {
 		t.Error("ExecuteCommandBatch() with failing command should return error")
 	}
@@ -205,7 +205,7 @@ func TestExecuteCommandBatch_NothingToCommit(t *testing.T) {
 		{Name: "echo", Args: []string{"commit", "test"}, Desc: "Non-commit echo"},
 	}
 
-	err := ExecuteCommandBatch(commands, "")
+	err := ExecuteCommandBatch(gitcmd.NewExecRunner(), commands, "")
 	if err != nil {
 		t.Errorf("ExecuteCommandBatch() error = %v, want nil", err)
 	}

@@ -2,7 +2,6 @@ package pr
 
 import (
 	"fmt"
-	"os/exec"
 	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -17,11 +16,18 @@ const (
 // BranchManager handles branch operations for pull requests.
 type BranchManager struct {
 	config *config.GitConfig
+	runner gitcmd.Runner
 }
 
 // NewBranchManager creates a new BranchManager instance.
 func NewBranchManager(cfg *config.GitConfig) *BranchManager {
-	return &BranchManager{config: cfg}
+	return NewBranchManagerWithRunner(cfg, gitcmd.NewExecRunner())
+}
+
+// NewBranchManagerWithRunner creates a BranchManager with an explicit command
+// Runner, allowing tests to assert the emitted git commands.
+func NewBranchManagerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *BranchManager {
+	return &BranchManager{config: cfg, runner: r}
 }
 
 // PrepareSourceBranch sets up the branch that will be used as the source for the PR.
@@ -40,18 +46,18 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 	bm.config.PRBranch = sourceBranch
 
 	// Create and switch to a new branch
-	if err := shared.RunStep(fmt.Sprintf("Creating new branch %s", sourceBranch),
-		exec.Command(gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...)); err != nil {
+	if err := shared.RunStep(bm.runner, fmt.Sprintf("Creating new branch %s", sourceBranch),
+		gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...); err != nil {
 		return "", fmt.Errorf("failed to create branch: %w", err)
 	}
 
 	// Stage files using shared utility
-	if err := shared.StageFiles(bm.config.FilePattern); err != nil {
+	if err := shared.StageFiles(bm.runner, bm.config.FilePattern); err != nil {
 		return "", err
 	}
 
 	// Commit and push using shared utility (new branch — set upstream tracking)
-	if err := shared.CommitAndPush(bm.config.CommitMessage, sourceBranch,
+	if err := shared.CommitAndPush(bm.runner, bm.config.CommitMessage, sourceBranch,
 		shared.CommitPushOptions{SetUpstream: true}); err != nil {
 		return "", err
 	}
@@ -62,8 +68,8 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 // checkoutExistingBranch checks out the specified PR branch.
 func (bm *BranchManager) checkoutExistingBranch() (string, error) {
 	sourceBranch := bm.config.PRBranch
-	if err := shared.RunStep(fmt.Sprintf("Checking out branch %s", sourceBranch),
-		exec.Command(gitcmd.CmdGit, gitcmd.CheckoutArgs(sourceBranch)...)); err != nil {
+	if err := shared.RunStep(bm.runner, fmt.Sprintf("Checking out branch %s", sourceBranch),
+		gitcmd.CmdGit, gitcmd.CheckoutArgs(sourceBranch)...); err != nil {
 		return "", fmt.Errorf("failed to checkout branch: %w", err)
 	}
 
@@ -83,8 +89,8 @@ func (bm *BranchManager) DeleteSourceBranch(sourceBranch string) error {
 	}
 
 	fmt.Println()
-	deleteCommand := exec.Command(gitcmd.CmdGit, gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, sourceBranch)...)
-	if err := shared.RunStep(fmt.Sprintf("Deleting source branch %s", sourceBranch), deleteCommand); err != nil {
+	if err := shared.RunStep(bm.runner, fmt.Sprintf("Deleting source branch %s", sourceBranch),
+		gitcmd.CmdGit, gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, sourceBranch)...); err != nil {
 		return fmt.Errorf("failed to delete source branch %s: %w", sourceBranch, err)
 	}
 
@@ -102,7 +108,7 @@ func (bm *BranchManager) FetchBranches() error {
 	}
 
 	for _, b := range branches {
-		if err := exec.Command(gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, b.branch)...).Run(); err != nil {
+		if err := bm.runner.Run(gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, b.branch)...); err != nil {
 			return fmt.Errorf("%s: %w", b.desc, err)
 		}
 	}

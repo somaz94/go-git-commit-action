@@ -3,7 +3,6 @@ package pr
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
@@ -12,11 +11,18 @@ import (
 // DiffChecker handles change detection between branches.
 type DiffChecker struct {
 	config *config.GitConfig
+	runner gitcmd.Runner
 }
 
 // NewDiffChecker creates a new DiffChecker instance.
 func NewDiffChecker(cfg *config.GitConfig) *DiffChecker {
-	return &DiffChecker{config: cfg}
+	return NewDiffCheckerWithRunner(cfg, gitcmd.NewExecRunner())
+}
+
+// NewDiffCheckerWithRunner creates a DiffChecker with an explicit command
+// Runner, allowing tests to assert the emitted git commands.
+func NewDiffCheckerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *DiffChecker {
+	return &DiffChecker{config: cfg, runner: r}
 }
 
 // CheckBranchDifferences checks the differences between the PR base branch and the source branch.
@@ -25,7 +31,7 @@ func (dc *DiffChecker) CheckBranchDifferences() error {
 	fmt.Printf("\nChanged files between %s and %s:\n", dc.config.PRBase, dc.config.PRBranch)
 
 	// Fetch the latest from both branches
-	branchMgr := NewBranchManager(dc.config)
+	branchMgr := NewBranchManagerWithRunner(dc.config, dc.runner)
 	if err := branchMgr.FetchBranches(); err != nil {
 		return err
 	}
@@ -37,11 +43,10 @@ func (dc *DiffChecker) CheckBranchDifferences() error {
 // displayChangedFiles shows the changed files between branches and validates if changes exist.
 func (dc *DiffChecker) displayChangedFiles() error {
 	// Check the changed files
-	diffFiles := exec.Command(gitcmd.CmdGit, gitcmd.DiffNameStatusArgs(
+	filesOutput, err := dc.runner.Output(gitcmd.CmdGit, gitcmd.DiffNameStatusArgs(
 		fmt.Sprintf("origin/%s", dc.config.PRBase),
 		fmt.Sprintf("origin/%s", dc.config.PRBranch),
 	)...)
-	filesOutput, err := diffFiles.Output()
 	if err != nil {
 		fmt.Printf("[WARN] Failed to get diff: %v\n", err)
 	}
