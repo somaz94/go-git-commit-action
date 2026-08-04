@@ -122,6 +122,8 @@ func TestCommitAndPush_SetUpstream(t *testing.T) {
 	}
 }
 
+// An empty commit is tolerated, and because nothing was committed there is
+// nothing to publish — the push must be skipped rather than attempted.
 func TestCommitAndPush_TolerateNothingToCommit(t *testing.T) {
 	// git exits 1 from "commit" when there is nothing staged.
 	f := gitcmd.NewFakeRunner().
@@ -131,9 +133,35 @@ func TestCommitAndPush_TolerateNothingToCommit(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want the empty commit tolerated", err)
 	}
-	// Tolerating an empty commit must still push.
-	if !f.Ran(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main"))) {
-		t.Error("push was skipped after an empty commit, want it to run")
+	if f.Ran(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main"))) {
+		t.Errorf("Keys() = %v, want no push after an empty commit", f.Keys())
+	}
+}
+
+// A push that would have been rejected must never be reached once the commit
+// was skipped, so a stale local branch cannot fail the action.
+func TestCommitAndPush_EmptyCommitSkipsAFailingPush(t *testing.T) {
+	f := gitcmd.NewFakeRunner().
+		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)}).
+		Stub(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
+
+	if err := CommitAndPush(f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
+		t.Fatalf("CommitAndPush() error = %v, want the rejected push never to be attempted", err)
+	}
+}
+
+// The upstream variant follows the same rule.
+func TestCommitAndPush_EmptyCommitSkipsUpstreamPush(t *testing.T) {
+	f := gitcmd.NewFakeRunner().
+		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
+
+	if err := CommitAndPush(f, "msg", "feature", CommitPushOptions{
+		SetUpstream: true, TolerateNothingToCommit: true,
+	}); err != nil {
+		t.Fatalf("CommitAndPush() error = %v, want nil", err)
+	}
+	if f.Ran(key(gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, "feature"))) {
+		t.Errorf("Keys() = %v, want no upstream push after an empty commit", f.Keys())
 	}
 }
 

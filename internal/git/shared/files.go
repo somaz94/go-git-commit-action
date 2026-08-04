@@ -65,14 +65,18 @@ func CommitAndPush(r gitcmd.Runner, commitMessage, branch string, opts CommitPus
 	fmt.Printf("  - Committing changes... ")
 	if err := r.Run(gitcmd.CmdGit, gitcmd.CommitArgs(commitMessage)...); err != nil {
 		if opts.TolerateNothingToCommit && isNothingToCommitExit(err) {
-			fmt.Println("[WARN] Nothing to commit, skipping...")
-		} else {
-			fmt.Println("FAILED")
-			return fmt.Errorf("failed to commit: %w", err)
+			// Nothing was committed, so this run has nothing to publish and the
+			// push is skipped. Pushing anyway would fail for reasons unrelated
+			// to the requested work — most visibly when the local branch is
+			// behind its remote, where git rejects the push as non-fast-forward
+			// and takes the whole action down with it.
+			fmt.Println("[WARN] Nothing to commit, skipping commit and push...")
+			return nil
 		}
-	} else {
-		fmt.Println("Done")
+		fmt.Println("FAILED")
+		return fmt.Errorf("failed to commit: %w", err)
 	}
+	fmt.Println("Done")
 
 	// Push
 	pushArgs := gitcmd.PushArgs(gitcmd.RefOrigin, branch)
