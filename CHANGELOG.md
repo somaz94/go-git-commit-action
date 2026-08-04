@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.8.1](https://github.com/somaz94/go-git-commit-action/compare/v1.8.0...v1.8.1) (2026-08-04)
+
+### Bug Fixes
+
+- fail the action when a label, reviewer, assignee or close call is rejected ([0553cf1](https://github.com/somaz94/go-git-commit-action/commit/0553cf1c09f811fa6a6ab1774ad5a77689be3613))
+- detect a missing remote branch from the ls-remote listing, not its exit code ([89986d3](https://github.com/somaz94/go-git-commit-action/commit/89986d365f5393420f7148a8bb6905d95bf9ed42))
+
+### Code Refactoring
+
+- route git execution through a Runner seam to make the git package testable ([20472e7](https://github.com/somaz94/go-git-commit-action/commit/20472e7edd1f3c1fe4681fc01eb831f34647dfff))
+
+### Tests
+
+- add an injectable API base URL so the PR paths run against httptest ([a6964d0](https://github.com/somaz94/go-git-commit-action/commit/a6964d094fee36a8d6c16fb495fbc641b1d0d28d))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.8.0](https://github.com/somaz94/go-git-commit-action/compare/v1.7.8...v1.8.0) (2026-07-21)
 
 ### Features
