@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.8.2](https://github.com/somaz94/go-git-commit-action/compare/v1.8.1...v1.8.2) (2026-08-04)
+
+### Bug Fixes
+
+- skip the push when there was nothing to commit ([43ff9a2](https://github.com/somaz94/go-git-commit-action/commit/43ff9a209c162e0429e4bdbc9176a119a067435b))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.8.1](https://github.com/somaz94/go-git-commit-action/compare/v1.8.0...v1.8.1) (2026-08-04)
 
 ### Bug Fixes
