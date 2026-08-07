@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## Unreleased (2026-08-07)
+## [v1.9.0](https://github.com/somaz94/go-git-commit-action/compare/v1.8.2...v1.9.0) (2026-08-07)
 
 ### Performance Improvements
 
