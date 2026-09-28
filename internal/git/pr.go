@@ -19,7 +19,7 @@ func CreatePullRequest(ctx context.Context, r gitcmd.Runner, config *config.GitC
 	fmt.Println("\nCreating Pull Request:")
 
 	branchMgr := pr.NewBranchManagerWithRunner(config, r)
-	sourceBranch, err := branchMgr.PrepareSourceBranch()
+	sourceBranch, err := branchMgr.PrepareSourceBranch(ctx)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,7 @@
 package pr
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -28,7 +29,7 @@ func TestPrepareSourceBranch_ChecksOutExistingBranch(t *testing.T) {
 	f := gitcmd.NewFakeRunner()
 	bm := NewBranchManagerWithRunner(prConfig(), f)
 
-	got, err := bm.PrepareSourceBranch()
+	got, err := bm.PrepareSourceBranch(context.Background())
 	if err != nil {
 		t.Fatalf("PrepareSourceBranch() error = %v, want nil", err)
 	}
@@ -48,7 +49,7 @@ func TestPrepareSourceBranch_CheckoutFailure(t *testing.T) {
 	f := &gitcmd.FakeRunner{Default: gitcmd.FakeResult{Err: gitcmd.Fail(1)}}
 	bm := NewBranchManagerWithRunner(prConfig(), f)
 
-	if _, err := bm.PrepareSourceBranch(); err == nil {
+	if _, err := bm.PrepareSourceBranch(context.Background()); err == nil {
 		t.Fatal("PrepareSourceBranch() error = nil, want the checkout failure")
 	}
 }
@@ -59,7 +60,7 @@ func TestPrepareSourceBranch_CreatesAutoBranch(t *testing.T) {
 	f := gitcmd.NewFakeRunner()
 	bm := NewBranchManagerWithRunner(cfg, f)
 
-	got, err := bm.PrepareSourceBranch()
+	got, err := bm.PrepareSourceBranch(context.Background())
 	if err != nil {
 		t.Fatalf("PrepareSourceBranch() error = %v, want nil", err)
 	}
@@ -80,13 +81,48 @@ func TestPrepareSourceBranch_CreatesAutoBranch(t *testing.T) {
 	assertSequence(t, f.Keys(), wantSeq)
 }
 
+// A failed push is retried on the same generated branch rather than by
+// cutting a second one.
+func TestPrepareSourceBranch_AutoBranchRetriesPushOnSameBranch(t *testing.T) {
+	cfg := prConfig()
+	cfg.AutoBranch = true
+	cfg.RetryCount = 2
+	failed := false
+	f := gitcmd.NewFakeRunner()
+	f.Handler = func(_ string, args []string) (string, error) {
+		if args[0] == gitcmd.SubCmdPush && !failed {
+			failed = true
+			return "", gitcmd.Fail(128)
+		}
+		return "", nil
+	}
+	bm := NewBranchManagerWithRunner(cfg, f)
+
+	got, err := bm.PrepareSourceBranch(context.Background())
+	if err != nil {
+		t.Fatalf("PrepareSourceBranch() error = %v, want the retried push to succeed", err)
+	}
+	branches, pushes := 0, 0
+	for _, k := range f.Keys() {
+		switch k {
+		case key(gitcmd.CheckoutNewBranchArgs(got)):
+			branches++
+		case key(gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, got)):
+			pushes++
+		}
+	}
+	if branches != 1 || pushes != 2 {
+		t.Errorf("Keys() = %v, want one branch %q pushed twice", f.Keys(), got)
+	}
+}
+
 func TestPrepareSourceBranch_AutoBranchCreateFailure(t *testing.T) {
 	cfg := prConfig()
 	cfg.AutoBranch = true
 	f := &gitcmd.FakeRunner{Default: gitcmd.FakeResult{Err: gitcmd.Fail(1)}}
 	bm := NewBranchManagerWithRunner(cfg, f)
 
-	if _, err := bm.PrepareSourceBranch(); err == nil {
+	if _, err := bm.PrepareSourceBranch(context.Background()); err == nil {
 		t.Fatal("PrepareSourceBranch() error = nil, want the branch creation failure")
 	}
 }

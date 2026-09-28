@@ -1,6 +1,7 @@
 package pr
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -33,15 +34,15 @@ func NewBranchManagerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *BranchM
 // PrepareSourceBranch sets up the branch that will be used as the source for the PR.
 // If auto_branch is enabled, it creates a new branch with a timestamp.
 // Otherwise, it uses the specified PR branch.
-func (bm *BranchManager) PrepareSourceBranch() (string, error) {
+func (bm *BranchManager) PrepareSourceBranch(ctx context.Context) (string, error) {
 	if bm.config.AutoBranch {
-		return bm.createAutoBranch()
+		return bm.createAutoBranch(ctx)
 	}
 	return bm.checkoutExistingBranch()
 }
 
 // createAutoBranch creates a new branch with a timestamp and commits changes to it.
-func (bm *BranchManager) createAutoBranch() (string, error) {
+func (bm *BranchManager) createAutoBranch(ctx context.Context) (string, error) {
 	sourceBranch := fmt.Sprintf("update-files-%s", time.Now().Format(timestampFormat))
 	bm.config.PRBranch = sourceBranch
 
@@ -54,8 +55,10 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 		return "", err
 	}
 
-	if err := shared.CommitAndPush(bm.runner, bm.config.CommitMessage, sourceBranch,
-		shared.CommitPushOptions{SetUpstream: true}); err != nil {
+	if err := shared.CommitAndPush(ctx, bm.runner, bm.config.CommitMessage, sourceBranch, shared.CommitPushOptions{
+		SetUpstream:  true,
+		PushAttempts: bm.config.RetryCount,
+	}); err != nil {
 		return "", err
 	}
 

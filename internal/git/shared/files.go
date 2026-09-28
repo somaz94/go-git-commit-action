@@ -1,11 +1,22 @@
 package shared
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
+
+// ErrPushAfterCommit reports a push that still failed after its commit
+// succeeded. The work then lives only in the local HEAD, so callers must not
+// rerun the commit step: a rerun finds a clean tree and reports success.
+var ErrPushAfterCommit = errors.New("failed to push")
+
+// pushRetryDelay is the linear backoff unit between push attempts.
+var pushRetryDelay = time.Second
 
 // RunStep executes a single command with the standard
 // "  - <desc>... " → "Done" / "FAILED" progress feedback used across the
@@ -49,6 +60,9 @@ type CommitPushOptions struct {
 	// exit code 1) as success and skips the push, instead of failing. Used on
 	// the direct-commit path where an empty commit must not abort the action.
 	TolerateNothingToCommit bool
+	// PushAttempts is how many times the push is tried after a successful
+	// commit; values below 1 mean a single attempt.
+	PushAttempts int
 }
 
 // isNothingToCommitExit reports whether err is a "git commit" exit-code-1
@@ -59,8 +73,9 @@ func isNothingToCommitExit(err error) bool {
 }
 
 // CommitAndPush commits the staged changes and pushes them to the remote branch.
-// Behavior is controlled by opts (upstream tracking and empty-commit tolerance).
-func CommitAndPush(r gitcmd.Runner, commitMessage, branch string, opts CommitPushOptions) error {
+// Behavior is controlled by opts (upstream tracking, empty-commit tolerance and
+// push attempts). A push that never succeeds returns ErrPushAfterCommit.
+func CommitAndPush(ctx context.Context, r gitcmd.Runner, commitMessage, branch string, opts CommitPushOptions) error {
 	fmt.Printf("  - Committing changes... ")
 	if err := r.Run(gitcmd.CmdGit, gitcmd.CommitArgs(commitMessage)...); err != nil {
 		if opts.TolerateNothingToCommit && isNothingToCommitExit(err) {
@@ -78,11 +93,26 @@ func CommitAndPush(r gitcmd.Runner, commitMessage, branch string, opts CommitPus
 	if opts.SetUpstream {
 		pushArgs = gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, branch)
 	}
-	if err := RunStep(r, "Pushing changes", gitcmd.CmdGit, pushArgs...); err != nil {
-		return fmt.Errorf("failed to push: %w", err)
-	}
+	return pushWithRetry(ctx, r, pushArgs, opts.PushAttempts)
+}
 
-	return nil
+// pushWithRetry runs the push up to attempts times with linear backoff,
+// honoring ctx while it waits.
+func pushWithRetry(ctx context.Context, r gitcmd.Runner, pushArgs []string, attempts int) error {
+	var err error
+	for i := range max(attempts, 1) {
+		if i > 0 {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("%w: %w", ErrPushAfterCommit, ctx.Err())
+			case <-time.After(pushRetryDelay * time.Duration(i)):
+			}
+		}
+		if err = RunStep(r, "Pushing changes", gitcmd.CmdGit, pushArgs...); err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: %w", ErrPushAfterCommit, err)
 }
 
 // CurrentCommitSHA retrieves the current HEAD commit SHA.

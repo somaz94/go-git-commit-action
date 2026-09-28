@@ -2,10 +2,13 @@ package git
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
+	"github.com/somaz94/go-git-commit-action/internal/git/shared"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 	"github.com/somaz94/go-git-commit-action/internal/output"
 )
@@ -409,7 +412,7 @@ func TestCommitChanges_StagesCommitsPushesAndRecordsSHA(t *testing.T) {
 		Stub(key(gitcmd.RevParseArgs("HEAD")), gitcmd.FakeResult{Stdout: "cafebabe\n"})
 	result := output.NewResult()
 
-	if err := commitChanges(f, cfg, result); err != nil {
+	if err := commitChanges(context.Background(), f, cfg, result); err != nil {
 		t.Fatalf("commitChanges() error = %v, want nil", err)
 	}
 
@@ -429,7 +432,7 @@ func TestCommitChanges_StageFailureAborts(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.AddArgs(".")), gitcmd.FakeResult{Err: gitcmd.Fail(128)})
 
-	if err := commitChanges(f, baseConfig(), output.NewResult()); err == nil {
+	if err := commitChanges(context.Background(), f, baseConfig(), output.NewResult()); err == nil {
 		t.Fatal("commitChanges() error = nil, want the staging failure")
 	}
 	if f.Ran(key(gitcmd.CommitArgs("chore: auto commit"))) {
@@ -509,5 +512,111 @@ func TestRunGitCommitWithRunner_CancelledContext(t *testing.T) {
 	err := RunGitCommitWithRunner(ctx, gitcmd.NewFakeRunner(), baseConfig(), output.NewResult())
 	if err == nil {
 		t.Fatal("RunGitCommitWithRunner() error = nil, want the cancelled context to abort")
+	}
+}
+
+// pushingRepo is a stateful fake: the tree is dirty until the first commit,
+// a second commit finds nothing to commit, and the first pushFailures pushes fail.
+func pushingRepo(cfg *config.GitConfig, pushFailures int) (*gitcmd.FakeRunner, *int) {
+	committed, n := false, 0
+	f := gitcmd.NewFakeRunner()
+	f.Handler = func(_ string, args []string) (string, error) {
+		switch key(args) {
+		case key(gitcmd.StatusPorcelainArgs()):
+			if committed {
+				return "", nil
+			}
+			return " M a.txt\n", nil
+		case key(gitcmd.CommitArgs(cfg.CommitMessage)):
+			if committed {
+				return "", gitcmd.Fail(1)
+			}
+			committed = true
+		case key(gitcmd.PushArgs(gitcmd.RefOrigin, cfg.Branch)):
+			n++
+			if n <= pushFailures {
+				return "", gitcmd.Fail(128)
+			}
+		case key(gitcmd.RevParseArgs("HEAD")):
+			return "abc1234\n", nil
+		}
+		return "", nil
+	}
+	return f, &n
+}
+
+// Regression: a transient push failure after a successful commit used to rerun
+// the workflow on a clean tree, which skipped (skip_if_empty) or committed
+// nothing and skipped the push, reporting success for a commit never pushed.
+func TestRunGitCommitWithRunner_TransientPushFailurePublishesCommit(t *testing.T) {
+	tests := []struct {
+		name        string
+		skipIfEmpty bool
+	}{
+		{"skip_if_empty", true},
+		{"no skip", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.SkipIfEmpty = tt.skipIfEmpty
+			cfg.RetryCount = 2
+			f, pushes := pushingRepo(cfg, 1)
+			result := output.NewResult()
+
+			if err := RunGitCommitWithRunner(context.Background(), f, cfg, result); err != nil {
+				t.Fatalf("RunGitCommitWithRunner() error = %v, want the retried push to succeed", err)
+			}
+			if *pushes != 2 {
+				t.Errorf("push attempts = %d, want 2 (one failure, one success)", *pushes)
+			}
+			for k, want := range map[string]string{
+				output.KeySkipped:      "false",
+				output.KeyChangedFiles: "1",
+				output.KeyCommitSHA:    "abc1234",
+			} {
+				if got := result.Get(k); got != want {
+					t.Errorf("%s output = %q, want %q", k, got, want)
+				}
+			}
+		})
+	}
+}
+
+// A push that keeps failing must fail the action without rerunning the workflow.
+func TestRunGitCommitWithRunner_PersistentPushFailureFails(t *testing.T) {
+	cfg := baseConfig()
+	cfg.RetryCount = 2
+	f, pushes := pushingRepo(cfg, 99)
+
+	err := RunGitCommitWithRunner(context.Background(), f, cfg, output.NewResult())
+	if !errors.Is(err, shared.ErrPushAfterCommit) {
+		t.Fatalf("RunGitCommitWithRunner() error = %v, want ErrPushAfterCommit", err)
+	}
+	if *pushes != 2 {
+		t.Errorf("push attempts = %d, want %d", *pushes, cfg.RetryCount)
+	}
+	setups := 0
+	for _, k := range f.Keys() {
+		if k == key(gitcmd.ConfigListArgs()) {
+			setups++
+		}
+	}
+	if setups != 1 {
+		t.Errorf("workflow ran %d times, want 1 (no rerun over the unpushed commit)", setups)
+	}
+}
+
+func TestWithRetry_StopsOnPushAfterCommit(t *testing.T) {
+	calls := 0
+	err := withRetry(context.Background(), 3, func() error {
+		calls++
+		return fmt.Errorf("commit: %w", shared.ErrPushAfterCommit)
+	})
+	if !errors.Is(err, shared.ErrPushAfterCommit) {
+		t.Fatalf("withRetry() error = %v, want ErrPushAfterCommit", err)
+	}
+	if calls != 1 {
+		t.Errorf("operation calls = %d, want 1", calls)
 	}
 }

@@ -1,8 +1,11 @@
 package shared
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
 )
@@ -90,7 +93,7 @@ func TestStageFiles_NoPatternsIssuesNoCommands(t *testing.T) {
 func TestCommitAndPush_CommitThenPush(t *testing.T) {
 	f := gitcmd.NewFakeRunner()
 
-	if err := CommitAndPush(f, "chore: msg", "main", CommitPushOptions{}); err != nil {
+	if err := CommitAndPush(context.Background(), f, "chore: msg", "main", CommitPushOptions{}); err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want nil", err)
 	}
 
@@ -112,7 +115,7 @@ func TestCommitAndPush_CommitThenPush(t *testing.T) {
 func TestCommitAndPush_SetUpstream(t *testing.T) {
 	f := gitcmd.NewFakeRunner()
 
-	if err := CommitAndPush(f, "msg", "feature", CommitPushOptions{SetUpstream: true}); err != nil {
+	if err := CommitAndPush(context.Background(), f, "msg", "feature", CommitPushOptions{SetUpstream: true}); err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want nil", err)
 	}
 
@@ -129,7 +132,7 @@ func TestCommitAndPush_TolerateNothingToCommit(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
 
-	err := CommitAndPush(f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true})
+	err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true})
 	if err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want the empty commit tolerated", err)
 	}
@@ -145,7 +148,7 @@ func TestCommitAndPush_EmptyCommitSkipsAFailingPush(t *testing.T) {
 		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)}).
 		Stub(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
 
-	if err := CommitAndPush(f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
+	if err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want the rejected push never to be attempted", err)
 	}
 }
@@ -155,7 +158,7 @@ func TestCommitAndPush_EmptyCommitSkipsUpstreamPush(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
 
-	if err := CommitAndPush(f, "msg", "feature", CommitPushOptions{
+	if err := CommitAndPush(context.Background(), f, "msg", "feature", CommitPushOptions{
 		SetUpstream: true, TolerateNothingToCommit: true,
 	}); err != nil {
 		t.Fatalf("CommitAndPush() error = %v, want nil", err)
@@ -169,7 +172,7 @@ func TestCommitAndPush_EmptyCommitFailsWhenNotTolerated(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
 
-	err := CommitAndPush(f, "msg", "main", CommitPushOptions{})
+	err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{})
 	if err == nil {
 		t.Fatal("CommitAndPush() error = nil, want the commit failure")
 	}
@@ -184,7 +187,7 @@ func TestCommitAndPush_OtherExitCodeNotTolerated(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.CommitArgs("msg")), gitcmd.FakeResult{Err: gitcmd.Fail(128)})
 
-	err := CommitAndPush(f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true})
+	err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{TolerateNothingToCommit: true})
 	if err == nil {
 		t.Fatal("CommitAndPush() error = nil, want exit 128 to stay fatal")
 	}
@@ -194,12 +197,98 @@ func TestCommitAndPush_PushFailure(t *testing.T) {
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
 
-	err := CommitAndPush(f, "msg", "main", CommitPushOptions{})
+	err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{})
 	if err == nil {
 		t.Fatal("CommitAndPush() error = nil, want the push failure")
 	}
 	if !strings.Contains(err.Error(), "push") {
 		t.Errorf("error = %q, want it to mention the push", err.Error())
+	}
+	if !errors.Is(err, ErrPushAfterCommit) {
+		t.Errorf("error = %v, want it to wrap ErrPushAfterCommit", err)
+	}
+}
+
+// noPushDelay removes the push backoff for the duration of the test.
+func noPushDelay(t *testing.T) {
+	t.Helper()
+	prev := pushRetryDelay
+	pushRetryDelay = 0
+	t.Cleanup(func() { pushRetryDelay = prev })
+}
+
+// countKey reports how many recorded calls match key.
+func countKey(f *gitcmd.FakeRunner, key string) int {
+	n := 0
+	for _, k := range f.Keys() {
+		if k == key {
+			n++
+		}
+	}
+	return n
+}
+
+// Only the push is retried; the commit it publishes must run exactly once.
+func TestCommitAndPush_RetriesOnlyThePush(t *testing.T) {
+	noPushDelay(t)
+	tests := []struct {
+		name       string
+		failures   int
+		attempts   int
+		wantErr    bool
+		wantPushes int
+	}{
+		{"transient failure recovers", 1, 3, false, 2},
+		{"attempts exhausted", 5, 3, true, 3},
+		{"zero attempts still pushes once", 0, 0, false, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pushes := 0
+			f := gitcmd.NewFakeRunner()
+			f.Handler = func(_ string, args []string) (string, error) {
+				if args[0] != gitcmd.SubCmdPush {
+					return "", nil
+				}
+				pushes++
+				if pushes <= tt.failures {
+					return "", gitcmd.Fail(1)
+				}
+				return "", nil
+			}
+
+			err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{PushAttempts: tt.attempts})
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("CommitAndPush() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if tt.wantErr && !errors.Is(err, ErrPushAfterCommit) {
+				t.Errorf("error = %v, want it to wrap ErrPushAfterCommit", err)
+			}
+			if pushes != tt.wantPushes {
+				t.Errorf("push attempts = %d, want %d", pushes, tt.wantPushes)
+			}
+			if n := countKey(f, key(gitcmd.CommitArgs("msg"))); n != 1 {
+				t.Errorf("commit ran %d times, want 1", n)
+			}
+		})
+	}
+}
+
+func TestCommitAndPush_CancelledDuringPushBackoff(t *testing.T) {
+	prev := pushRetryDelay
+	pushRetryDelay = time.Hour
+	t.Cleanup(func() { pushRetryDelay = prev })
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	f := gitcmd.NewFakeRunner().
+		Stub(key(gitcmd.PushArgs(gitcmd.RefOrigin, "main")), gitcmd.FakeResult{Err: gitcmd.Fail(1)})
+
+	err := CommitAndPush(ctx, f, "msg", "main", CommitPushOptions{PushAttempts: 3})
+	if !errors.Is(err, context.Canceled) || !errors.Is(err, ErrPushAfterCommit) {
+		t.Fatalf("CommitAndPush() error = %v, want context.Canceled wrapped in ErrPushAfterCommit", err)
+	}
+	if n := countKey(f, key(gitcmd.PushArgs(gitcmd.RefOrigin, "main"))); n != 1 {
+		t.Errorf("push attempts = %d, want 1 before the cancelled backoff", n)
 	}
 }
 

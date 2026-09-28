@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -33,6 +34,7 @@ type FileBackup struct {
 // withRetry provides retry logic for operations that might fail transiently.
 // It executes the given operation repeatedly until it succeeds or the maximum
 // number of retries is reached. The delay between retries increases linearly.
+// An ErrPushAfterCommit is returned at once, without a rerun.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
@@ -41,6 +43,11 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 			return ctx.Err()
 		default:
 			if err := operation(); err != nil {
+				// The push was already retried in place; a rerun would skip the
+				// unpushed commit and succeed.
+				if stderrors.Is(err, shared.ErrPushAfterCommit) {
+					return err
+				}
 				lastErr = err
 				// Honor context cancellation during backoff instead of
 				// blocking for the full linear delay.
@@ -130,7 +137,7 @@ func executeGitCommitWorkflow(ctx context.Context, r gitcmd.Runner, config *conf
 		return handlePullRequestFlow(ctx, r, config, result)
 	}
 
-	return commitChanges(r, config, result)
+	return commitChanges(ctx, r, config, result)
 }
 
 // printDebugInfo outputs debug information about the current environment.
@@ -467,7 +474,7 @@ func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.
 	} else {
 		// In dry run mode, skip actual commit/push since we only simulate PR creation
 		if !config.PRDryRun {
-			if err := commitChanges(r, config, result); err != nil {
+			if err := commitChanges(ctx, r, config, result); err != nil {
 				return err
 			}
 		}
@@ -480,14 +487,16 @@ func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.
 }
 
 // commitChanges stages, commits, and pushes the specified files.
-func commitChanges(r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
+func commitChanges(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
 	if err := StageFiles(r, config.FilePattern); err != nil {
 		return err
 	}
 
 	// Existing tracked branch (no upstream flag); an empty commit skips the push instead of failing.
-	if err := shared.CommitAndPush(r, config.CommitMessage, config.Branch,
-		shared.CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
+	if err := shared.CommitAndPush(ctx, r, config.CommitMessage, config.Branch, shared.CommitPushOptions{
+		TolerateNothingToCommit: true,
+		PushAttempts:            config.RetryCount,
+	}); err != nil {
 		return err
 	}
 
