@@ -48,7 +48,6 @@ jobs:
           tag_name: test1-${{ github.run_id }}
           tag_message: test1 ${{ github.run_id }}
           tag_reference: v1.0.1
-          # pr_labels: "test,automated,tag-reference-test"
           github_token: ${{ secrets.PAT_TOKEN }}
 
       - name: Confirm Tag Reference
@@ -159,7 +158,6 @@ jobs:
           fi
           echo "PASS: skip output verified"
 
-      # Verify skip does not happen when changes exist
       - name: Create Test File
         run: |
           echo "$(date +%s)-$RANDOM" > test/skip-test.txt

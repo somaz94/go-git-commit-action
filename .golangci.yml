@@ -4,10 +4,8 @@ run:
   timeout: 5m
   allow-parallel-runners: true
 
-# Only linters that report a real defect are enabled. Style-and-taste checks
-# (goconst, dupl, lll, gocyclo, prealloc) are deliberately left off: on these
-# repos they produce hundreds of findings and not one of them is a bug, which
-# would leave `make lint` permanently red and therefore ignored.
+# Defect-finding linters only: style checks (goconst, dupl, lll, gocyclo,
+# prealloc) flag hundreds of non-bugs, and a lint that is never green gets ignored.
 linters:
   default: none
   enable:
@@ -34,10 +32,8 @@ linters:
         text: "QF[0-9]+"
   settings:
     errcheck:
-      # Writing a report to stdout is the one place a failed write is neither
-      # actionable nor worth branching on; a broken pipe already ends the
-      # process. Errors from anything that can genuinely fail — marshalling,
-      # file and network writes — stay checked.
+      # Meant for stdout reports, but it matches by name: fmt.Fprint* to a file
+      # is silenced too, so check those errors by hand.
       exclude-functions:
         - fmt.Fprint
         - fmt.Fprintf

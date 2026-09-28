@@ -10,10 +10,8 @@ permissions:
 jobs:
   semantic-pr:
     uses: somaz94/.github/.github/workflows/semantic-pr-reusable.yml@main
-    # Skip this repo's own E2E self-test PRs — the `test` fixture branch and the
-    # auto-generated `update-files-*` branches opened by use-action.yml — whose
-    # titles are intentionally non-conventional. The prefix matching lives in the
-    # reusable; real contributor PRs (any other head branch) still get validated.
+    # The CI self-test PRs come from these branches and carry non-conventional
+    # titles on purpose; PRs from any other head branch are still validated.
     with:
       skip-head-ref-prefixes: |
         test
