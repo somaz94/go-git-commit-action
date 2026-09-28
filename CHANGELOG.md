@@ -2,6 +2,46 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.9.1](https://github.com/somaz94/go-git-commit-action/compare/v1.9.0...v1.9.1) (2026-09-28)
+
+### Bug Fixes
+
+- retry a failed push in place instead of rerunning the committed workflow ([d6e4a8a](https://github.com/somaz94/go-git-commit-action/commit/d6e4a8a5cc9ea426358153b30a350d058908ea0b))
+- scope the existing-PR lookup to the repository owner ([37c0744](https://github.com/somaz94/go-git-commit-action/commit/37c0744ac158faf00ba5516ace05616dc59dd15b))
+
+### Code Refactoring
+
+- correct stale comments in config, gitcmd and github client ([da6a4de](https://github.com/somaz94/go-git-commit-action/commit/da6a4de1a1a73629412c9ced283ac9df3a009a34))
+- correct stale comments and drop step narration in internal/git ([e898de2](https://github.com/somaz94/go-git-commit-action/commit/e898de2aa83f58856ec6b0f4a7ce87b5b98b0464))
+
+### Tests
+
+- correct stale comments and drop narration in Go tests ([d85843e](https://github.com/somaz94/go-git-commit-action/commit/d85843eb34e60120dd9d798b9b5c775f5eaf5c49))
+
+### Builds
+
+- **deps:** bump golang in the docker-minor group (#506) ([#506](https://github.com/somaz94/go-git-commit-action/pull/506)) ([b0382e9](https://github.com/somaz94/go-git-commit-action/commit/b0382e910fb200110bb96865fe304de2124c652d))
+
+### Continuous Integration
+
+- correct stale comments in lint, Docker and workflow config ([5721059](https://github.com/somaz94/go-git-commit-action/commit/57210590ac2c349c52a2910c201831e8d535cb40))
+- trim the image-seeding comments in action.yml and the smoke test ([23db8c0](https://github.com/somaz94/go-git-commit-action/commit/23db8c0c747773ad92de8b235ab5dbaac92f95d7))
+- trim redundant comments in gitlab-mirror workflow ([87bcad3](https://github.com/somaz94/go-git-commit-action/commit/87bcad3d7c2b91ce8d5a63f78f458ee38bb9314a))
+- correct the image-seeding comment in the release workflow ([9292df5](https://github.com/somaz94/go-git-commit-action/commit/9292df5bb21f96f44b5dc0ef9639a6da4c5f6b88))
+- retry mirror pushes on transient remote failures ([60aa576](https://github.com/somaz94/go-git-commit-action/commit/60aa576162f656655df46f94ab430647a33aa998))
+- drop the dead issue-close trigger from changelog generation ([48efa04](https://github.com/somaz94/go-git-commit-action/commit/48efa04aa06fc6d0df795ae1c9354c5dbce033dc))
+- skip release-triggered runs on the image-seeding dispatch ([2ec1b25](https://github.com/somaz94/go-git-commit-action/commit/2ec1b25e1f8763a7e6689b3d0babe9e955a314a5))
+
+### Chores
+
+- bump the action image to v1.9.1 ([970b614](https://github.com/somaz94/go-git-commit-action/commit/970b614d27dac03aa38e94dd7191e48ff7f66c97))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.0](https://github.com/somaz94/go-git-commit-action/compare/v1.8.2...v1.9.0) (2026-08-07)
 
 ### Performance Improvements
