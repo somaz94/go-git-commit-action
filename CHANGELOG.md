@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.9.2](https://github.com/somaz94/go-git-commit-action/compare/v1.9.1...v1.9.2) (2026-09-28)
+
+### Bug Fixes
+
+- run retry_count 0 once and skip the backoff after the last attempt ([d623d49](https://github.com/somaz94/go-git-commit-action/commit/d623d490d5c3bfabcba4e3aa7540ce583a004746))
+- retry pull request steps in place instead of rerunning the pushed workflow ([809ec9e](https://github.com/somaz94/go-git-commit-action/commit/809ec9ec88c9856bbfc15e0a2f90a10a74905640))
+
+### Chores
+
+- bump the action image to v1.9.2 ([4e75233](https://github.com/somaz94/go-git-commit-action/commit/4e752336d7ed338af6a33908f3758539f51aeb82))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.1](https://github.com/somaz94/go-git-commit-action/compare/v1.9.0...v1.9.1) (2026-09-28)
 
 ### Bug Fixes
