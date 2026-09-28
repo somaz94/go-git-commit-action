@@ -129,20 +129,11 @@ outputs:
 
 runs:
   using: 'docker'
-  # A prebuilt image rather than `Dockerfile`. With `Dockerfile`, every consumer
-  # workflow builds this image before the action can start — measured at 31s per
-  # run. Pulling costs a few seconds.
-  #
-  # The Dockerfile is still the source this image is built from, and ci.yml
-  # keeps building it on every pull request, so the build path cannot rot.
-  #
-  # Two things this trades away, both deliberate:
-  #   1. The tag must not be pushed before the image exists. release.yml
-  #      publishes the image in a job the release job depends on, and the very
-  #      first version is seeded by hand via its workflow_dispatch.
-  #   2. `Dockerfile` built for whatever architecture the runner was; a registry
-  #      reference resolves only to what was pushed. The image is published
-  #      linux/amd64 + linux/arm64 so arm64 runners keep working.
+  # Decided 2026-08-07: pull a prebuilt image (built from Dockerfile, which
+  # ci.yml still builds on every PR) instead of building one per consumer run
+  # (~31s). Subtle: this version's image must be published (release.yml
+  # workflow_dispatch) before its git tag is pushed, and a runner can pull only
+  # the pushed platforms (linux/amd64, linux/arm64).
   image: docker://ghcr.io/somaz94/go-git-commit-action:v1.9.0
   env:
     USER_EMAIL: ${{ inputs.user_email }}
