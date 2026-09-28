@@ -46,7 +46,7 @@ type CommitPushOptions struct {
 	// (used when pushing a freshly created branch).
 	SetUpstream bool
 	// TolerateNothingToCommit treats a "nothing to commit" result (git commit
-	// exit code 1) as success and proceeds to push, instead of failing. Used on
+	// exit code 1) as success and skips the push, instead of failing. Used on
 	// the direct-commit path where an empty commit must not abort the action.
 	TolerateNothingToCommit bool
 }
@@ -61,15 +61,11 @@ func isNothingToCommitExit(err error) bool {
 // CommitAndPush commits the staged changes and pushes them to the remote branch.
 // Behavior is controlled by opts (upstream tracking and empty-commit tolerance).
 func CommitAndPush(r gitcmd.Runner, commitMessage, branch string, opts CommitPushOptions) error {
-	// Commit
 	fmt.Printf("  - Committing changes... ")
 	if err := r.Run(gitcmd.CmdGit, gitcmd.CommitArgs(commitMessage)...); err != nil {
 		if opts.TolerateNothingToCommit && isNothingToCommitExit(err) {
-			// Nothing was committed, so this run has nothing to publish and the
-			// push is skipped. Pushing anyway would fail for reasons unrelated
-			// to the requested work — most visibly when the local branch is
-			// behind its remote, where git rejects the push as non-fast-forward
-			// and takes the whole action down with it.
+			// Decided 2026-08-04 (43ff9a2): nothing committed means nothing to publish;
+			// pushing anyway fails a behind-remote branch as non-fast-forward.
 			fmt.Println("[WARN] Nothing to commit, skipping commit and push...")
 			return nil
 		}
@@ -78,7 +74,6 @@ func CommitAndPush(r gitcmd.Runner, commitMessage, branch string, opts CommitPus
 	}
 	fmt.Println("Done")
 
-	// Push
 	pushArgs := gitcmd.PushArgs(gitcmd.RefOrigin, branch)
 	if opts.SetUpstream {
 		pushArgs = gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, branch)

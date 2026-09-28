@@ -39,12 +39,10 @@ func (tm *TagManager) HandleGitTag(ctx context.Context, result *output.Result) e
 	return withRetry(ctx, tm.config.RetryCount, func() error {
 		fmt.Println("\nHandling Git Tag:")
 
-		// Fetch all tags to ensure we're working with the latest data
 		if err := tm.fetchTags(); err != nil {
 			return err
 		}
 
-		// Either delete or create a tag based on the configuration
 		if tm.config.DeleteTag {
 			return tm.deleteTag()
 		}
@@ -84,19 +82,15 @@ func (tm *TagManager) deleteTag() error {
 // createTag creates a new Git tag and pushes it to the remote repository.
 // The tag can point to a specific commit if tag_reference is provided.
 func (tm *TagManager) createTag() error {
-	// Determine the commit to tag
 	targetCommit, err := tm.resolveTargetCommit()
 	if err != nil {
 		return err
 	}
 
-	// Build the tag command arguments
 	tagArgs := tm.buildTagArgs(targetCommit)
 
-	// Create a human-readable description of the operation
 	desc := tm.buildTagDescription(targetCommit)
 
-	// Execute the tag creation and push commands
 	commands := []Command{
 		{gitcmd.CmdGit, tagArgs, desc},
 		{gitcmd.CmdGit, gitcmd.PushTagArgs(tm.config.TagName, true), "Pushing tag to remote"},
@@ -108,7 +102,6 @@ func (tm *TagManager) createTag() error {
 // resolveTargetCommit determines the exact commit that will be tagged.
 // If tag_reference is not provided, it returns an empty string to tag the current commit.
 func (tm *TagManager) resolveTargetCommit() (string, error) {
-	// If no reference is specified, tag the current commit
 	if tm.config.TagReference == "" {
 		return "", nil
 	}
@@ -122,7 +115,7 @@ func (tm *TagManager) resolveTargetCommit() (string, error) {
 	}
 	fmt.Println("Valid")
 
-	// Get the full commit SHA for the reference
+	// rev-list, not rev-parse: an annotated tag must resolve to its commit, not the tag object.
 	fmt.Printf("  - Resolving commit for '%s'... ", tm.config.TagReference)
 	output, err := tm.runner.Output(gitcmd.CmdGit, gitcmd.RevListArgs(tm.config.TagReference)...)
 	if err != nil {
@@ -156,15 +149,12 @@ func shortenCommitSHA(sha string) string {
 // buildTagArgs constructs the arguments for the git tag command.
 // It handles different combinations of tag options based on the configuration.
 func (tm *TagManager) buildTagArgs(targetCommit string) []string {
-	// If we have a message, create an annotated tag
 	if tm.config.TagMessage != "" {
 		args := gitcmd.TagCreateAnnotatedArgs(tm.config.TagName, tm.config.TagMessage, true)
 		// Insert target commit if specified (before the message)
 		if targetCommit != "" {
-			// Find the position of -m flag and insert commit before it
 			for i, arg := range args {
 				if arg == gitcmd.OptMessage {
-					// Insert targetCommit before -m
 					result := make([]string, 0, len(args)+1)
 					result = append(result, args[:i]...)
 					result = append(result, targetCommit)
@@ -189,7 +179,6 @@ func (tm *TagManager) buildTagArgs(targetCommit string) []string {
 func (tm *TagManager) buildTagDescription(targetCommit string) string {
 	desc := "Creating local tag " + tm.config.TagName
 
-	// Add information about the target commit if available
 	if tm.config.TagReference != "" && targetCommit != "" {
 		if targetCommit != tm.config.TagReference {
 			desc += fmt.Sprintf(" pointing to %s (%s)", tm.config.TagReference, shortenCommitSHA(targetCommit))

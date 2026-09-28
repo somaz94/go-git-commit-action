@@ -67,7 +67,6 @@ func RunGitCommit(ctx context.Context, config *config.GitConfig, result *output.
 // Tests use it to drive the full workflow against a fake instead of a real
 // repository; production callers should use RunGitCommit.
 func RunGitCommitWithRunner(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
-	// Save the original working directory to restore before each retry
 	originalDir, err := os.Getwd()
 	if err != nil {
 		return errors.New("get working directory", err)
@@ -78,7 +77,6 @@ func RunGitCommitWithRunner(ctx context.Context, r gitcmd.Runner, config *config
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(config.Timeout)*time.Second)
 	defer cancel()
 
-	// Wrap the entire commit process in retry logic
 	return withRetry(ctx, config.RetryCount, func() error {
 		// Restore original working directory before each attempt
 		// to prevent relative path issues (e.g., chdir("test") applied twice)
@@ -91,32 +89,26 @@ func RunGitCommitWithRunner(ctx context.Context, r gitcmd.Runner, config *config
 
 // executeGitCommitWorkflow runs all steps of the Git commit process
 func executeGitCommitWorkflow(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
-	// Validate the configuration
 	if err := config.Validate(); err != nil {
 		return err
 	}
 
-	// Print debug information only when debug logging is enabled (INPUT_DEBUG).
 	if config.Debug {
 		printDebugInfo()
 	}
 
-	// Change the working directory
 	if err := changeWorkingDirectory(config); err != nil {
 		return err
 	}
 
-	// Setup Git configuration
 	if err := setupGitConfig(r, config); err != nil {
 		return err
 	}
 
-	// Handle the branch
 	if err := handleBranch(r, config); err != nil {
 		return err
 	}
 
-	// Check for changes
 	isEmpty, err := checkIfEmpty(r, config)
 	if err != nil {
 		return err
@@ -131,11 +123,9 @@ func executeGitCommitWorkflow(ctx context.Context, r gitcmd.Runner, config *conf
 
 	result.Set(output.KeySkipped, "false")
 
-	// Count changed files
 	changedFiles := countChangedFiles(r)
 	result.Set(output.KeyChangedFiles, fmt.Sprintf("%d", changedFiles))
 
-	// Create a PR or commit directly based on configuration
 	if config.CreatePR {
 		return handlePullRequestFlow(ctx, r, config, result)
 	}
@@ -194,12 +184,10 @@ func setupGitConfig(r gitcmd.Runner, config *config.GitConfig) error {
 		return err
 	}
 
-	// Setup git credentials for checkout@v6 compatibility
 	if err := setupGitCredentials(r, config); err != nil {
 		return err
 	}
 
-	// Show final git configuration
 	if err := shared.RunStep(r, "Checking git configuration", gitcmd.CmdGit, gitcmd.ConfigListArgs()...); err != nil {
 		return err
 	}
@@ -207,13 +195,12 @@ func setupGitConfig(r gitcmd.Runner, config *config.GitConfig) error {
 	return nil
 }
 
-// setupGitCredentials configures git credential helper for checkout@v6 compatibility.
+// setupGitCredentials embeds the token in origin's URL for checkout@v6 compatibility.
 // Since checkout@v6 stores credentials in $RUNNER_TEMP which is not accessible in Docker containers,
 // we need to configure the remote URL with the token directly.
 func setupGitCredentials(r gitcmd.Runner, config *config.GitConfig) error {
 	fmt.Printf("  - Configuring git credentials... ")
 
-	// Get GitHub token from environment or config
 	token := os.Getenv("GITHUB_TOKEN")
 	if token == "" && config.GitHubToken != "" {
 		token = config.GitHubToken
@@ -224,7 +211,6 @@ func setupGitCredentials(r gitcmd.Runner, config *config.GitConfig) error {
 		return nil
 	}
 
-	// Get the repository URL from git remote
 	output, err := r.Output(gitcmd.CmdGit, gitcmd.ConfigGetArgs("remote.origin.url")...)
 	if err != nil {
 		fmt.Println("[WARN] Could not get remote URL, skipping")
@@ -233,14 +219,12 @@ func setupGitCredentials(r gitcmd.Runner, config *config.GitConfig) error {
 
 	remoteURL := strings.TrimSpace(string(output))
 
-	// Only process GitHub URLs
 	if !strings.Contains(remoteURL, "github.com") {
 		fmt.Println("[WARN] Not a GitHub repository, skipping")
 		return nil
 	}
 
-	// Replace https:// with https://x-access-token:TOKEN@
-	// This works for both checkout@v4 and checkout@v6
+	// x-access-token URL auth works under both checkout@v4 and checkout@v6.
 	var newURL string
 	if strings.HasPrefix(remoteURL, "https://github.com/") {
 		newURL = strings.Replace(remoteURL, "https://github.com/", fmt.Sprintf("https://x-access-token:%s@github.com/", token), 1)
@@ -249,7 +233,6 @@ func setupGitCredentials(r gitcmd.Runner, config *config.GitConfig) error {
 		return nil
 	}
 
-	// Update the remote URL
 	if err := r.Run(gitcmd.CmdGit, gitcmd.RemoteSetURLArgs(gitcmd.RefOrigin, newURL)...); err != nil {
 		fmt.Println("FAILED")
 		return errors.New("set remote URL", err)
@@ -273,16 +256,13 @@ func handleBranch(r gitcmd.Runner, config *config.GitConfig) error {
 	remoteRefs, remoteErr := r.Output(gitcmd.CmdGit, gitcmd.LsRemoteHeadsArgs(gitcmd.RefOrigin, config.Branch)...)
 	remoteBranchExists := remoteErr == nil && len(strings.TrimSpace(string(remoteRefs))) > 0
 
-	// Determine the appropriate action based on branch existence
 	if !localBranchExists && !remoteBranchExists {
-		// Neither local nor remote branch exists, create a new one
 		return createNewBranch(r, config)
 	} else if !localBranchExists && remoteBranchExists {
-		// Only remote branch exists, check it out
 		return checkoutRemoteBranch(r, config)
 	}
 
-	// Local branch already exists and is checked out, nothing to do
+	// Local branch exists: assumed to be the current checkout; not switched here.
 	return nil
 }
 
@@ -302,29 +282,26 @@ func createNewBranch(r gitcmd.Runner, config *config.GitConfig) error {
 func checkoutRemoteBranch(r gitcmd.Runner, config *config.GitConfig) error {
 	fmt.Printf("\n[WARN] Checking out existing remote branch '%s'...\n", config.Branch)
 
-	// Get the current working directory state
 	statusOutput, err := getGitStatus(r)
 	if err != nil {
 		return err
 	}
 
-	// Backup any modified files
 	backups, err := backupChanges(config, statusOutput)
 	if err != nil {
 		return err
 	}
 
-	// Stash any changes to avoid conflicts during checkout
+	// The stash only clears the tree for checkout and is never popped;
+	// restoreChanges replays the in-memory backup instead.
 	if err := stashChanges(r); err != nil {
 		return err
 	}
 
-	// Fetch and checkout the remote branch
 	if err := fetchAndCheckout(r, config); err != nil {
 		return err
 	}
 
-	// Restore the backed up changes
 	return restoreChanges(backups)
 }
 
@@ -349,11 +326,10 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 			continue
 		}
 
-		// Separate the status code and file path
 		status := line[:2]
 		fullPath := strings.TrimSpace(line[3:])
 
-		// Calculate the relative path based on config.RepoPath
+		// Porcelain paths are repo-root-relative, but cwd is already RepoPath.
 		relPath := fullPath
 		if config.RepoPath != "." {
 			relPath = strings.TrimPrefix(fullPath, config.RepoPath+"/")
@@ -366,7 +342,6 @@ func backupChanges(config *config.GitConfig, statusOutput string) ([]FileBackup,
 			continue
 		}
 
-		// Read and store file contents
 		content, err := os.ReadFile(relPath)
 		if err != nil {
 			fmt.Println("FAILED")
@@ -405,7 +380,6 @@ func restoreChanges(backups []FileBackup) error {
 	fmt.Printf("  - Restoring changes... ")
 
 	for _, backup := range backups {
-		// Create parent directories if they don't exist
 		dir := filepath.Dir(backup.path)
 		if dir != "." {
 			if err := os.MkdirAll(dir, permDir); err != nil {
@@ -414,7 +388,6 @@ func restoreChanges(backups []FileBackup) error {
 			}
 		}
 
-		// Write the file content
 		if err := os.WriteFile(backup.path, backup.content, permFile); err != nil {
 			fmt.Println("FAILED")
 			return errors.NewWithPath("restore file", backup.path, err)
@@ -430,7 +403,6 @@ func restoreChanges(backups []FileBackup) error {
 // Branch differences are logged for informational purposes but do not affect the skip logic,
 // since existing branch differences are about PR content, not about new uncommitted work.
 func checkIfEmpty(r gitcmd.Runner, config *config.GitConfig) (bool, error) {
-	// Get local working directory changes
 	statusOutput, err := r.Output(gitcmd.CmdGit, gitcmd.StatusPorcelainArgs()...)
 	if err != nil {
 		return false, errors.New("check git status", err)
@@ -438,7 +410,6 @@ func checkIfEmpty(r gitcmd.Runner, config *config.GitConfig) (bool, error) {
 
 	hasLocalChanges := len(statusOutput) > 0
 
-	// Check for differences between branches (informational only)
 	var hasBranchDifferences bool
 	diffOutput, err := r.Output(gitcmd.CmdGit, gitcmd.DiffNameOnlyArgs(
 		fmt.Sprintf("origin/%s", config.PRBase),
@@ -451,10 +422,8 @@ func checkIfEmpty(r gitcmd.Runner, config *config.GitConfig) (bool, error) {
 		hasBranchDifferences = len(diffOutput) > 0
 	}
 
-	// Print debug information for better visibility
 	printChangeDetectionInfo(statusOutput, diffOutput, hasLocalChanges, hasBranchDifferences)
 
-	// Skip is determined only by local changes - no new files to commit means empty
 	return !hasLocalChanges && config.SkipIfEmpty, nil
 }
 
@@ -492,20 +461,17 @@ func countChangedFiles(r gitcmd.Runner) int {
 // based on the auto_branch configuration.
 func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
 	if config.AutoBranch {
-		// Auto branch creation and PR creation in one step
 		if err := CreatePullRequest(ctx, r, config, result); err != nil {
 			return errors.New("create pull request with auto branch", err)
 		}
 	} else {
 		// In dry run mode, skip actual commit/push since we only simulate PR creation
 		if !config.PRDryRun {
-			// First commit changes to the specified branch
 			if err := commitChanges(r, config, result); err != nil {
 				return err
 			}
 		}
 
-		// Then create a PR from that branch (or simulate in dry run mode)
 		if err := CreatePullRequest(ctx, r, config, result); err != nil {
 			return errors.New("create pull request", err)
 		}
@@ -515,14 +481,11 @@ func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.
 
 // commitChanges stages, commits, and pushes the specified files.
 func commitChanges(r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
-	// Stage files first
 	if err := StageFiles(r, config.FilePattern); err != nil {
 		return err
 	}
 
-	// Perform commit and push (existing tracked branch — no upstream flag).
-	// TolerateNothingToCommit preserves the prior batch behavior where an empty
-	// commit is a skipped no-op rather than a failure.
+	// Existing tracked branch (no upstream flag); an empty commit skips the push instead of failing.
 	if err := shared.CommitAndPush(r, config.CommitMessage, config.Branch,
 		shared.CommitPushOptions{TolerateNothingToCommit: true}); err != nil {
 		return err

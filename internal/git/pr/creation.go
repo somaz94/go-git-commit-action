@@ -253,7 +253,6 @@ func (c *Creator) handleSuccessfulPR(ctx context.Context, response PRResponse, s
 		}
 	}
 
-	// Delete the source branch if auto-branch and delete-source-branch are enabled
 	if c.config.DeleteSourceBranch && c.config.AutoBranch {
 		branchMgr := NewBranchManagerWithRunner(c.config, c.runner)
 		if err := branchMgr.DeleteSourceBranch(sourceBranch); err != nil {

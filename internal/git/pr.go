@@ -18,20 +18,17 @@ import (
 func CreatePullRequest(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
 	fmt.Println("\nCreating Pull Request:")
 
-	// Step 1: Prepare the source branch
 	branchMgr := pr.NewBranchManagerWithRunner(config, r)
 	sourceBranch, err := branchMgr.PrepareSourceBranch()
 	if err != nil {
 		return err
 	}
 
-	// Step 2: Check for differences between branches
 	diffChecker := pr.NewDiffCheckerWithRunner(config, r)
 	if err := diffChecker.CheckBranchDifferences(); err != nil {
 		return err
 	}
 
-	// Step 3: Create the actual pull request via GitHub API
 	creator := pr.NewCreatorWithRunner(config, r)
 	prResponse, err := creator.CreatePullRequest(ctx)
 	if err != nil {
@@ -43,7 +40,6 @@ func CreatePullRequest(ctx context.Context, r gitcmd.Runner, config *config.GitC
 		result.Set(output.KeyCommitSHA, commitSHA)
 	}
 
-	// Capture PR outputs
 	if prResponse.HTMLURL != "" {
 		result.Set(output.KeyPRURL, prResponse.HTMLURL)
 	}
@@ -51,7 +47,6 @@ func CreatePullRequest(ctx context.Context, r gitcmd.Runner, config *config.GitC
 		result.Set(output.KeyPRNumber, strconv.Itoa(prResponse.Number))
 	}
 
-	// Step 4: Process the PR response (labels, closing, etc.)
 	if err := creator.HandlePRResponse(ctx, prResponse, sourceBranch); err != nil {
 		return err
 	}

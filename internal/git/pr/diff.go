@@ -26,23 +26,20 @@ func NewDiffCheckerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *DiffCheck
 }
 
 // CheckBranchDifferences checks the differences between the PR base branch and the source branch.
-// It also shows the potential PR URL for manual creation if the API fails.
+// It also prints the compare URL for opening the PR by hand.
 func (dc *DiffChecker) CheckBranchDifferences() error {
 	fmt.Printf("\nChanged files between %s and %s:\n", dc.config.PRBase, dc.config.PRBranch)
 
-	// Fetch the latest from both branches
 	branchMgr := NewBranchManagerWithRunner(dc.config, dc.runner)
 	if err := branchMgr.FetchBranches(); err != nil {
 		return err
 	}
 
-	// Display the changed files
 	return dc.displayChangedFiles()
 }
 
 // displayChangedFiles shows the changed files between branches and validates if changes exist.
 func (dc *DiffChecker) displayChangedFiles() error {
-	// Check the changed files
 	filesOutput, err := dc.runner.Output(gitcmd.CmdGit, gitcmd.DiffNameStatusArgs(
 		fmt.Sprintf("origin/%s", dc.config.PRBase),
 		fmt.Sprintf("origin/%s", dc.config.PRBranch),
@@ -61,7 +58,6 @@ func (dc *DiffChecker) displayChangedFiles() error {
 
 	fmt.Printf("%s\n", string(filesOutput))
 
-	// Display the PR URL for manual creation if needed
 	dc.displayPRURL()
 
 	return nil

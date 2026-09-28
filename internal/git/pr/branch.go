@@ -45,18 +45,15 @@ func (bm *BranchManager) createAutoBranch() (string, error) {
 	sourceBranch := fmt.Sprintf("update-files-%s", time.Now().Format(timestampFormat))
 	bm.config.PRBranch = sourceBranch
 
-	// Create and switch to a new branch
 	if err := shared.RunStep(bm.runner, fmt.Sprintf("Creating new branch %s", sourceBranch),
 		gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...); err != nil {
 		return "", fmt.Errorf("failed to create branch: %w", err)
 	}
 
-	// Stage files using shared utility
 	if err := shared.StageFiles(bm.runner, bm.config.FilePattern); err != nil {
 		return "", err
 	}
 
-	// Commit and push using shared utility (new branch — set upstream tracking)
 	if err := shared.CommitAndPush(bm.runner, bm.config.CommitMessage, sourceBranch,
 		shared.CommitPushOptions{SetUpstream: true}); err != nil {
 		return "", err

@@ -27,7 +27,6 @@ func ExecuteCommandBatch(r gitcmd.Runner, commands []Command, headerMessage stri
 		fmt.Printf("  - %s... ", cmd.Desc)
 
 		if err := r.Run(cmd.Name, cmd.Args...); err != nil {
-			// Special handling for "nothing to commit" case
 			if isNothingToCommitError(cmd, err) {
 				fmt.Println("[WARN] Nothing to commit, skipping...")
 				continue
