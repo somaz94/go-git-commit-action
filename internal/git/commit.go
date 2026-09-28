@@ -20,10 +20,10 @@ const (
 	// File and directory permissions
 	permDir  = 0755
 	permFile = 0644
-
-	// Retry configuration
-	retryBaseDelay = time.Second
 )
+
+// retryBaseDelay is the linear backoff unit between attempts.
+var retryBaseDelay = time.Second
 
 // FileBackup is a struct for file backups.
 type FileBackup struct {
@@ -34,7 +34,7 @@ type FileBackup struct {
 // withRetry provides retry logic for operations that might fail transiently.
 // It executes the given operation repeatedly until it succeeds or the maximum
 // number of retries is reached. The delay between retries increases linearly.
-// An ErrPushAfterCommit is returned at once, without a rerun.
+// An ErrPushAfterCommit or errPRStage is returned at once, without a rerun.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	var lastErr error
 	for i := 0; i < maxRetries; i++ {
@@ -43,9 +43,9 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 			return ctx.Err()
 		default:
 			if err := operation(); err != nil {
-				// The push was already retried in place; a rerun would skip the
-				// unpushed commit and succeed.
-				if stderrors.Is(err, shared.ErrPushAfterCommit) {
+				// Both were already retried in place, past a commit: a rerun
+				// finds a clean tree and skips, or cuts a second auto branch.
+				if stderrors.Is(err, shared.ErrPushAfterCommit) || stderrors.Is(err, errPRStage) {
 					return err
 				}
 				lastErr = err

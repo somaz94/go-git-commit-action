@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -104,6 +105,27 @@ func alreadyExists() PRResponse {
 	return PRResponse{
 		Message: "Validation Failed",
 		Errors:  []any{map[string]any{"message": "A pull request already exists for owner:feature."}},
+	}
+}
+
+func TestPRResponse_AlreadyExists(t *testing.T) {
+	tests := []struct {
+		name string
+		resp PRResponse
+		want bool
+	}{
+		{"already exists", alreadyExists(), true},
+		{"other validation error", PRResponse{Message: "Validation Failed",
+			Errors: []any{map[string]any{"message": "No commits between main and feature"}}}, false},
+		{"non-object detail", PRResponse{Errors: []any{"A pull request already exists"}}, false},
+		{"no errors", PRResponse{HTMLURL: "u"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.resp.AlreadyExists(); got != tt.want {
+				t.Errorf("AlreadyExists() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -281,6 +303,43 @@ func TestApplyToPR_RejectedCloseFails(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "Resource not accessible") {
 		t.Errorf("error = %q, want it to carry the API message", err.Error())
+	}
+}
+
+// A retried PR step calls HandlePRResponse again on the same Creator: the
+// label that succeeded is not re-sent, and only the failed close is retried.
+func TestHandlePRResponse_RetrySkipsAppliedFollowUps(t *testing.T) {
+	cfg := prConfig()
+	cfg.PRLabels = []string{"automated"}
+	cfg.PRClosed = true
+	var closes atomic.Int32
+	api := newFakeAPI(t).route("POST /issues/7/labels", http.StatusOK, `[]`)
+	api.routes["PATCH /pulls/7"] = func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "application/json")
+		if closes.Add(1) == 1 {
+			w.WriteHeader(http.StatusBadGateway)
+			_, _ = w.Write([]byte(`{"message":"Bad Gateway"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{}`))
+	}
+	c, _ := newAPICreator(t, cfg, api)
+	resp := PRResponse{HTMLURL: "u", Number: 7, HasNumber: true}
+
+	if err := c.HandlePRResponse(context.Background(), resp, "feature"); err == nil {
+		t.Fatal("HandlePRResponse() error = nil, want the first close to fail")
+	}
+	if err := c.HandlePRResponse(context.Background(), resp, "feature"); err != nil {
+		t.Fatalf("HandlePRResponse() error = %v, want the retried close to succeed", err)
+	}
+	labels := 0
+	for _, call := range api.Calls() {
+		if call.Method+" "+call.Path == "POST /issues/7/labels" {
+			labels++
+		}
+	}
+	if labels != 1 || closes.Load() != 2 {
+		t.Errorf("label calls = %d, close calls = %d, want 1 and 2", labels, closes.Load())
 	}
 }
 

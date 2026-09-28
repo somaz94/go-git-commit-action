@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
@@ -19,6 +20,9 @@ type Creator struct {
 	config *config.GitConfig
 	client *github.Client
 	runner gitcmd.Runner
+	// applied holds the follow-up calls that succeeded, so a retried PR step
+	// resumes at the one that failed instead of acting on a PR it closed.
+	applied map[string]bool
 }
 
 // NewCreator creates a new Creator instance.
@@ -37,9 +41,10 @@ func NewCreatorWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *Creator {
 // drive the PR paths against an httptest server.
 func NewCreatorWithClient(cfg *config.GitConfig, r gitcmd.Runner, client *github.Client) *Creator {
 	return &Creator{
-		config: cfg,
-		client: client,
-		runner: r,
+		config:  cfg,
+		client:  client,
+		runner:  r,
+		applied: make(map[string]bool),
 	}
 }
 
@@ -226,8 +231,7 @@ func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, 
 			if errMap, ok := err.(map[string]any); ok {
 				fmt.Printf("  - %v\n", errMap)
 
-				if message, ok := errMap["message"].(string); ok &&
-					strings.Contains(message, "A pull request already exists") {
+				if isAlreadyExists(errMap) {
 					return c.handleExistingPR(ctx)
 				}
 			}
@@ -235,6 +239,20 @@ func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, 
 	}
 
 	return errors.NewAPIError("create PR", errMsg)
+}
+
+// AlreadyExists reports GitHub's 422 for a head that already has an open PR.
+func (r PRResponse) AlreadyExists() bool {
+	return slices.ContainsFunc(r.Errors, isAlreadyExists)
+}
+
+func isAlreadyExists(detail any) bool {
+	errMap, ok := detail.(map[string]any)
+	if !ok {
+		return false
+	}
+	message, _ := errMap["message"].(string)
+	return strings.Contains(message, "A pull request already exists")
 }
 
 // handleSuccessfulPR processes a successful PR creation response.
@@ -358,6 +376,11 @@ func (c *Creator) applyToPR(
 		return nil
 	}
 
+	op := apiErrOp + " " + endpoint
+	if c.applied[op] {
+		return nil
+	}
+
 	fmt.Printf("  - %s... ", progress)
 	resp, err := call(ctx, endpoint, payload)
 	if err != nil {
@@ -375,6 +398,7 @@ func (c *Creator) applyToPR(
 	}
 
 	fmt.Println("Done")
+	c.applied[op] = true
 	return nil
 }
 
