@@ -19,7 +19,7 @@ type Runner interface {
 	Run(name string, args ...string) error
 
 	// Output executes the command and returns its stdout. Stderr is not
-	// captured, matching the semantics of exec.Cmd.Output.
+	// returned, matching the semantics of exec.Cmd.Output.
 	Output(name string, args ...string) ([]byte, error)
 }
 
@@ -45,10 +45,9 @@ func (r *ExecRunner) Run(name string, args ...string) error {
 	return cmd.Run()
 }
 
-// Output executes the command and returns its stdout.
-//
-// Stderr is deliberately left unset: exec.Cmd.Output rejects a command whose
-// Stderr is already assigned, so the streaming writers do not apply here.
+// Output executes the command and returns its stdout. The streaming writers
+// are not applied: exec.Cmd.Output rejects a preset Stdout, and a preset Stderr
+// would skip the ExitError.Stderr capture.
 func (r *ExecRunner) Output(name string, args ...string) ([]byte, error) {
 	return exec.Command(name, args...).Output()
 }

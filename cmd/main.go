@@ -29,7 +29,6 @@ func main() {
 		log.Fatalf("Failed to initialize configuration: %v", err)
 	}
 
-	// Create result to collect action outputs
 	result := output.NewResult()
 
 	if err := git.RunGitCommit(ctx, cfg, result); err != nil {
@@ -43,7 +42,6 @@ func main() {
 		}
 	}
 
-	// Write all outputs to GITHUB_OUTPUT
 	if err := result.WriteToGitHubOutput(); err != nil {
 		log.Printf("[WARN] Failed to write action outputs: %v", err)
 	}

@@ -127,12 +127,11 @@ func (c *Client) request(ctx context.Context, method, endpoint string, data inte
 		return nil, errors.New("GitHub API "+method, err)
 	}
 
-	// For client/server errors, try to parse the JSON body so the caller
-	// can inspect API error details (e.g., "A pull request already exists").
+	// A non-2xx JSON body comes back as the result with a nil error; callers
+	// check its "message" key (e.g. "A pull request already exists").
 	if statusCode < 200 || statusCode >= 300 {
 		var errResult map[string]interface{}
 		if json.Unmarshal(body, &errResult) == nil {
-			// Return the parsed error response — caller checks for "message" key.
 			return errResult, nil
 		}
 		return nil, errors.NewAPIError("GitHub API "+method, fmt.Sprintf("HTTP %d", statusCode))

@@ -118,7 +118,6 @@ type GitConfig struct {
 // Validate checks that the configuration is valid for the requested operations.
 // It verifies that required fields are set based on the actions being performed.
 func (c *GitConfig) Validate() error {
-	// Validate pull request configuration
 	if c.CreatePR {
 		if !c.AutoBranch && c.PRBranch == "" {
 			return errors.NewConfigError("pr_branch", "must be specified when auto_branch is false and create_pr is true")
@@ -131,7 +130,6 @@ func (c *GitConfig) Validate() error {
 		}
 	}
 
-	// Validate tag configuration
 	if c.TagName != "" && c.DeleteTag {
 		if c.TagReference != "" {
 			return errors.NewConfigError("tag_reference", "cannot be used with delete_tag")
@@ -184,7 +182,6 @@ func NewGitConfig() (*GitConfig, error) {
 		RetryCount: getIntEnv(EnvRetryCount, DefaultRetryCount),
 	}
 
-	// Validate the configuration after setting all values
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
 	}
@@ -202,10 +199,8 @@ func getEnvWithDefault(key, defaultValue string) string {
 	return value
 }
 
-// getBoolEnv retrieves a boolean environment variable value.
-// It parses the string value to a boolean, returning the default value
-// if the variable is not set, empty, or cannot be parsed as a boolean.
-// Accepts: true, false, 1, 0, t, f, T, F, TRUE, FALSE, True, False
+// getBoolEnv parses key case-insensitively; unset or unparsable values
+// (e.g. "yes", "on") silently fall back to defaultValue.
 func getBoolEnv(key string, defaultValue bool) bool {
 	value := os.Getenv(key)
 	if value == "" {
@@ -243,7 +238,6 @@ func parseCommaSeparated(labelsStr string) []string {
 		return nil
 	}
 
-	// Split by comma and process each part
 	parts := strings.Split(labelsStr, ",")
 	result := make([]string, 0, len(parts))
 
@@ -257,17 +251,12 @@ func parseCommaSeparated(labelsStr string) []string {
 	return result
 }
 
-// getGitHubToken retrieves the GitHub token from various sources.
-// Priority order:
-// 1. INPUT_GITHUB_TOKEN (user-provided token via action input)
-// 2. GITHUB_TOKEN (automatically available in GitHub Actions)
-// This allows the action to work without explicit token configuration in most cases.
+// getGitHubToken prefers INPUT_GITHUB_TOKEN and falls back to GITHUB_TOKEN.
+// Under the action both come from the github_token input, which has no default.
 func getGitHubToken() string {
-	// First check if user explicitly provided a token
 	if token := os.Getenv(EnvGitHubToken); token != "" {
 		return token
 	}
 
-	// Fall back to the automatically available GITHUB_TOKEN
 	return os.Getenv("GITHUB_TOKEN")
 }

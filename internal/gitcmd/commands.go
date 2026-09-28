@@ -51,7 +51,7 @@ const (
 	ConfigUserName      = "user.name"
 )
 
-// Git commit options
+// Git commit and tag options
 const (
 	OptMessage  = "-m"
 	OptAnnotate = "-a"
@@ -76,8 +76,7 @@ const (
 	RefTags   = "refs/tags/"
 )
 
-// BuildArgs is a helper function to construct git command arguments.
-// It provides a fluent interface for building command arguments.
+// ArgsBuilder constructs git command arguments through a fluent interface.
 type ArgsBuilder struct {
 	args []string
 }
