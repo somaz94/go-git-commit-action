@@ -198,9 +198,7 @@ func TestExecuteCommandBatch_FailedCommand(t *testing.T) {
 }
 
 func TestExecuteCommandBatch_NothingToCommit(t *testing.T) {
-	// "git commit" in a non-repo dir will exit with code 128, not 1
-	// Use sh -c "exit 1" wrapped as a commit-like command to test the skip logic
-	// Actually, we test using a real echo command - commit skip only triggers for exit code 1
+	// echo exits 0, so only the no-skip path runs; TestExecuteCommandBatch_SkipsNothingToCommit covers the skip.
 	commands := []Command{
 		{Name: "echo", Args: []string{"commit", "test"}, Desc: "Non-commit echo"},
 	}
@@ -452,7 +450,6 @@ func TestBackupChanges_ValidLine(t *testing.T) {
 	tmpDir := t.TempDir()
 	cfg := &config.GitConfig{RepoPath: "."}
 
-	// Create a temp file to backup
 	tmpFile := tmpDir + "/test.txt"
 	if err := os.WriteFile(tmpFile, []byte("content"), 0644); err != nil {
 		t.Fatal(err)

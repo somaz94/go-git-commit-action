@@ -10,7 +10,6 @@ import (
 	"github.com/somaz94/go-git-commit-action/internal/output"
 )
 
-// tagConfig returns a config carrying a tag name and a single retry.
 func tagConfig(tagName string) *config.GitConfig {
 	cfg := baseConfig()
 	cfg.TagName = tagName
@@ -157,8 +156,8 @@ func TestHandleGitTag_RevListFailureFails(t *testing.T) {
 	}
 }
 
-// An annotated tag pointing at a resolved commit must place the commit before
-// the -m flag, which is where git expects it.
+// An annotated tag pointing at a resolved commit places the commit before -m.
+// git accepts either order; this pins the builder's choice.
 func TestHandleGitTag_AnnotatedWithReference(t *testing.T) {
 	const sha = "89abcdef0123456789abcdef0123456789abcdef"
 	cfg := tagConfig("v4.0.0")

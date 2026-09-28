@@ -243,7 +243,6 @@ func TestNewAPIErrorFrom(t *testing.T) {
 }
 
 func TestNewAPIError_UnwrapNil(t *testing.T) {
-	// An APIError created without an underlying error unwraps to nil.
 	if errors.Unwrap(NewAPIError("op", "msg")) != nil {
 		t.Error("NewAPIError() Unwrap() should be nil when no underlying error is set")
 	}
@@ -274,7 +273,6 @@ func TestNewAPIErrorWithDetails(t *testing.T) {
 }
 
 func TestErrorChaining(t *testing.T) {
-	// Test error chain with errors.Is
 	originalErr := errors.New("original error")
 	gitErr := New("operation", originalErr)
 
@@ -284,7 +282,6 @@ func TestErrorChaining(t *testing.T) {
 }
 
 func TestErrorMessages(t *testing.T) {
-	// Test that error messages contain expected information
 	tests := []struct {
 		name     string
 		err      error

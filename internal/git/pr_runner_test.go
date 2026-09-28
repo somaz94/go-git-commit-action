@@ -33,7 +33,6 @@ func TestCreatePullRequest_DryRunRecordsOutputs(t *testing.T) {
 		t.Fatalf("CreatePullRequest() error = %v, want nil", err)
 	}
 
-	// The source branch is checked out, both branches fetched, then the diff read.
 	assertSequence(t, f.Keys(), []string{
 		key(gitcmd.CheckoutArgs("feature")),
 		key(gitcmd.FetchArgs(gitcmd.RefOrigin, "main")),
@@ -79,12 +78,11 @@ func TestHandlePullRequestFlow_CommitsBeforeCreatingPR(t *testing.T) {
 	cfg := prDryRunConfig()
 	cfg.PRDryRun = false
 	cfg.AutoBranch = false
-	// Keep the flow from reaching the GitHub API by failing at the diff stage.
 	f := gitcmd.NewFakeRunner()
 	result := output.NewResult()
 
-	// An empty diff aborts before the API call, which is enough to assert that
-	// the commit happened first.
+	// PRDryRun is off, so the unstubbed empty diff is what stops the flow short of
+	// the GitHub API; the commit asserted below runs before that.
 	_ = handlePullRequestFlow(context.Background(), f, cfg, result)
 
 	assertSequence(t, f.Keys(), []string{
@@ -121,11 +119,10 @@ func TestHandlePullRequestFlow_AutoBranchSkipsDirectCommit(t *testing.T) {
 		Stub(key(gitcmd.DiffNameStatusArgs("origin/main", "origin/feature")),
 			gitcmd.FakeResult{Stdout: "M\ta.txt\n"})
 	// The diff key depends on the generated branch name, so tolerate the empty
-	// diff and assert only on the branch-creation shape.
+	// diff and assert only that the configured branch was not pushed.
 	_ = handlePullRequestFlow(context.Background(), f, cfg, output.NewResult())
 
 	if !f.Ran(key(gitcmd.PushArgs(gitcmd.RefOrigin, cfg.Branch))) {
-		// Correct: the direct-commit push to the configured branch must not happen.
 		return
 	}
 	t.Error("the auto-branch path pushed to the configured branch, want a generated one")

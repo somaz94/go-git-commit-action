@@ -65,7 +65,6 @@ func TestResult_WriteToGitHubOutput_NoEnvVar(t *testing.T) {
 }
 
 func TestResult_WriteToGitHubOutput_WithFile(t *testing.T) {
-	// Create a temp file to simulate GITHUB_OUTPUT
 	tmpFile, err := os.CreateTemp("", "github-output-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
@@ -84,7 +83,6 @@ func TestResult_WriteToGitHubOutput_WithFile(t *testing.T) {
 		t.Fatalf("WriteToGitHubOutput() error = %v", err)
 	}
 
-	// Read the file and verify contents
 	content, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to read output file: %v", err)
@@ -117,7 +115,6 @@ func TestResult_WriteToGitHubOutput_EmptyResult(t *testing.T) {
 		t.Fatalf("WriteToGitHubOutput() error = %v", err)
 	}
 
-	// File should be empty (or unchanged)
 	content, err := os.ReadFile(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to read output file: %v", err)
@@ -140,7 +137,6 @@ func TestResult_WriteToGitHubOutput_InvalidPath(t *testing.T) {
 }
 
 func TestKeyConstants(t *testing.T) {
-	// Verify key constants are defined correctly
 	keys := map[string]string{
 		"commit_sha":    KeyCommitSHA,
 		"pr_number":     KeyPRNumber,

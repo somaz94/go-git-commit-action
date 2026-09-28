@@ -6,7 +6,6 @@ import (
 )
 
 func TestNewGitConfig(t *testing.T) {
-	// Setup test environment variables
 	os.Setenv(EnvUserEmail, "test@example.com")
 	os.Setenv(EnvUserName, "Test User")
 	os.Setenv(EnvCommitMessage, "Test commit")
@@ -51,7 +50,6 @@ func TestGitConfig_Defaults(t *testing.T) {
 		t.Fatalf("NewGitConfig() error = %v", err)
 	}
 
-	// Check defaults
 	if cfg.CommitMessage != DefaultCommitMessage {
 		t.Errorf("CommitMessage = %v, want %v", cfg.CommitMessage, DefaultCommitMessage)
 	}
@@ -334,11 +332,9 @@ func TestGetGitHubToken(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clear environment
 			os.Unsetenv(EnvGitHubToken)
 			os.Unsetenv("GITHUB_TOKEN")
 
-			// Setup test environment
 			if tt.inputToken != "" {
 				os.Setenv(EnvGitHubToken, tt.inputToken)
 			}
@@ -351,7 +347,6 @@ func TestGetGitHubToken(t *testing.T) {
 				t.Errorf("getGitHubToken() = %v, want %v", got, tt.expectedResult)
 			}
 
-			// Cleanup
 			os.Unsetenv(EnvGitHubToken)
 			os.Unsetenv("GITHUB_TOKEN")
 		})

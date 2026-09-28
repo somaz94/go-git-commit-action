@@ -124,7 +124,6 @@ func TestGeneratePRTitleAndBody(t *testing.T) {
 				t.Errorf("body = %q, want %q", gotBody, tt.wantBody)
 			}
 			if tt.wantBody == "" && tt.prBody == "" {
-				// Auto-generated body should contain key information
 				if !strings.Contains(gotBody, tt.prBranch) {
 					t.Errorf("auto body should contain branch name %q", tt.prBranch)
 				}
@@ -422,7 +421,7 @@ func TestHandlePRResponse_ExistingPRError(t *testing.T) {
 		},
 	}
 
-	// This will try to call GitHub API which will fail, but tests the path
+	// Hits the real api.github.com and discards the result: a no-panic check only.
 	_ = c.HandlePRResponse(context.Background(), response, "feature")
 }
 
@@ -430,8 +429,6 @@ func TestHandlePRResponse_SuccessNoURL(t *testing.T) {
 	cfg := &config.GitConfig{}
 	c := NewCreator(cfg)
 
-	// A response with no html_url (unknown fields dropped by the typed decoder)
-	// still hits the empty-HTMLURL error branch.
 	response := PRResponse{}
 
 	err := c.HandlePRResponse(context.Background(), response, "feature")
@@ -517,7 +514,6 @@ func TestFetchBranches_Structure(t *testing.T) {
 	if bm == nil {
 		t.Fatal("NewBranchManager() returned nil")
 	}
-	// FetchBranches will fail without a real git repo, but we verify it's callable
 }
 
 func TestCreatePullRequest_DryRun_Draft(t *testing.T) {
@@ -568,7 +564,6 @@ func TestPreparePRData_Draft(t *testing.T) {
 	}
 	c := &Creator{config: cfg}
 
-	// This will fail without git, but we test the code path by checking the struct
 	if !c.config.PRDraft {
 		t.Error("PRDraft should be true")
 	}

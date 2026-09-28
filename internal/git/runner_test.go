@@ -193,7 +193,7 @@ func TestSetupGitCredentials_SkipsWhenRemoteLookupFails(t *testing.T) {
 }
 
 func TestHandleBranch_ExistingLocalBranchDoesNothing(t *testing.T) {
-	// Both probes succeed → the branch is already checked out.
+	// rev-parse succeeds, so the local branch exists and only the two probes run.
 	f := gitcmd.NewFakeRunner()
 
 	if err := handleBranch(f, baseConfig()); err != nil {

@@ -103,7 +103,6 @@ func testClient(url string) *Client {
 
 func TestPost_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify method, path, and the standard GitHub headers are sent.
 		if r.Method != http.MethodPost {
 			t.Errorf("method = %q, want POST", r.Method)
 		}

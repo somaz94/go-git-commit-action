@@ -58,8 +58,8 @@ func TestExecRunner_Output(t *testing.T) {
 	}
 }
 
-// Output must not inherit the streaming Stderr writer: exec.Cmd.Output rejects
-// a command whose Stderr is already assigned.
+// Output must not inherit the streaming writers: exec.Cmd.Output rejects a
+// preset Stdout, and a preset Stderr would skip the ExitError.Stderr capture.
 func TestExecRunner_Output_IgnoresStderrWriter(t *testing.T) {
 	var stderr bytes.Buffer
 	r := &ExecRunner{Stdout: &bytes.Buffer{}, Stderr: &stderr}

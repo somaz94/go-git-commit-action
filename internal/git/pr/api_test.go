@@ -250,7 +250,7 @@ func TestHandlePRResponse_LabelFailurePropagates(t *testing.T) {
 	}
 }
 
-// A rejected label call must surface as an error. GitHub returns 4xx with a
+// A rejected close must surface as an error. GitHub returns 4xx with a
 // JSON body, which the client hands back as (body, nil) rather than an error.
 func TestApplyToPR_RejectedCloseFails(t *testing.T) {
 	api := newFakeAPI(t).

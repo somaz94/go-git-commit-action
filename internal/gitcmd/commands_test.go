@@ -300,7 +300,6 @@ func TestRevListArgs(t *testing.T) {
 }
 
 func TestArgsBuilder(t *testing.T) {
-	// Test the builder pattern
 	builder := NewArgsBuilder()
 	args := builder.
 		Add(SubCmdConfig).
@@ -317,7 +316,6 @@ func TestArgsBuilder(t *testing.T) {
 }
 
 func TestArgsBuilderMultipleAdds(t *testing.T) {
-	// Test adding multiple arguments at once
 	builder := NewArgsBuilder()
 	args := builder.
 		Add(SubCmdPush, OptForce, RefOrigin, "main").
