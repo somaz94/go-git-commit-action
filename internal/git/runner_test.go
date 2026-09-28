@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/git/shared"
@@ -618,5 +619,32 @@ func TestWithRetry_StopsOnPushAfterCommit(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Errorf("operation calls = %d, want 1", calls)
+	}
+}
+
+// retry_count 0 used to run no attempt at all and fail with a nil cause.
+func TestWithRetry_RunsAtLeastOnce(t *testing.T) {
+	calls := 0
+	err := withRetry(context.Background(), 0, func() error {
+		calls++
+		return nil
+	})
+	if err != nil || calls != 1 {
+		t.Errorf("withRetry(0) = %v after %d calls, want nil after 1", err, calls)
+	}
+}
+
+// The last failure returns at once instead of waiting out a backoff first.
+func TestWithRetry_NoBackoffAfterLastAttempt(t *testing.T) {
+	prev := retryBaseDelay
+	retryBaseDelay = time.Hour
+	t.Cleanup(func() { retryBaseDelay = prev })
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	boom := errors.New("boom")
+
+	err := withRetry(ctx, 1, func() error { return boom })
+	if !errors.Is(err, boom) {
+		t.Errorf("withRetry() error = %v, want the operation error without a backoff", err)
 	}
 }

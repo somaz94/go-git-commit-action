@@ -107,7 +107,7 @@ A GitHub Action that automates git commit, push, tag, and pull request operation
 | `pr_dry_run`        | No       | Simulate PR creation without actually creating one | false         |
 | `debug`             | No       | Enable debug logging           | false                             |
 | `timeout`           | No       | Operation timeout in seconds   | 30                                |
-| `retry_count`       | No       | Number of retries for failed operations | 3                      |
+| `retry_count`       | No       | Total attempts for retried operations (0 runs once) | 3          |
 
 **See [Configuration](docs/CONFIGURATION.md) for detailed descriptions and validation rules.**
 

@@ -109,7 +109,7 @@ inputs:
     required: false
     default: '30'
   retry_count:
-    description: 'Number of retries for failed operations'
+    description: 'Total attempts for retried operations (0 runs once)'
     required: false
     default: '3'
 

@@ -32,36 +32,37 @@ type FileBackup struct {
 }
 
 // withRetry provides retry logic for operations that might fail transiently.
-// It executes the given operation repeatedly until it succeeds or the maximum
-// number of retries is reached. The delay between retries increases linearly.
+// It executes the given operation until it succeeds or maxRetries attempts
+// (at least one) have failed, backing off linearly between attempts.
 // An ErrPushAfterCommit or errPRStage is returned at once, without a rerun.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
+	attempts := max(maxRetries, 1)
 	var lastErr error
-	for i := 0; i < maxRetries; i++ {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			if err := operation(); err != nil {
-				// Both were already retried in place, past a commit: a rerun
-				// finds a clean tree and skips, or cuts a second auto branch.
-				if stderrors.Is(err, shared.ErrPushAfterCommit) || stderrors.Is(err, errPRStage) {
-					return err
-				}
-				lastErr = err
-				// Honor context cancellation during backoff instead of
-				// blocking for the full linear delay.
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case <-time.After(retryBaseDelay * time.Duration(i+1)):
-				}
-				continue
+	for i := range attempts {
+		if i > 0 {
+			// Honor context cancellation during backoff instead of
+			// blocking for the full linear delay.
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(retryBaseDelay * time.Duration(i)):
 			}
+		}
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := operation()
+		if err == nil {
 			return nil
 		}
+		// Both were already retried in place, past a commit: a rerun
+		// finds a clean tree and skips, or cuts a second auto branch.
+		if stderrors.Is(err, shared.ErrPushAfterCommit) || stderrors.Is(err, errPRStage) {
+			return err
+		}
+		lastErr = err
 	}
-	return errors.NewWithContext("operation failed after retries", maxRetries, lastErr)
+	return errors.NewWithContext("operation failed after retries", attempts, lastErr)
 }
 
 // RunGitCommit executes the Git commit operation with the provided configuration.
