@@ -3,6 +3,7 @@ package pr
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 
@@ -267,21 +268,49 @@ func (c *Creator) handleSuccessfulPR(ctx context.Context, response PRResponse, s
 func (c *Creator) handleExistingPR(ctx context.Context) error {
 	fmt.Println("[WARN] Pull request already exists")
 
-	endpoint := fmt.Sprintf("/pulls?head=%s&base=%s", c.config.PRBranch, c.config.PRBase)
-	prs, err := c.client.GetArray(ctx, endpoint)
+	// GitHub ignores a head filter without the owner prefix and lists every
+	// open PR, so an unscoped lookup would label or close an unrelated one.
+	owner, _, ok := strings.Cut(c.client.Repo(), "/")
+	if !ok || owner == "" {
+		return errors.NewConfigError("GITHUB_REPOSITORY",
+			fmt.Sprintf("must be owner/repo to find the existing PR, got %q", c.client.Repo()))
+	}
+
+	query := url.Values{}
+	query.Set("head", owner+":"+c.config.PRBranch)
+	query.Set("base", c.config.PRBase)
+	prs, err := c.client.GetArray(ctx, "/pulls?"+query.Encode())
 	if err != nil {
 		return err
 	}
 
-	if len(prs) > 0 {
-		if number, ok := prs[0]["number"].(float64); ok {
+	for _, candidate := range prs {
+		if !c.isOwnHeadPR(candidate) {
+			continue
+		}
+		if number, ok := candidate["number"].(float64); ok {
 			prNumber := int(number)
 			fmt.Printf("Found existing PR #%d\n", prNumber)
 			return c.processExistingPR(ctx, prNumber)
 		}
 	}
 
+	fmt.Printf("[WARN] No open PR from %s:%s into %s, nothing applied\n", owner, c.config.PRBranch, c.config.PRBase)
 	return nil
+}
+
+// isOwnHeadPR reports whether a listed PR is the one this run tried to open.
+// The follow-ups can close a PR, so the list filter alone is not trusted.
+func (c *Creator) isOwnHeadPR(pr map[string]any) bool {
+	head, _ := pr["head"].(map[string]any)
+	base, _ := pr["base"].(map[string]any)
+	headRepo, _ := head["repo"].(map[string]any)
+	headRef, _ := head["ref"].(string)
+	baseRef, _ := base["ref"].(string)
+	fullName, _ := headRepo["full_name"].(string)
+	return headRef == c.config.PRBranch &&
+		baseRef == c.config.PRBase &&
+		strings.EqualFold(fullName, c.client.Repo())
 }
 
 // processExistingPR applies operations like adding labels, reviewers, assignees, or closing to an existing PR.

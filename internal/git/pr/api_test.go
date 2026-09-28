@@ -3,6 +3,7 @@ package pr
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -90,6 +91,20 @@ func (f *fakeAPI) called(methodAndPath string) (apiCall, bool) {
 		}
 	}
 	return apiCall{}, false
+}
+
+// listedPR renders one GET /pulls element with the fields isOwnHeadPR reads.
+func listedPR(number int, headRepo, headRef, baseRef string) string {
+	return fmt.Sprintf(`{"number":%d,"head":{"ref":%q,"repo":{"full_name":%q}},"base":{"ref":%q}}`,
+		number, headRef, headRepo, baseRef)
+}
+
+// alreadyExists is the PR-creation response that routes into handleExistingPR.
+func alreadyExists() PRResponse {
+	return PRResponse{
+		Message: "Validation Failed",
+		Errors:  []any{map[string]any{"message": "A pull request already exists for owner:feature."}},
+	}
 }
 
 // newAPICreator wires a Creator to the fake API and a fake git Runner.
@@ -275,16 +290,12 @@ func TestHandlePRResponse_ExistingPRIsReused(t *testing.T) {
 	cfg := prConfig()
 	cfg.PRLabels = []string{"automated"}
 	api := newFakeAPI(t).
-		route("GET /pulls?head="+cfg.PRBranch+"&base="+cfg.PRBase, http.StatusOK,
-			`[{"number":42}]`).
+		route("GET /pulls?base=main&head=owner%3Afeature", http.StatusOK,
+			"["+listedPR(42, "owner/repo", "feature", "main")+"]").
 		route("POST /issues/42/labels", http.StatusOK, `[]`)
 	c, _ := newAPICreator(t, cfg, api)
 
-	resp := PRResponse{
-		Message: "Validation Failed",
-		Errors:  []any{map[string]any{"message": "A pull request already exists for owner:feature."}},
-	}
-	if err := c.HandlePRResponse(context.Background(), resp, "feature"); err != nil {
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err != nil {
 		t.Fatalf("HandlePRResponse() error = %v, want the existing PR to be reused", err)
 	}
 	if _, ok := api.called("POST /issues/42/labels"); !ok {
@@ -311,14 +322,10 @@ func TestHandlePRResponse_ExistingPRLookupEmpty(t *testing.T) {
 	cfg := prConfig()
 	cfg.PRLabels = []string{"automated"}
 	api := newFakeAPI(t).
-		route("GET /pulls?head="+cfg.PRBranch+"&base="+cfg.PRBase, http.StatusOK, `[]`)
+		route("GET /pulls?base=main&head=owner%3Afeature", http.StatusOK, `[]`)
 	c, _ := newAPICreator(t, cfg, api)
 
-	resp := PRResponse{
-		Message: "Validation Failed",
-		Errors:  []any{map[string]any{"message": "A pull request already exists for owner:feature."}},
-	}
-	if err := c.HandlePRResponse(context.Background(), resp, "feature"); err != nil {
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err != nil {
 		t.Fatalf("HandlePRResponse() error = %v, want an empty lookup to be tolerated", err)
 	}
 	if _, ok := api.called("POST /issues/42/labels"); ok {
@@ -330,12 +337,68 @@ func TestHandlePRResponse_ExistingPRLookupFails(t *testing.T) {
 	api := newFakeAPI(t) // no route → 404
 	c, _ := newAPICreator(t, prConfig(), api)
 
-	resp := PRResponse{
-		Message: "Validation Failed",
-		Errors:  []any{map[string]any{"message": "A pull request already exists for owner:feature."}},
-	}
-	if err := c.HandlePRResponse(context.Background(), resp, "feature"); err == nil {
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err == nil {
 		t.Fatal("HandlePRResponse() error = nil, want the failed lookup to propagate")
+	}
+}
+
+// Regression: an unscoped head filter made GitHub list every open PR, and the
+// first one was labeled and closed. The literal pins the owner prefix and the
+// escaping of "/" and ":".
+func TestHandlePRResponse_ExistingPRLookupIsOwnerScoped(t *testing.T) {
+	cfg := prConfig()
+	cfg.PRBranch = "feature/x"
+	cfg.PRBase = "release/1.0"
+	cfg.PRLabels = []string{"automated"}
+	api := newFakeAPI(t).
+		route("GET /pulls?base=release%2F1.0&head=owner%3Afeature%2Fx", http.StatusOK,
+			"["+listedPR(42, "Owner/Repo", "feature/x", "release/1.0")+"]").
+		route("POST /issues/42/labels", http.StatusOK, `[]`)
+	c, _ := newAPICreator(t, cfg, api)
+
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature/x"); err != nil {
+		t.Fatalf("HandlePRResponse() error = %v, want the owner-scoped lookup to find PR #42", err)
+	}
+	if _, ok := api.called("POST /issues/42/labels"); !ok {
+		t.Errorf("Calls() = %v, want labels applied to PR #42", api.Calls())
+	}
+}
+
+// A list that ignored the filter must not have its PRs labeled or closed: they
+// differ in head branch, base branch, or head repo (a fork with the same branch).
+func TestHandlePRResponse_ExistingPRLookupSkipsUnrelatedPRs(t *testing.T) {
+	cfg := prConfig()
+	cfg.PRLabels = []string{"automated"}
+	cfg.PRClosed = true
+	api := newFakeAPI(t).
+		route("GET /pulls?base=main&head=owner%3Afeature", http.StatusOK,
+			"["+listedPR(99, "owner/repo", "other", "main")+","+
+				listedPR(97, "owner/repo", "feature", "develop")+","+
+				listedPR(98, "fork/repo", "feature", "main")+"]")
+	c, _ := newAPICreator(t, cfg, api)
+
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err != nil {
+		t.Fatalf("HandlePRResponse() error = %v, want unrelated PRs skipped without error", err)
+	}
+	for _, call := range api.Calls() {
+		if call.Method != http.MethodGet {
+			t.Errorf("unexpected %s %s, want no PR modified", call.Method, call.Path)
+		}
+	}
+}
+
+func TestHandlePRResponse_ExistingPRLookupNeedsOwner(t *testing.T) {
+	api := newFakeAPI(t)
+	cfg := prConfig()
+	t.Setenv("GITHUB_REPOSITORY", "repo-only")
+	c := NewCreatorWithClient(cfg, gitcmd.NewFakeRunner(),
+		github.NewClientWithBaseURL(cfg.GitHubToken, api.server.URL))
+
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err == nil {
+		t.Fatal("HandlePRResponse() error = nil, want a malformed GITHUB_REPOSITORY to fail")
+	}
+	if len(api.Calls()) != 0 {
+		t.Errorf("Calls() = %v, want no unscoped lookup", api.Calls())
 	}
 }
 
