@@ -244,9 +244,11 @@ func StashPushArgs() []string {
 }
 
 // DiffNameOnlyArgs builds arguments for diff with name only.
+// Two dots compare the tips directly: three dots need a merge base, which a
+// shallow Actions checkout usually lacks ("no merge base", exit 128).
 func DiffNameOnlyArgs(base, head string) []string {
 	return NewArgsBuilder().
-		Add(SubCmdDiff, base+"..."+head, OptNameOnly).
+		Add(SubCmdDiff, base+".."+head, OptNameOnly).
 		Build()
 }
 

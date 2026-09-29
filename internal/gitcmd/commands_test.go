@@ -256,7 +256,7 @@ func TestStashPushArgs(t *testing.T) {
 
 func TestDiffNameOnlyArgs(t *testing.T) {
 	args := DiffNameOnlyArgs("main", "develop")
-	expected := []string{SubCmdDiff, "main...develop", OptNameOnly}
+	expected := []string{SubCmdDiff, "main..develop", OptNameOnly}
 
 	if !reflect.DeepEqual(args, expected) {
 		t.Errorf("DiffNameOnlyArgs() = %v, want %v", args, expected)
