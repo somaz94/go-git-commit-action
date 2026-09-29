@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.9.5](https://github.com/somaz94/go-git-commit-action/compare/v1.9.4...v1.9.5) (2026-09-29)
+
+### Bug Fixes
+
+- compare branch tips directly so the diff works in shallow checkouts ([696a590](https://github.com/somaz94/go-git-commit-action/commit/696a5900024af7eddc374dc8d5f071b73f5b316a))
+
+### Chores
+
+- bump the action image to v1.9.5 ([3df9e1e](https://github.com/somaz94/go-git-commit-action/commit/3df9e1ea7b6dfee595e7be5152f1c387bf4a1df7))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.4](https://github.com/somaz94/go-git-commit-action/compare/v1.9.3...v1.9.4) (2026-09-29)
 
 ### Bug Fixes
