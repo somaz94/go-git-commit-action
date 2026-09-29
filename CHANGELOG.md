@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.9.3](https://github.com/somaz94/go-git-commit-action/compare/v1.9.2...v1.9.3) (2026-09-29)
+
+### Bug Fixes
+
+- create, commit and push nothing in an auto_branch PR dry run ([2641f39](https://github.com/somaz94/go-git-commit-action/commit/2641f3958b2728fc35574e147b14ac1b9619927d))
+- fill PR outputs and delete the auto branch when the PR already exists ([7fe34d5](https://github.com/somaz94/go-git-commit-action/commit/7fe34d5da83a835bfe83effaf863e94461a57e03))
+
+### Continuous Integration
+
+- run the integration tests on this commit's code instead of the pinned image ([b6cc792](https://github.com/somaz94/go-git-commit-action/commit/b6cc792af83ac008aff6b9741121ee5a331718f8))
+
+### Chores
+
+- bump the action image to v1.9.3 ([d89883d](https://github.com/somaz94/go-git-commit-action/commit/d89883d661b0ecdec27d5234286af0f707ddf936))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.2](https://github.com/somaz94/go-git-commit-action/compare/v1.9.1...v1.9.2) (2026-09-28)
 
 ### Bug Fixes
