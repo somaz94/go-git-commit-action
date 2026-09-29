@@ -1,6 +1,6 @@
 name: 'Go Git Commit Action'
 description: 'Automate git commit, push, tag, and pull request operations in your CI/CD workflow, written in Go'
-author: 'somaz'
+author: 'somaz94'
 
 inputs:
   user_email:
