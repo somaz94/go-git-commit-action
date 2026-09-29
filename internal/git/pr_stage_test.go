@@ -196,6 +196,7 @@ func TestRunGitCommitWithRunner_PRStepFailureAfterPushRetriesInPlace(t *testing.
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := prStageConfig(tt.autoBranch, tt.skip)
 			wantLabelCalls := 1 + tt.apiFail[labels]
+			isolateGitConfigEnv(t)
 			api := useFakeGitHub(t, tt.apiFail)
 			f := prRepo(cfg, tt.gitFail)
 			result := output.NewResult()
@@ -240,6 +241,7 @@ func TestRunGitCommitWithRunner_PRStepRetryResumesAfterCreation(t *testing.T) {
 	cfg.PRClosed = true
 	cfg.DeleteSourceBranch = true
 	deleteBranch := key(gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, ""))
+	isolateGitConfigEnv(t)
 	api := useFakeGitHub(t, nil)
 	f := prRepo(cfg, map[string]int{deleteBranch: 1})
 	result := output.NewResult()
@@ -272,6 +274,7 @@ func TestRunGitCommitWithRunner_PRStepRetryResumesAfterCreation(t *testing.T) {
 func TestRunGitCommitWithRunner_PRStepRetryDoesNotRepostAfterAlreadyExists(t *testing.T) {
 	cfg := prStageConfig(false, false)
 	cfg.PRClosed = true
+	isolateGitConfigEnv(t)
 	api := useFakeGitHub(t, nil)
 	api.mu.Lock()
 	api.open, api.head, api.base = 5, cfg.PRBranch, cfg.PRBase
@@ -320,6 +323,7 @@ func TestRunGitCommitWithRunner_AlreadyExistsFinishesLikeACreatedPR(t *testing.T
 			cfg := prStageConfig(tt.autoBranch, false)
 			cfg.DeleteSourceBranch = true
 			cfg.PRClosed = tt.closePR
+			isolateGitConfigEnv(t)
 			api := useFakeGitHub(t, nil)
 			api.mu.Lock()
 			if tt.openBefore != 0 {
@@ -361,6 +365,7 @@ func TestRunGitCommitWithRunner_DryRunAutoBranchWritesNothing(t *testing.T) {
 			cfg := prStageConfig(true, skip)
 			cfg.PRDryRun = true
 			cfg.DeleteSourceBranch = true
+			isolateGitConfigEnv(t)
 			api := useFakeGitHub(t, nil)
 			f := prRepo(cfg, nil)
 			result := output.NewResult()
@@ -407,6 +412,7 @@ func TestRunGitCommitWithRunner_PersistentPRStepFailureFails(t *testing.T) {
 	for _, skip := range []bool{true, false} {
 		t.Run(fmt.Sprintf("skip_if_empty=%v", skip), func(t *testing.T) {
 			cfg := prStageConfig(false, skip)
+			isolateGitConfigEnv(t)
 			useFakeGitHub(t, nil)
 			f := prRepo(cfg, map[string]int{fetchBase: 99})
 

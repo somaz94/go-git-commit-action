@@ -179,17 +179,23 @@ func changeWorkingDirectory(config *config.GitConfig) error {
 }
 
 // setupGitConfig configures Git with user information and safety settings.
-// It runs a series of git config commands to ensure the proper environment.
+// They are injected as env config for every git child, so no config file is written.
 func setupGitConfig(r gitcmd.Runner, config *config.GitConfig) error {
-	baseCommands := []Command{
-		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathApp), "Setting safe directory (/app)"},
-		{gitcmd.CmdGit, gitcmd.ConfigSafeDirArgs(gitcmd.PathGitHubWorkspace), "Setting safe directory (/github/workspace)"},
-		{gitcmd.CmdGit, gitcmd.ConfigUserEmailArgs(config.UserEmail), "Configuring user email"},
-		{gitcmd.CmdGit, gitcmd.ConfigUserNameArgs(config.UserName), "Configuring user name"},
+	entries := []struct{ key, value, desc string }{
+		{gitcmd.ConfigSafeDirectory, gitcmd.PathApp, "Setting safe directory (/app)"},
+		{gitcmd.ConfigSafeDirectory, gitcmd.PathGitHubWorkspace, "Setting safe directory (/github/workspace)"},
+		{gitcmd.ConfigUserEmail, config.UserEmail, "Configuring user email"},
+		{gitcmd.ConfigUserName, config.UserName, "Configuring user name"},
 	}
 
-	if err := ExecuteCommandBatch(r, baseCommands, "\nExecuting Git Commands:"); err != nil {
-		return err
+	fmt.Println("\nExecuting Git Commands:")
+	for _, e := range entries {
+		fmt.Printf("  - %s... ", e.desc)
+		if err := gitcmd.AddConfigEnv(e.key, e.value); err != nil {
+			fmt.Println("FAILED")
+			return errors.New("set git config "+e.key, err)
+		}
+		fmt.Println("Done")
 	}
 
 	if err := setupGitCredentials(r, config); err != nil {

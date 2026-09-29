@@ -83,8 +83,8 @@ func TestShortenCommitSHA(t *testing.T) {
 
 func TestCommandBatch_Preparation(t *testing.T) {
 	commands := []Command{
-		{gitcmd.CmdGit, gitcmd.ConfigUserEmailArgs("test@example.com"), "Setting email"},
-		{gitcmd.CmdGit, gitcmd.ConfigUserNameArgs("Test User"), "Setting name"},
+		{gitcmd.CmdGit, gitcmd.StatusPorcelainArgs(), "Checking status"},
+		{gitcmd.CmdGit, gitcmd.AddArgs("."), "Adding files"},
 		{gitcmd.CmdGit, gitcmd.CommitArgs("test commit"), "Committing"},
 	}
 
@@ -95,8 +95,8 @@ func TestCommandBatch_Preparation(t *testing.T) {
 	if commands[0].Name != gitcmd.CmdGit {
 		t.Errorf("First command name = %v, want %v", commands[0].Name, gitcmd.CmdGit)
 	}
-	if commands[0].Desc != "Setting email" {
-		t.Errorf("First command desc = %v, want 'Setting email'", commands[0].Desc)
+	if commands[0].Desc != "Checking status" {
+		t.Errorf("First command desc = %v, want 'Checking status'", commands[0].Desc)
 	}
 }
 

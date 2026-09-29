@@ -5,36 +5,9 @@ import (
 	"testing"
 )
 
-func TestConfigSafeDirArgs(t *testing.T) {
-	args := ConfigSafeDirArgs("/test/path")
-	expected := []string{SubCmdConfig, OptGlobal, OptAdd, ConfigSafeDirectory, "/test/path"}
-
-	if !reflect.DeepEqual(args, expected) {
-		t.Errorf("ConfigSafeDirArgs() = %v, want %v", args, expected)
-	}
-}
-
-func TestConfigUserEmailArgs(t *testing.T) {
-	args := ConfigUserEmailArgs("test@example.com")
-	expected := []string{SubCmdConfig, OptGlobal, ConfigUserEmail, "test@example.com"}
-
-	if !reflect.DeepEqual(args, expected) {
-		t.Errorf("ConfigUserEmailArgs() = %v, want %v", args, expected)
-	}
-}
-
-func TestConfigUserNameArgs(t *testing.T) {
-	args := ConfigUserNameArgs("Test User")
-	expected := []string{SubCmdConfig, OptGlobal, ConfigUserName, "Test User"}
-
-	if !reflect.DeepEqual(args, expected) {
-		t.Errorf("ConfigUserNameArgs() = %v, want %v", args, expected)
-	}
-}
-
 func TestConfigListArgs(t *testing.T) {
 	args := ConfigListArgs()
-	expected := []string{SubCmdConfig, OptGlobal, OptList}
+	expected := []string{SubCmdConfig, OptShowScope, OptGetRegexp, `^(safe\.directory|user\.email|user\.name)$`}
 
 	if !reflect.DeepEqual(args, expected) {
 		t.Errorf("ConfigListArgs() = %v, want %v", args, expected)
@@ -312,12 +285,12 @@ func TestArgsBuilder(t *testing.T) {
 	builder := NewArgsBuilder()
 	args := builder.
 		Add(SubCmdConfig).
-		Add(OptGlobal).
+		Add(OptGet).
 		Add("user.name").
 		Add("Test User").
 		Build()
 
-	expected := []string{SubCmdConfig, OptGlobal, "user.name", "Test User"}
+	expected := []string{SubCmdConfig, OptGet, "user.name", "Test User"}
 
 	if !reflect.DeepEqual(args, expected) {
 		t.Errorf("ArgsBuilder.Build() = %v, want %v", args, expected)

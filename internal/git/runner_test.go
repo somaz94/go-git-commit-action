@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,6 +51,46 @@ func assertSequence(t *testing.T, got, want []string) {
 	if i != len(want) {
 		t.Errorf("command sequence\n got: %v\nwant (in order): %v", got, want)
 	}
+}
+
+// isolateGitConfigEnv starts the test with no GIT_CONFIG_COUNT/KEY_<n>/VALUE_<n>
+// set; t.Setenv restores the originals and the cleanup drops entries the test added.
+func isolateGitConfigEnv(t *testing.T) {
+	t.Helper()
+	for _, name := range append(gitConfigEntryNames(), "GIT_CONFIG_COUNT") {
+		t.Setenv(name, "")
+		os.Unsetenv(name)
+	}
+	t.Cleanup(func() {
+		for _, name := range gitConfigEntryNames() {
+			os.Unsetenv(name)
+		}
+	})
+}
+
+func gitConfigEntryNames() []string {
+	var names []string
+	for _, kv := range os.Environ() {
+		name, _, _ := strings.Cut(kv, "=")
+		if strings.HasPrefix(name, "GIT_CONFIG_KEY_") || strings.HasPrefix(name, "GIT_CONFIG_VALUE_") {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+// gitConfigEntries returns the injected entries as key=value, in index order.
+func gitConfigEntries(t *testing.T) []string {
+	t.Helper()
+	n, err := strconv.Atoi(os.Getenv("GIT_CONFIG_COUNT"))
+	if err != nil {
+		t.Fatalf("GIT_CONFIG_COUNT: %v", err)
+	}
+	entries := make([]string, 0, n)
+	for i := range n {
+		entries = append(entries, os.Getenv(fmt.Sprintf("GIT_CONFIG_KEY_%d", i))+"="+os.Getenv(fmt.Sprintf("GIT_CONFIG_VALUE_%d", i)))
+	}
+	return entries
 }
 
 func TestExecuteCommandBatch_WithFakeRunner(t *testing.T) {
@@ -96,7 +139,8 @@ func TestExecuteCommandBatch_AbortsOnRealFailure(t *testing.T) {
 	}
 }
 
-func TestSetupGitConfig_EmitsExpectedCommands(t *testing.T) {
+func TestSetupGitConfig_InjectsConfigEnv(t *testing.T) {
+	isolateGitConfigEnv(t)
 	f := gitcmd.NewFakeRunner()
 	cfg := baseConfig()
 
@@ -104,21 +148,35 @@ func TestSetupGitConfig_EmitsExpectedCommands(t *testing.T) {
 		t.Fatalf("setupGitConfig() error = %v, want nil", err)
 	}
 
-	assertSequence(t, f.Keys(), []string{
-		key(gitcmd.ConfigSafeDirArgs(gitcmd.PathApp)),
-		key(gitcmd.ConfigSafeDirArgs(gitcmd.PathGitHubWorkspace)),
-		key(gitcmd.ConfigUserEmailArgs(cfg.UserEmail)),
-		key(gitcmd.ConfigUserNameArgs(cfg.UserName)),
-		key(gitcmd.ConfigListArgs()),
-	})
+	want := []string{
+		gitcmd.ConfigSafeDirectory + "=" + gitcmd.PathApp,
+		gitcmd.ConfigSafeDirectory + "=" + gitcmd.PathGitHubWorkspace,
+		gitcmd.ConfigUserEmail + "=" + cfg.UserEmail,
+		gitcmd.ConfigUserName + "=" + cfg.UserName,
+	}
+	if got := gitConfigEntries(t); !reflect.DeepEqual(got, want) {
+		t.Errorf("config env entries = %v, want %v", got, want)
+	}
+	for _, k := range f.Keys() {
+		if strings.Contains(k, "--global") {
+			t.Errorf("ran %q, want no global config access", k)
+		}
+	}
+	if !f.Ran(key(gitcmd.ConfigListArgs())) {
+		t.Errorf("Keys() = %v, want the config check", f.Keys())
+	}
 }
 
 func TestSetupGitConfig_PropagatesFailure(t *testing.T) {
-	f := gitcmd.NewFakeRunner().
-		Stub(key(gitcmd.ConfigUserNameArgs("bot")), gitcmd.FakeResult{Err: gitcmd.Fail(128)})
+	isolateGitConfigEnv(t)
+	t.Setenv("GIT_CONFIG_COUNT", "bogus")
+	f := gitcmd.NewFakeRunner()
 
 	if err := setupGitConfig(f, baseConfig()); err == nil {
-		t.Fatal("setupGitConfig() error = nil, want the config failure")
+		t.Fatal("setupGitConfig() error = nil, want the invalid GIT_CONFIG_COUNT failure")
+	}
+	if len(f.Calls()) != 0 {
+		t.Errorf("Calls() = %v, want setup to stop before running git", f.Calls())
 	}
 }
 
@@ -453,6 +511,7 @@ func TestStageFiles_DelegatesToShared(t *testing.T) {
 }
 
 func TestRunGitCommitWithRunner_SkipsWhenEmpty(t *testing.T) {
+	isolateGitConfigEnv(t)
 	cfg := baseConfig()
 	cfg.SkipIfEmpty = true
 	// Empty status → nothing to commit.
@@ -474,6 +533,7 @@ func TestRunGitCommitWithRunner_SkipsWhenEmpty(t *testing.T) {
 }
 
 func TestRunGitCommitWithRunner_CommitsWhenChangesExist(t *testing.T) {
+	isolateGitConfigEnv(t)
 	cfg := baseConfig()
 	cfg.SkipIfEmpty = true
 	f := gitcmd.NewFakeRunner().
@@ -559,6 +619,7 @@ func TestRunGitCommitWithRunner_TransientPushFailurePublishesCommit(t *testing.T
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			isolateGitConfigEnv(t)
 			cfg := baseConfig()
 			cfg.SkipIfEmpty = tt.skipIfEmpty
 			cfg.RetryCount = 2
@@ -586,6 +647,7 @@ func TestRunGitCommitWithRunner_TransientPushFailurePublishesCommit(t *testing.T
 
 // A push that keeps failing must fail the action without rerunning the workflow.
 func TestRunGitCommitWithRunner_PersistentPushFailureFails(t *testing.T) {
+	isolateGitConfigEnv(t)
 	cfg := baseConfig()
 	cfg.RetryCount = 2
 	f, pushes := pushingRepo(cfg, 99)

@@ -27,9 +27,8 @@ const (
 
 // Git global options
 const (
-	OptGlobal       = "--global"
-	OptAdd          = "--add"
-	OptList         = "--list"
+	OptShowScope    = "--show-scope"
+	OptGetRegexp    = "--get-regexp"
 	OptGet          = "--get"
 	OptForce        = "-f"
 	OptHard         = "--hard"
@@ -101,31 +100,11 @@ func (b *ArgsBuilder) Build() []string {
 
 // Common git command builders for convenience
 
-// ConfigSafeDirArgs builds arguments for setting safe directory.
-func ConfigSafeDirArgs(path string) []string {
-	return NewArgsBuilder().
-		Add(SubCmdConfig, OptGlobal, OptAdd, ConfigSafeDirectory, path).
-		Build()
-}
-
-// ConfigUserEmailArgs builds arguments for setting user email.
-func ConfigUserEmailArgs(email string) []string {
-	return NewArgsBuilder().
-		Add(SubCmdConfig, OptGlobal, ConfigUserEmail, email).
-		Build()
-}
-
-// ConfigUserNameArgs builds arguments for setting user name.
-func ConfigUserNameArgs(name string) []string {
-	return NewArgsBuilder().
-		Add(SubCmdConfig, OptGlobal, ConfigUserName, name).
-		Build()
-}
-
-// ConfigListArgs builds arguments for listing git configuration.
+// ConfigListArgs builds arguments for listing the config keys the action sets,
+// with the scope each value resolves from.
 func ConfigListArgs() []string {
 	return NewArgsBuilder().
-		Add(SubCmdConfig, OptGlobal, OptList).
+		Add(SubCmdConfig, OptShowScope, OptGetRegexp, `^(safe\.directory|user\.email|user\.name)$`).
 		Build()
 }
 
