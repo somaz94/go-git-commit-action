@@ -23,6 +23,17 @@ type Creator struct {
 	// applied holds the follow-up calls that succeeded, so a retried PR step
 	// resumes at the one that failed instead of acting on a PR it closed.
 	applied map[string]bool
+	// existing is the PR a 422 resolved to. Retries reuse it: once pr_closed
+	// has closed it, a fresh open-PR lookup would find nothing.
+	existing *PRResponse
+}
+
+// ExistingPR returns the PR an "already exists" response resolved to, if any.
+func (c *Creator) ExistingPR() (PRResponse, bool) {
+	if c.existing == nil {
+		return PRResponse{}, false
+	}
+	return *c.existing, true
 }
 
 // NewCreator creates a new Creator instance.
@@ -174,7 +185,7 @@ func (c *Creator) HandlePRResponse(ctx context.Context, response PRResponse, sou
 	}
 
 	if response.Message != "" {
-		return c.handleErrorResponse(ctx, response, response.Message)
+		return c.handleErrorResponse(ctx, response, response.Message, sourceBranch)
 	}
 
 	return c.handleSuccessfulPR(ctx, response, sourceBranch)
@@ -222,7 +233,7 @@ func (c *Creator) handleDryRunResponse(response PRResponse) error {
 }
 
 // handleErrorResponse processes error responses from the GitHub API.
-func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, errMsg string) error {
+func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, errMsg, sourceBranch string) error {
 	fmt.Printf("GitHub API Error: %s\n", errMsg)
 
 	if response.Errors != nil {
@@ -232,7 +243,7 @@ func (c *Creator) handleErrorResponse(ctx context.Context, response PRResponse, 
 				fmt.Printf("  - %v\n", errMap)
 
 				if isAlreadyExists(errMap) {
-					return c.handleExistingPR(ctx)
+					return c.handleExistingPR(ctx, sourceBranch)
 				}
 			}
 		}
@@ -272,25 +283,37 @@ func (c *Creator) handleSuccessfulPR(ctx context.Context, response PRResponse, s
 		}
 	}
 
-	if c.config.DeleteSourceBranch && c.config.AutoBranch {
-		branchMgr := NewBranchManagerWithRunner(c.config, c.runner)
-		if err := branchMgr.DeleteSourceBranch(sourceBranch); err != nil {
+	return c.deleteAutoBranch(sourceBranch)
+}
+
+// handleExistingPR processes the case when a PR already exists.
+func (c *Creator) handleExistingPR(ctx context.Context, sourceBranch string) error {
+	fmt.Println("[WARN] Pull request already exists")
+
+	if c.existing == nil {
+		existing, err := c.findOpenPR(ctx)
+		if err != nil {
+			return err
+		}
+		c.existing = existing
+	}
+
+	if c.existing != nil {
+		if err := c.processExistingPR(ctx, c.existing.Number); err != nil {
 			return err
 		}
 	}
 
-	return nil
+	return c.deleteAutoBranch(sourceBranch)
 }
 
-// handleExistingPR processes the case when a PR already exists.
-func (c *Creator) handleExistingPR(ctx context.Context) error {
-	fmt.Println("[WARN] Pull request already exists")
-
+// findOpenPR returns the open PR from this run's head into the base, or nil.
+func (c *Creator) findOpenPR(ctx context.Context) (*PRResponse, error) {
 	// GitHub ignores a head filter without the owner prefix and lists every
 	// open PR, so an unscoped lookup would label or close an unrelated one.
 	owner, _, ok := strings.Cut(c.client.Repo(), "/")
 	if !ok || owner == "" {
-		return errors.NewConfigError("GITHUB_REPOSITORY",
+		return nil, errors.NewConfigError("GITHUB_REPOSITORY",
 			fmt.Sprintf("must be owner/repo to find the existing PR, got %q", c.client.Repo()))
 	}
 
@@ -299,7 +322,7 @@ func (c *Creator) handleExistingPR(ctx context.Context) error {
 	query.Set("base", c.config.PRBase)
 	prs, err := c.client.GetArray(ctx, "/pulls?"+query.Encode())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, candidate := range prs {
@@ -307,14 +330,22 @@ func (c *Creator) handleExistingPR(ctx context.Context) error {
 			continue
 		}
 		if number, ok := candidate["number"].(float64); ok {
-			prNumber := int(number)
-			fmt.Printf("Found existing PR #%d\n", prNumber)
-			return c.processExistingPR(ctx, prNumber)
+			fmt.Printf("Found existing PR #%d\n", int(number))
+			htmlURL, _ := candidate["html_url"].(string)
+			return &PRResponse{HTMLURL: htmlURL, Number: int(number), HasNumber: true}, nil
 		}
 	}
 
-	fmt.Printf("[WARN] No open PR from %s:%s into %s, nothing applied\n", owner, c.config.PRBranch, c.config.PRBase)
-	return nil
+	fmt.Printf("[WARN] No open PR from %s:%s into %s, no follow-ups applied\n", owner, c.config.PRBranch, c.config.PRBase)
+	return nil, nil
+}
+
+// deleteAutoBranch deletes the generated source branch once its PR is handled.
+func (c *Creator) deleteAutoBranch(sourceBranch string) error {
+	if !c.config.DeleteSourceBranch || !c.config.AutoBranch {
+		return nil
+	}
+	return NewBranchManagerWithRunner(c.config, c.runner).DeleteSourceBranch(sourceBranch)
 }
 
 // isOwnHeadPR reports whether a listed PR is the one this run tried to open.

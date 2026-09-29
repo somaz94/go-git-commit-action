@@ -94,10 +94,11 @@ func (f *fakeAPI) called(methodAndPath string) (apiCall, bool) {
 	return apiCall{}, false
 }
 
-// listedPR renders one GET /pulls element with the fields isOwnHeadPR reads.
+// listedPR renders one GET /pulls element with the fields isOwnHeadPR and
+// the recorded outputs read.
 func listedPR(number int, headRepo, headRef, baseRef string) string {
-	return fmt.Sprintf(`{"number":%d,"head":{"ref":%q,"repo":{"full_name":%q}},"base":{"ref":%q}}`,
-		number, headRef, headRepo, baseRef)
+	return fmt.Sprintf(`{"number":%d,"html_url":"https://github.com/owner/repo/pull/%d","head":{"ref":%q,"repo":{"full_name":%q}},"base":{"ref":%q}}`,
+		number, number, headRef, headRepo, baseRef)
 }
 
 // alreadyExists is the PR-creation response that routes into handleExistingPR.
@@ -503,5 +504,88 @@ func TestNewClientWithBaseURL_TargetsGivenHost(t *testing.T) {
 	}
 	if client.Repo() != "owner/repo" {
 		t.Errorf("Repo() = %q, want %q", client.Repo(), "owner/repo")
+	}
+}
+
+// Regression: the 422 path recorded no PR for the outputs and never deleted
+// the auto branch. It now finishes like a created PR.
+func TestHandlePRResponse_ExistingPRFinishesLikeACreatedOne(t *testing.T) {
+	found := "[" + listedPR(42, "owner/repo", "feature", "main") + "]"
+	tests := []struct {
+		name       string
+		autoBranch bool
+		listed     string
+		wantPR     bool
+		wantDelete bool
+	}{
+		{"auto branch", true, found, true, true},
+		{"manual branch is never deleted", false, found, true, false},
+		{"no open PR still deletes the auto branch", true, `[]`, false, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := prConfig()
+			cfg.AutoBranch = tt.autoBranch
+			cfg.DeleteSourceBranch = true
+			api := newFakeAPI(t).route("GET /pulls?base=main&head=owner%3Afeature", http.StatusOK, tt.listed)
+			c, r := newAPICreator(t, cfg, api)
+
+			if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err != nil {
+				t.Fatalf("HandlePRResponse() error = %v, want nil", err)
+			}
+			got, ok := c.ExistingPR()
+			if ok != tt.wantPR || (ok && (got.Number != 42 || got.HTMLURL != "https://github.com/owner/repo/pull/42")) {
+				t.Errorf("ExistingPR() = %+v, %v; want PR #42 found = %v", got, ok, tt.wantPR)
+			}
+			if deleted := r.Ran(key(gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, "feature"))); deleted != tt.wantDelete {
+				t.Errorf("source branch deleted = %v, want %v", deleted, tt.wantDelete)
+			}
+		})
+	}
+}
+
+// pr_closed closed the found PR and then the branch delete failed: the retry
+// resumes on that PR instead of looking it up again, finding none, and
+// returning without the delete.
+func TestHandlePRResponse_ExistingPRRetryResumesAfterClose(t *testing.T) {
+	cfg := prConfig()
+	cfg.AutoBranch = true
+	cfg.DeleteSourceBranch = true
+	cfg.PRClosed = true
+	var lookups atomic.Int32
+	api := newFakeAPI(t).route("PATCH /pulls/42", http.StatusOK, `{}`)
+	api.routes["GET /pulls?base=main&head=owner%3Afeature"] = func(w http.ResponseWriter) {
+		w.Header().Set("Content-Type", "application/json")
+		if lookups.Add(1) == 1 {
+			_, _ = w.Write([]byte("[" + listedPR(42, "owner/repo", "feature", "main") + "]"))
+			return
+		}
+		_, _ = w.Write([]byte(`[]`))
+	}
+	c, r := newAPICreator(t, cfg, api)
+	deleteBranch := key(gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, "feature"))
+	r.Stub(deleteBranch, gitcmd.FakeResult{Err: gitcmd.Fail(1)})
+
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err == nil {
+		t.Fatal("HandlePRResponse() error = nil, want the failed delete")
+	}
+	r.Stub(deleteBranch, gitcmd.FakeResult{})
+	if err := c.HandlePRResponse(context.Background(), alreadyExists(), "feature"); err != nil {
+		t.Fatalf("HandlePRResponse() error = %v, want the retried delete to succeed", err)
+	}
+
+	closes, deletes := 0, 0
+	for _, call := range api.Calls() {
+		if call.Method+" "+call.Path == "PATCH /pulls/42" {
+			closes++
+		}
+	}
+	for _, k := range r.Keys() {
+		if k == deleteBranch {
+			deletes++
+		}
+	}
+	if lookups.Load() != 1 || closes != 1 || deletes != 2 {
+		t.Errorf("lookups = %d, closes = %d, deletes = %d; want 1, 1 and 2", lookups.Load(), closes, deletes)
 	}
 }

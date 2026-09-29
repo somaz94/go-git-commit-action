@@ -69,6 +69,11 @@ func CreatePullRequest(ctx context.Context, r gitcmd.Runner, config *config.GitC
 		return fmt.Errorf("%w: %w", errPRStage, err)
 	}
 
+	// A 422 carries no PR fields; the lookup that resolved it does.
+	if existing, ok := creator.ExistingPR(); ok {
+		recordPROutputs(result, existing)
+	}
+
 	fmt.Println("\nGit Commit Action Completed Successfully!\n" +
 		"=========================================")
 
@@ -92,12 +97,16 @@ func openPullRequest(ctx context.Context, r gitcmd.Runner, diffChecker *pr.DiffC
 		result.Set(output.KeyCommitSHA, commitSHA)
 	}
 
+	recordPROutputs(result, response)
+	return response, nil
+}
+
+// recordPROutputs sets pr_url and pr_number from the fields the PR carries.
+func recordPROutputs(result *output.Result, response pr.PRResponse) {
 	if response.HTMLURL != "" {
 		result.Set(output.KeyPRURL, response.HTMLURL)
 	}
 	if response.HasNumber {
 		result.Set(output.KeyPRNumber, strconv.Itoa(response.Number))
 	}
-
-	return response, nil
 }

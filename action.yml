@@ -117,9 +117,9 @@ outputs:
   commit_sha:
     description: 'The SHA of the created commit'
   pr_number:
-    description: 'The number of the created pull request'
+    description: 'The number of the created or already open pull request ("0" in a dry run)'
   pr_url:
-    description: 'The URL of the created pull request'
+    description: 'The URL of the created or already open pull request (a compare URL in a dry run)'
   tag_name:
     description: 'The name of the created tag'
   skipped:

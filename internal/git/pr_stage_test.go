@@ -56,11 +56,17 @@ func (g *fakeGitHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		g.base, _ = body["base"].(string)
 		g.opened++
 		g.open = 6 + g.opened
+		if g.lose[route] > 0 {
+			g.lose[route]--
+			w.WriteHeader(http.StatusBadGateway)
+			fmt.Fprint(w, `{"message":"Bad Gateway"}`)
+			return
+		}
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprintf(w, `{"html_url":"https://github.com/owner/repo/pull/%d","number":%d}`, g.open, g.open)
 	case route == "GET /pulls" && g.open != 0:
-		fmt.Fprintf(w, `[{"number":%d,"head":{"ref":%q,"repo":{"full_name":"owner/repo"}},"base":{"ref":%q}}]`,
-			g.open, g.head, g.base)
+		fmt.Fprintf(w, `[{"number":%d,"html_url":"https://github.com/owner/repo/pull/%d","head":{"ref":%q,"repo":{"full_name":"owner/repo"}},"base":{"ref":%q}}]`,
+			g.open, g.open, g.head, g.base)
 	case route == "GET /pulls":
 		fmt.Fprint(w, `[]`)
 	case r.Method == http.MethodPatch:
@@ -261,8 +267,8 @@ func TestRunGitCommitWithRunner_PRStepRetryResumesAfterCreation(t *testing.T) {
 	}
 }
 
-// An already-open PR is closed but the close reply is lost: the retry must look
-// the PR up again rather than POST, which would open a duplicate.
+// An already-open PR is closed but the close reply is lost: the retry must
+// resume on the PR it found rather than POST, which would open a duplicate.
 func TestRunGitCommitWithRunner_PRStepRetryDoesNotRepostAfterAlreadyExists(t *testing.T) {
 	cfg := prStageConfig(false, false)
 	cfg.PRClosed = true
@@ -274,13 +280,76 @@ func TestRunGitCommitWithRunner_PRStepRetryDoesNotRepostAfterAlreadyExists(t *te
 	f := prRepo(cfg, nil)
 
 	if err := RunGitCommitWithRunner(context.Background(), f, cfg, output.NewResult()); err != nil {
-		t.Fatalf("RunGitCommitWithRunner() error = %v, want the retry to find the PR already closed", err)
+		t.Fatalf("RunGitCommitWithRunner() error = %v, want the retry to resume on PR #5", err)
 	}
 	if got := api.openedPRs(); got != 0 {
 		t.Errorf("PRs opened = %d, want 0 (no duplicate of the closed PR)", got)
 	}
-	if got := api.count("POST /pulls"); got != 1 {
-		t.Errorf("POST /pulls calls = %d, want 1", got)
+	for route, want := range map[string]int{
+		"POST /pulls":    1,
+		"GET /pulls":     1,
+		"PATCH /pulls/5": 2, // the lost close is re-sent; closing twice is a no-op
+	} {
+		if got := api.count(route); got != want {
+			t.Errorf("%s calls = %d, want %d", route, got, want)
+		}
+	}
+}
+
+// Regression: on GitHub's 422 for an open PR, pr_url and pr_number came out
+// empty and the auto branch was never deleted. The last case is a close that
+// succeeded and a delete that failed: the retry must still delete.
+func TestRunGitCommitWithRunner_AlreadyExistsFinishesLikeACreatedPR(t *testing.T) {
+	deleteBranch := key(gitcmd.PushDeleteBranchArgs(gitcmd.RefOrigin, ""))
+	tests := []struct {
+		name        string
+		autoBranch  bool
+		openBefore  int // a PR already open for the head before the run
+		losePost    bool
+		closePR     bool
+		failDelete  int
+		wantNumber  string
+		wantDeletes int
+	}{
+		{"manual rerun, PR open", false, 5, false, false, 0, "5", 0},
+		{"auto, POST reply lost", true, 0, true, false, 0, "7", 1},
+		{"auto, POST reply lost, close then failed delete", true, 0, true, true, 1, "7", 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := prStageConfig(tt.autoBranch, false)
+			cfg.DeleteSourceBranch = true
+			cfg.PRClosed = tt.closePR
+			api := useFakeGitHub(t, nil)
+			api.mu.Lock()
+			if tt.openBefore != 0 {
+				api.open, api.head, api.base = tt.openBefore, cfg.PRBranch, cfg.PRBase
+			}
+			if tt.losePost {
+				api.lose = map[string]int{"POST /pulls": 1}
+			}
+			api.mu.Unlock()
+			f := prRepo(cfg, map[string]int{deleteBranch: tt.failDelete})
+			result := output.NewResult()
+
+			if err := RunGitCommitWithRunner(context.Background(), f, cfg, result); err != nil {
+				t.Fatalf("RunGitCommitWithRunner() error = %v, want nil", err)
+			}
+			if got := api.count("GET /pulls"); got != 1 {
+				t.Errorf("open-PR lookups = %d, want 1", got)
+			}
+			if got := countPrefix(f, deleteBranch); got != tt.wantDeletes {
+				t.Errorf("branch deletions = %d, want %d", got, tt.wantDeletes)
+			}
+			for k, want := range map[string]string{
+				output.KeyPRNumber: tt.wantNumber,
+				output.KeyPRURL:    "https://github.com/owner/repo/pull/" + tt.wantNumber,
+			} {
+				if got := result.Get(k); got != want {
+					t.Errorf("%s output = %q, want %q", k, got, want)
+				}
+			}
+		})
 	}
 }
 
