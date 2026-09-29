@@ -96,11 +96,20 @@ func TestCheckoutNewBranchArgs(t *testing.T) {
 }
 
 func TestStatusPorcelainArgs(t *testing.T) {
-	args := StatusPorcelainArgs()
-	expected := []string{SubCmdStatus, OptPorcelain}
-
-	if !reflect.DeepEqual(args, expected) {
-		t.Errorf("StatusPorcelainArgs() = %v, want %v", args, expected)
+	tests := []struct {
+		name      string
+		pathspecs []string
+		want      []string
+	}{
+		{"whole tree", nil, []string{SubCmdStatus, OptPorcelain}},
+		{"pathspecs", []string{"docs/*.md", "."}, []string{SubCmdStatus, OptPorcelain, "--", "docs/*.md", "."}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := StatusPorcelainArgs(tt.pathspecs...); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("StatusPorcelainArgs(%q) = %v, want %v", tt.pathspecs, got, tt.want)
+			}
+		})
 	}
 }
 

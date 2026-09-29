@@ -81,6 +81,7 @@ Complete reference for all available configuration options.
 - `pr_branch` is required when `create_pr` is true and `auto_branch` is false
 - `pr_base` is required when `create_pr` is true
 - When `auto_branch` is true, creates branch with format: `update-files-{timestamp}`
+- When `pr_dry_run` and `auto_branch` are both true, only the branch name is generated: no branch is created, nothing is committed or pushed, the changed-file preview lists the uncommitted changes that `file_pattern` would stage, and no pull request is opened
 - `delete_source_branch` only works with `auto_branch: true`
 
 ---

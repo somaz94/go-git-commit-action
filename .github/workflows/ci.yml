@@ -377,6 +377,44 @@ jobs:
           github_token: ${{ secrets.PAT_TOKEN }}
           pr_dry_run: true
 
+      - name: Create Test File
+        run: |
+          echo "$(date +%s)-$RANDOM" > test/dry-run-auto.txt
+
+      - name: Test PR Dry Run (auto_branch true)
+        id: dry-run-auto
+        uses: ./.action
+        with:
+          user_email: actions@github.com
+          user_name: GitHub Actions
+          branch: main
+          create_pr: true
+          auto_branch: true
+          pr_base: main
+          repository_path: test
+          file_pattern: .
+          github_token: ${{ secrets.PAT_TOKEN }}
+          pr_dry_run: true
+
+      - name: Verify Dry Run Pushed No Branch
+        env:
+          PR_URL: ${{ steps.dry-run-auto.outputs.pr_url }}
+        run: |
+          set -euo pipefail
+          branch=${PR_URL##*...}
+          branch=${branch%%\?*}
+          case "$branch" in
+            update-files-*) ;;
+            *) echo "FAIL: no generated branch in pr_url=$PR_URL"; exit 1 ;;
+          esac
+          rc=0
+          git ls-remote --exit-code origin "refs/heads/$branch" || rc=$?
+          case "$rc" in
+            2) echo "PASS: dry run pushed no branch" ;;
+            0) echo "FAIL: dry run left $branch on the remote"; exit 1 ;;
+            *) echo "FAIL: ls-remote exit $rc"; exit 1 ;;
+          esac
+
   ci-result:
     name: CI Result
     if: always()

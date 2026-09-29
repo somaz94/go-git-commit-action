@@ -116,6 +116,26 @@ func TestPrepareSourceBranch_AutoBranchRetriesPushOnSameBranch(t *testing.T) {
 	}
 }
 
+// Regression: a dry run cut, committed and pushed the auto branch, and nothing
+// deleted it. Only the name is needed, for the preview.
+func TestPrepareSourceBranch_DryRunAutoBranchWritesNothing(t *testing.T) {
+	cfg := prConfig()
+	cfg.AutoBranch = true
+	cfg.PRDryRun = true
+	f := gitcmd.NewFakeRunner()
+
+	got, err := NewBranchManagerWithRunner(cfg, f).PrepareSourceBranch(context.Background())
+	if err != nil {
+		t.Fatalf("PrepareSourceBranch() error = %v, want nil", err)
+	}
+	if !strings.HasPrefix(got, "update-files-") || cfg.PRBranch != got {
+		t.Errorf("PrepareSourceBranch() = %q, cfg.PRBranch = %q; want the same update-files-<timestamp> name", got, cfg.PRBranch)
+	}
+	if keys := f.Keys(); len(keys) != 0 {
+		t.Errorf("Keys() = %v, want no git command in a dry run", keys)
+	}
+}
+
 func TestPrepareSourceBranch_AutoBranchCreateFailure(t *testing.T) {
 	cfg := prConfig()
 	cfg.AutoBranch = true
@@ -222,6 +242,44 @@ func TestCheckBranchDifferences_NoChangesSkipped(t *testing.T) {
 
 	if err := dc.CheckBranchDifferences(); err != nil {
 		t.Fatalf("CheckBranchDifferences() error = %v, want an empty diff to be skipped", err)
+	}
+}
+
+// A dry-run auto branch was never pushed: the local changes under its
+// file_pattern pathspecs stand in for the branch diff, under the same
+// empty-diff rule, and no ref is fetched.
+func TestCheckBranchDifferences_DryRunAutoBranchUsesLocalChanges(t *testing.T) {
+	tests := []struct {
+		name      string
+		pattern   string
+		pathspecs []string
+		status    string
+		skip      bool
+		wantErr   bool
+	}{
+		{"local changes", ".", []string{"."}, " M a.txt\n", false, false},
+		{"no changes", ".", []string{"."}, "", false, true},
+		{"no changes, skip_if_empty", ".", []string{"."}, "", true, false},
+		{"each file_pattern entry is a pathspec", "docs/*.md  src", []string{"docs/*.md", "src"}, "?? docs/a.md\n", false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := prConfig()
+			cfg.AutoBranch = true
+			cfg.PRDryRun = true
+			cfg.SkipIfEmpty = tt.skip
+			cfg.FilePattern = tt.pattern
+			status := key(gitcmd.StatusPorcelainArgs(tt.pathspecs...))
+			f := gitcmd.NewFakeRunner().Stub(status, gitcmd.FakeResult{Stdout: tt.status})
+
+			err := NewDiffCheckerWithRunner(cfg, f).CheckBranchDifferences()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("CheckBranchDifferences() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if keys := f.Keys(); len(keys) != 1 || keys[0] != status {
+				t.Errorf("Keys() = %v, want only %q", keys, status)
+			}
+		})
 	}
 }
 

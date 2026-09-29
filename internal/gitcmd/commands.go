@@ -171,11 +171,14 @@ func CheckoutNewBranchArgs(branch string) []string {
 		Build()
 }
 
-// StatusPorcelainArgs builds arguments for getting status in porcelain format.
-func StatusPorcelainArgs() []string {
-	return NewArgsBuilder().
-		Add(SubCmdStatus, OptPorcelain).
-		Build()
+// StatusPorcelainArgs builds arguments for getting status in porcelain format,
+// limited to pathspecs when any are given.
+func StatusPorcelainArgs(pathspecs ...string) []string {
+	builder := NewArgsBuilder().Add(SubCmdStatus, OptPorcelain)
+	if len(pathspecs) > 0 {
+		builder.Add("--").Add(pathspecs...)
+	}
+	return builder.Build()
 }
 
 // AddArgs builds arguments for adding files.

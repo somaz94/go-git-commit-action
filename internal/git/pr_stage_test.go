@@ -128,7 +128,7 @@ func prRepo(cfg *config.GitConfig, fail map[string]int) *gitcmd.FakeRunner {
 			}
 		}
 		switch {
-		case k == key(gitcmd.StatusPorcelainArgs()):
+		case strings.HasPrefix(k, key(gitcmd.StatusPorcelainArgs())):
 			if committed {
 				return "", nil
 			}
@@ -344,6 +344,53 @@ func TestRunGitCommitWithRunner_AlreadyExistsFinishesLikeACreatedPR(t *testing.T
 			for k, want := range map[string]string{
 				output.KeyPRNumber: tt.wantNumber,
 				output.KeyPRURL:    "https://github.com/owner/repo/pull/" + tt.wantNumber,
+			} {
+				if got := result.Get(k); got != want {
+					t.Errorf("%s output = %q, want %q", k, got, want)
+				}
+			}
+		})
+	}
+}
+
+// Regression: auto_branch with pr_dry_run pushed a branch nothing deleted. A
+// dry run reaches neither the remote nor the API, and keeps every output key.
+func TestRunGitCommitWithRunner_DryRunAutoBranchWritesNothing(t *testing.T) {
+	for _, skip := range []bool{true, false} {
+		t.Run(fmt.Sprintf("skip_if_empty=%v", skip), func(t *testing.T) {
+			cfg := prStageConfig(true, skip)
+			cfg.PRDryRun = true
+			cfg.DeleteSourceBranch = true
+			api := useFakeGitHub(t, nil)
+			f := prRepo(cfg, nil)
+			result := output.NewResult()
+
+			if err := RunGitCommitWithRunner(context.Background(), f, cfg, result); err != nil {
+				t.Fatalf("RunGitCommitWithRunner() error = %v, want nil", err)
+			}
+			for _, sub := range []string{gitcmd.SubCmdPush, gitcmd.SubCmdCommit, gitcmd.SubCmdCheckout, gitcmd.SubCmdFetch} {
+				if got := countPrefix(f, key([]string{sub})); got != 0 {
+					t.Errorf("%q ran %d times, want none in a dry run", key([]string{sub}), got)
+				}
+			}
+			if got := countPrefix(f, key(gitcmd.StatusPorcelainArgs("."))); got != 1 {
+				t.Errorf("file_pattern-limited status ran %d times, want 1 (the preview)", got)
+			}
+			api.mu.Lock()
+			hits := len(api.hits)
+			api.mu.Unlock()
+			if hits != 0 {
+				t.Errorf("GitHub API requests = %d, want none", hits)
+			}
+			if !strings.HasPrefix(cfg.PRBranch, "update-files-") {
+				t.Fatalf("cfg.PRBranch = %q, want the generated name", cfg.PRBranch)
+			}
+			for k, want := range map[string]string{
+				output.KeyPRURL:        "https://github.com/owner/repo/compare/main..." + cfg.PRBranch + "?dry_run=1",
+				output.KeyPRNumber:     "0",
+				output.KeyCommitSHA:    "abc1234",
+				output.KeySkipped:      "false",
+				output.KeyChangedFiles: "1",
 			} {
 				if got := result.Get(k); got != want {
 					t.Errorf("%s output = %q, want %q", k, got, want)

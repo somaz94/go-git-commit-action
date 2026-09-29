@@ -32,7 +32,7 @@ func NewBranchManagerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *BranchM
 }
 
 // PrepareSourceBranch sets up the branch that will be used as the source for the PR.
-// If auto_branch is enabled, it creates a new branch with a timestamp.
+// If auto_branch is enabled, it creates a new branch with a timestamp; a dry run only names it.
 // Otherwise, it uses the specified PR branch.
 func (bm *BranchManager) PrepareSourceBranch(ctx context.Context) (string, error) {
 	if bm.config.AutoBranch {
@@ -41,10 +41,17 @@ func (bm *BranchManager) PrepareSourceBranch(ctx context.Context) (string, error
 	return bm.checkoutExistingBranch()
 }
 
-// createAutoBranch creates a new branch with a timestamp and commits changes to it.
+// createAutoBranch creates a new branch with a timestamp and commits changes to it;
+// a dry run only names it.
 func (bm *BranchManager) createAutoBranch(ctx context.Context) (string, error) {
 	sourceBranch := fmt.Sprintf("update-files-%s", time.Now().Format(timestampFormat))
 	bm.config.PRBranch = sourceBranch
+
+	// Like the manual dry run, write nothing: the name only feeds the preview.
+	if bm.config.PRDryRun {
+		fmt.Printf("  - [DRY RUN] Would create branch %s, commit and push... Skipped\n", sourceBranch)
+		return sourceBranch, nil
+	}
 
 	if err := shared.RunStep(bm.runner, fmt.Sprintf("Creating new branch %s", sourceBranch),
 		gitcmd.CmdGit, gitcmd.CheckoutNewBranchArgs(sourceBranch)...); err != nil {

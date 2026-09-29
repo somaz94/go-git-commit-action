@@ -114,6 +114,7 @@ func TestHandlePullRequestFlow_DryRunSkipsCommit(t *testing.T) {
 // to the configured one.
 func TestHandlePullRequestFlow_AutoBranchSkipsDirectCommit(t *testing.T) {
 	cfg := prDryRunConfig()
+	cfg.PRDryRun = false // a dry run cuts no branch at all
 	cfg.AutoBranch = true
 	f := gitcmd.NewFakeRunner().
 		Stub(key(gitcmd.DiffNameStatusArgs("origin/main", "origin/feature")),

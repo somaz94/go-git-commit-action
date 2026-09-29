@@ -3,6 +3,7 @@ package pr
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/somaz94/go-git-commit-action/internal/config"
 	"github.com/somaz94/go-git-commit-action/internal/gitcmd"
@@ -26,24 +27,35 @@ func NewDiffCheckerWithRunner(cfg *config.GitConfig, r gitcmd.Runner) *DiffCheck
 }
 
 // CheckBranchDifferences checks the differences between the PR base branch and the source branch.
-// It also prints the compare URL for opening the PR by hand.
+// It also prints the compare URL for opening the PR by hand, except for a dry-run
+// auto branch, which does not exist on the remote.
 func (dc *DiffChecker) CheckBranchDifferences() error {
 	fmt.Printf("\nChanged files between %s and %s:\n", dc.config.PRBase, dc.config.PRBranch)
+
+	// A dry-run auto branch is never pushed, so list the uncommitted changes
+	// through StageFiles' pathspecs: exactly what its commit would take.
+	if dc.dryRunAutoBranch() {
+		return dc.displayChangedFiles(gitcmd.StatusPorcelainArgs(strings.Fields(dc.config.FilePattern)...))
+	}
 
 	branchMgr := NewBranchManagerWithRunner(dc.config, dc.runner)
 	if err := branchMgr.FetchBranches(); err != nil {
 		return err
 	}
 
-	return dc.displayChangedFiles()
-}
-
-// displayChangedFiles shows the changed files between branches and validates if changes exist.
-func (dc *DiffChecker) displayChangedFiles() error {
-	filesOutput, err := dc.runner.Output(gitcmd.CmdGit, gitcmd.DiffNameStatusArgs(
+	return dc.displayChangedFiles(gitcmd.DiffNameStatusArgs(
 		fmt.Sprintf("origin/%s", dc.config.PRBase),
 		fmt.Sprintf("origin/%s", dc.config.PRBranch),
-	)...)
+	))
+}
+
+func (dc *DiffChecker) dryRunAutoBranch() bool {
+	return dc.config.PRDryRun && dc.config.AutoBranch
+}
+
+// displayChangedFiles shows the files git lists for args and validates if changes exist.
+func (dc *DiffChecker) displayChangedFiles(args []string) error {
+	filesOutput, err := dc.runner.Output(gitcmd.CmdGit, args...)
 	if err != nil {
 		fmt.Printf("[WARN] Failed to get diff: %v\n", err)
 	}
@@ -58,7 +70,9 @@ func (dc *DiffChecker) displayChangedFiles() error {
 
 	fmt.Printf("%s\n", string(filesOutput))
 
-	dc.displayPRURL()
+	if !dc.dryRunAutoBranch() {
+		dc.displayPRURL()
+	}
 
 	return nil
 }
