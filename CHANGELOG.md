@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.9.4](https://github.com/somaz94/go-git-commit-action/compare/v1.9.3...v1.9.4) (2026-09-29)
+
+### Bug Fixes
+
+- configure git through the process environment instead of ~/.gitconfig ([8a13a51](https://github.com/somaz94/go-git-commit-action/commit/8a13a51af0a0324a3b3ae675cd226750df5daaf7))
+
+### Chores
+
+- bump the action image to v1.9.4 ([3809165](https://github.com/somaz94/go-git-commit-action/commit/3809165a39cdf280685133559de599568d07fee1))
+- set the action author to somaz94 ([47ce75e](https://github.com/somaz94/go-git-commit-action/commit/47ce75e926827c1d5c157a23f869f56ac8c45893))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.3](https://github.com/somaz94/go-git-commit-action/compare/v1.9.2...v1.9.3) (2026-09-29)
 
 ### Bug Fixes
