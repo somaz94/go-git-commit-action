@@ -102,8 +102,18 @@ jobs:
         with:
           fetch-depth: 10
 
+      - name: Stage the action from this commit
+        # ./ runs the pinned image and follows the action's branch switch.
+        run: |
+          set -euo pipefail
+          mkdir .action
+          git archive HEAD | tar -x -C .action
+          sed -i -E "s|^(\s*image:\s*)docker://.*|\1'Dockerfile'|" .action/action.yml
+          grep -qE "^\s*image: 'Dockerfile'$" .action/action.yml
+          echo '/.action/' >> .git/info/exclude
+
       - name: Test Auto Branch Local Action (auto_branch false)
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -131,12 +141,22 @@ jobs:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
 
+      - name: Stage the action from this commit
+        # ./ runs the pinned image and follows the action's branch switch.
+        run: |
+          set -euo pipefail
+          mkdir .action
+          git archive HEAD | tar -x -C .action
+          sed -i -E "s|^(\s*image:\s*)docker://.*|\1'Dockerfile'|" .action/action.yml
+          grep -qE "^\s*image: 'Dockerfile'$" .action/action.yml
+          echo '/.action/' >> .git/info/exclude
+
       - name: Create Test File
         run: |
           echo "$(date +%s)-$RANDOM" > test/test2.txt
 
       - name: Test Auto Branch Local Action (auto_branch true)
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -163,9 +183,19 @@ jobs:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
 
+      - name: Stage the action from this commit
+        # ./ runs the pinned image and follows the action's branch switch.
+        run: |
+          set -euo pipefail
+          mkdir .action
+          git archive HEAD | tar -x -C .action
+          sed -i -E "s|^(\s*image:\s*)docker://.*|\1'Dockerfile'|" .action/action.yml
+          grep -qE "^\s*image: 'Dockerfile'$" .action/action.yml
+          echo '/.action/' >> .git/info/exclude
+
       - name: Test Skip If Empty (should skip - no changes)
         id: skip-test
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -198,7 +228,7 @@ jobs:
 
       - name: Test Skip If Empty (should not skip - with changes)
         id: no-skip-test
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -221,8 +251,8 @@ jobs:
           echo "changed_files=${{ steps.no-skip-test.outputs.changed_files }}"
           echo "pr_number=${{ steps.no-skip-test.outputs.pr_number }}"
           echo "pr_url=${{ steps.no-skip-test.outputs.pr_url }}"
-          if [ "${{ steps.no-skip-test.outputs.skipped }}" = "true" ]; then
-            echo "FAIL: expected skipped!=true"
+          if [ "${{ steps.no-skip-test.outputs.skipped }}" != "false" ]; then
+            echo "FAIL: expected skipped=false"
             exit 1
           fi
           echo "PASS: no-skip output verified"
@@ -239,11 +269,21 @@ jobs:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
 
+      - name: Stage the action from this commit
+        # ./ runs the pinned image and follows the action's branch switch.
+        run: |
+          set -euo pipefail
+          mkdir .action
+          git archive HEAD | tar -x -C .action
+          sed -i -E "s|^(\s*image:\s*)docker://.*|\1'Dockerfile'|" .action/action.yml
+          grep -qE "^\s*image: 'Dockerfile'$" .action/action.yml
+          echo '/.action/' >> .git/info/exclude
+
       - name: Configure Git Safe Directory
         run: git config --global --add safe.directory ${{ github.workspace }}
 
       - name: Test PR Auto Close
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -273,8 +313,18 @@ jobs:
           fetch-depth: 10
           token: ${{ secrets.PAT_TOKEN }}
 
+      - name: Stage the action from this commit
+        # ./ runs the pinned image and follows the action's branch switch.
+        run: |
+          set -euo pipefail
+          mkdir .action
+          git archive HEAD | tar -x -C .action
+          sed -i -E "s|^(\s*image:\s*)docker://.*|\1'Dockerfile'|" .action/action.yml
+          grep -qE "^\s*image: 'Dockerfile'$" .action/action.yml
+          echo '/.action/' >> .git/info/exclude
+
       - name: Test PR Dry Run (auto_branch false)
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -291,7 +341,7 @@ jobs:
           pr_dry_run: true
 
       - name: Test PR Dry Run with Draft
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions
@@ -309,7 +359,7 @@ jobs:
           pr_dry_run: true
 
       - name: Test PR Dry Run with Reviewers and Assignees
-        uses: ./
+        uses: ./.action
         with:
           user_email: actions@github.com
           user_name: GitHub Actions

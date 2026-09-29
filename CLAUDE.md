@@ -70,7 +70,8 @@ unit-tests → build-and-push-docker → test-auto-branch-false → test-auto-br
 
 - Many functions use `exec.Command` for git/curl calls, limiting pure unit test coverage
 - Dry run paths and config validation are the most testable areas
-- Integration tests in ci.yml use `uses: ./` (local action)
+- Integration tests in ci.yml run this commit's code through `uses: ./.action`, a HEAD export
+  whose image is switched to the Dockerfile, because `uses: ./` would run the image pinned in `action.yml`
 - Smoke tests in use-action.yml use `somaz94/go-git-commit-action@v1` (released)
 - Test directory is `test/` (singular), used for integration test data
 
