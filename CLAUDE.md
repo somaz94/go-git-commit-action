@@ -15,7 +15,7 @@ internal/
   gitcmd/                    # Git command argument builders
 test/                        # Integration test data (test/ not tests/)
 Makefile                     # Build, test, lint commands
-Dockerfile                   # Multi-stage (golang:1.26-alpine → alpine:latest)
+Dockerfile                   # Multi-stage (golang alpine builder → alpine runtime)
 action.yml                   # GitHub Action definition (17+ inputs)
 cliff.toml                   # git-cliff config for release notes
 ```

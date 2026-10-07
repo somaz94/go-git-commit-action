@@ -1,3 +1,3 @@
 module github.com/somaz94/go-git-commit-action
 
-go 1.26
+go 1.27
