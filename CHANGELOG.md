@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.10.1](https://github.com/somaz94/go-git-commit-action/compare/v1.10.0...v1.10.1) (2026-11-03)
+
+### Bug Fixes
+
+- stop delete_tag committing and fail when a commit cannot reach the branch ([91c269f](https://github.com/somaz94/go-git-commit-action/commit/91c269f74a6129c3ca20effc7b87d7febdf121df))
+
+### Chores
+
+- bump the action image to v1.10.1 ([5261823](https://github.com/somaz94/go-git-commit-action/commit/5261823105ae1884c7c1cf63fdda0a18f9851f59))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.10.0](https://github.com/somaz94/go-git-commit-action/compare/v1.9.5...v1.10.0) (2026-11-03)
 
 ### Features
