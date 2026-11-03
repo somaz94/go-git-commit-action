@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.10.0](https://github.com/somaz94/go-git-commit-action/compare/v1.9.5...v1.10.0) (2026-11-03)
+
+### Features
+
+- add rebase_on_reject to rebase and retry a rejected push ([7dee496](https://github.com/somaz94/go-git-commit-action/commit/7dee496ae755ae8391988e188438eeb3d49f0e2d))
+
+### Builds
+
+- raise go.mod to Go 1.27 to match the build image ([f9a9136](https://github.com/somaz94/go-git-commit-action/commit/f9a9136828a6512b97aa375a06683356faba59ac))
+
+### Continuous Integration
+
+- deduplicate identical commit lines in release notes ([98d577c](https://github.com/somaz94/go-git-commit-action/commit/98d577c7f67479930b32352b2673ed326b1a0fb7))
+
+### Chores
+
+- bump the action image to v1.10.0 ([324e85a](https://github.com/somaz94/go-git-commit-action/commit/324e85aa2307a5803d916e49653c13ab005f030c))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.9.5](https://github.com/somaz94/go-git-commit-action/compare/v1.9.4...v1.9.5) (2026-09-29)
 
 ### Bug Fixes
