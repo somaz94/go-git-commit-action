@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v1.11.0](https://github.com/somaz94/go-git-commit-action/compare/v1.10.1...v1.11.0) (2026-11-03)
+
+### Features
+
+- create only the tag when a step names nothing to commit ([d7ae33c](https://github.com/somaz94/go-git-commit-action/commit/d7ae33ca3f848e6d98d52ada7d9f9d05f94ccb39))
+
+### Chores
+
+- bump the action image to v1.11.0 ([cff9a68](https://github.com/somaz94/go-git-commit-action/commit/cff9a68336d90cea93b8cfbb54f287d9377e3b07))
+
+### Contributors
+
+- somaz
+
+<br/>
+
 ## [v1.10.1](https://github.com/somaz94/go-git-commit-action/compare/v1.10.0...v1.10.1) (2026-11-03)
 
 ### Bug Fixes
