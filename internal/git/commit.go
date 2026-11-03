@@ -134,6 +134,26 @@ func executeGitCommitWorkflow(ctx context.Context, r gitcmd.Runner, config *conf
 		return err
 	}
 
+	// After handleBranch: `branch` still decides which commit the tag lands on.
+	// Decided 2026-11-03: the README's tag-only example also staged and pushed every changed
+	// file, the same leak delete_tag had. Naming file_pattern or commit_message still commits.
+	if config.TagOnly() {
+		fmt.Println("\n[INFO] Only a tag was asked for: skipping the commit. Set file_pattern or commit_message to commit as well.")
+		if config.TagReference == "" {
+			if warning := tagPlacementWarning(r, config.Branch); warning != "" {
+				fmt.Println("[WARN] " + warning)
+			}
+		}
+		// The outputs a clean-tree tag step always had: `skipped` false and HEAD's
+		// SHA, so a later `if: skipped != 'true'` or `--target commit_sha` keeps working.
+		result.Set(output.KeySkipped, "false")
+		result.Set(output.KeyChangedFiles, "0")
+		if sha, err := shared.CurrentCommitSHA(r); err == nil {
+			result.Set(output.KeyCommitSHA, sha)
+		}
+		return nil
+	}
+
 	isEmpty, err := checkIfEmpty(r, config)
 	if err != nil {
 		return err
@@ -508,6 +528,19 @@ func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.
 		}
 	}
 	return nil
+}
+
+// tagPlacementWarning says when a tag-only step's tag will not sit on the branch input's
+// remote tip: a tag step on another branch is valid, so this warns rather than fails.
+func tagPlacementWarning(r gitcmd.Runner, branch string) string {
+	if _, onBranch, err := shared.HeadOnBranch(r, branch); err != nil || !onBranch {
+		return fmt.Sprintf("HEAD is not on %q: the tag lands on HEAD, not on that branch.", branch)
+	}
+	_, err := r.Output(gitcmd.CmdGit, gitcmd.IsAncestorArgs(gitcmd.RefHead, "origin/"+branch)...)
+	if code, ok := gitcmd.ExitCodeOf(err); ok && code == 1 {
+		return fmt.Sprintf("HEAD has commits not on origin/%s: the tag publishes them, and the branch stays behind.", branch)
+	}
+	return ""
 }
 
 // errHeadNotOnBranch reports a commit that would never reach the branch input.

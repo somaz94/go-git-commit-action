@@ -221,6 +221,158 @@ func TestHeadNotOnBranch_RealGit_TagNameIsAMismatch(t *testing.T) {
 	}
 }
 
+func tagOnlyConfig(over func(*config.GitConfig)) *config.GitConfig {
+	return actionConfig(func(c *config.GitConfig) {
+		c.TagName = "v9"
+		c.TagMessage = "v9"
+		c.CommitMessage = config.DefaultCommitMessage
+		c.FilePattern = config.DefaultFilePattern
+		if over != nil {
+			over(c)
+		}
+	})
+}
+
+func runWithTag(t *testing.T, cfg *config.GitConfig, result *output.Result) {
+	t.Helper()
+	if err := RunGitCommitWithRunner(context.Background(), gitcmd.NewExecRunner(), cfg, result); err != nil {
+		t.Fatalf("RunGitCommitWithRunner() error = %v", err)
+	}
+	if err := NewTagManager(cfg).HandleGitTag(context.Background(), result); err != nil {
+		t.Fatalf("HandleGitTag() error = %v", err)
+	}
+}
+
+func TestTagOnly_RealGit_PublishesTheTagAndNothingElse(t *testing.T) {
+	work, bare := repoWithRemote(t)
+	writeRepoFile(t, work, "scratch.tmp", "junk\n")
+	writeRepoFile(t, work, "a.txt", "changed\n")
+	before := runGit(t, bare, "rev-parse", "main")
+	result := output.NewResult()
+
+	runWithTag(t, tagOnlyConfig(nil), result)
+
+	if got := runGit(t, bare, "rev-parse", "main"); got != before {
+		t.Errorf("remote main moved to %s, want it untouched", got)
+	}
+	if got := runGit(t, bare, "rev-parse", "v9^{commit}"); got != before {
+		t.Errorf("tag points at %s, want %s", got, before)
+	}
+	// What a clean-tree tag step always reported, so steps reading them keep working.
+	if got := result.Get(output.KeySkipped); got != "false" {
+		t.Errorf("skipped output = %q, want false", got)
+	}
+	if got := result.Get(output.KeyCommitSHA); got != before {
+		t.Errorf("commit_sha output = %q, want HEAD %s", got, before)
+	}
+	if got := result.Get(output.KeyChangedFiles); got != "0" {
+		t.Errorf("changed_files output = %q, want 0", got)
+	}
+	if got := runGit(t, work, "status", "--porcelain"); !strings.Contains(got, "scratch.tmp") || !strings.Contains(got, "a.txt") {
+		t.Errorf("status = %q, want the tree left as it was", got)
+	}
+}
+
+func TestTagOnly_RealGit_TagReferenceWinsAndLeaksNothing(t *testing.T) {
+	work, bare := repoWithRemote(t)
+	first := runGit(t, work, "rev-parse", "HEAD")
+	writeRepoFile(t, work, "a.txt", "2\n")
+	runGit(t, work, "add", "a.txt")
+	runGit(t, work, "commit", "-qm", "second")
+	runGit(t, work, "push", "-q", "origin", "main")
+	second := runGit(t, work, "rev-parse", "HEAD")
+	writeRepoFile(t, work, "scratch.tmp", "junk\n")
+
+	runWithTag(t, tagOnlyConfig(func(c *config.GitConfig) { c.TagReference = first }), output.NewResult())
+
+	if got := runGit(t, bare, "rev-parse", "v9^{commit}"); got != first {
+		t.Errorf("tag points at %s, want the reference %s", got, first)
+	}
+	if got := runGit(t, bare, "rev-parse", "main"); got != second {
+		t.Errorf("remote main moved to %s", got)
+	}
+}
+
+// Documented: a branch that exists nowhere is created, as it always was.
+func TestTagOnly_RealGit_BranchMissingEverywhereIsCreated(t *testing.T) {
+	work, bare := repoWithRemote(t)
+	writeRepoFile(t, work, "scratch.tmp", "junk\n")
+
+	runWithTag(t, tagOnlyConfig(func(c *config.GitConfig) { c.Branch = "brand-new" }), output.NewResult())
+
+	if got := runGit(t, bare, "branch", "--list", "brand-new"); got == "" {
+		t.Error("remote brand-new is missing, want it created")
+	}
+	if got := runGit(t, bare, "ls-tree", "--name-only", "brand-new"); strings.Contains(got, "scratch.tmp") {
+		t.Errorf("scratch.tmp was published on the new branch:\n%s", got)
+	}
+}
+
+func TestTagPlacementWarning_RealGit(t *testing.T) {
+	work, _ := repoWithRemote(t)
+	if got := tagPlacementWarning(gitcmd.NewExecRunner(), "main"); got != "" {
+		t.Errorf("on the remote tip: warning = %q, want none", got)
+	}
+	writeRepoFile(t, work, "a.txt", "2\n")
+	runGit(t, work, "add", "a.txt")
+	runGit(t, work, "commit", "-qm", "unpushed")
+	if got := tagPlacementWarning(gitcmd.NewExecRunner(), "main"); !strings.Contains(got, "not on origin/main") {
+		t.Errorf("with an unpushed commit: warning = %q", got)
+	}
+	runGit(t, work, "checkout", "-q", "-b", "other")
+	if got := tagPlacementWarning(gitcmd.NewExecRunner(), "main"); !strings.Contains(got, "HEAD is not on") {
+		t.Errorf("on another branch: warning = %q", got)
+	}
+	runGit(t, work, "checkout", "-q", "--detach")
+	if got := tagPlacementWarning(gitcmd.NewExecRunner(), "main"); !strings.Contains(got, "HEAD is not on") {
+		t.Errorf("detached: warning = %q", got)
+	}
+}
+
+// Naming what to commit keeps the commit-then-tag flow.
+func TestTagOnly_RealGit_NamingACommitInputStillCommits(t *testing.T) {
+	for name, over := range map[string]func(*config.GitConfig){
+		"commit_message": func(c *config.GitConfig) { c.CommitMessage = "release" },
+		"file_pattern":   func(c *config.GitConfig) { c.FilePattern = "a.txt" },
+		"skip_if_empty":  func(c *config.GitConfig) { c.SkipIfEmpty = true },
+	} {
+		t.Run(name, func(t *testing.T) {
+			work, bare := repoWithRemote(t)
+			writeRepoFile(t, work, "a.txt", "changed\n")
+			before := runGit(t, bare, "rev-parse", "main")
+
+			runWithTag(t, tagOnlyConfig(over), output.NewResult())
+
+			main := runGit(t, bare, "rev-parse", "main")
+			if main == before {
+				t.Error("remote main did not move, want the commit published")
+			}
+			if got := runGit(t, bare, "rev-parse", "v9^{commit}"); got != main {
+				t.Errorf("tag points at %s, want the new commit %s", got, main)
+			}
+		})
+	}
+}
+
+// Skipping the commit must not skip the checkout: `branch` picks the tagged commit.
+func TestTagOnly_RealGit_BranchStillDecidesWhatIsTagged(t *testing.T) {
+	work, bare := repoWithRemote(t)
+	runGit(t, work, "checkout", "-q", "-b", "target")
+	writeRepoFile(t, work, "b.txt", "1\n")
+	runGit(t, work, "add", "b.txt")
+	runGit(t, work, "commit", "-qm", "on target")
+	runGit(t, work, "push", "-q", "origin", "target")
+	tip := runGit(t, work, "rev-parse", "HEAD")
+	runGit(t, work, "checkout", "-q", "main")
+	runGit(t, work, "branch", "-qD", "target")
+
+	runWithTag(t, tagOnlyConfig(func(c *config.GitConfig) { c.Branch = "target" }), output.NewResult())
+
+	if got := runGit(t, bare, "rev-parse", "v9^{commit}"); got != tip {
+		t.Errorf("tag points at %s, want the tip of target %s", got, tip)
+	}
+}
+
 // A branch the action checks out itself ends with HEAD on it, so it must pass the check.
 func TestHeadNotOnBranch_RealGit_RemoteOnlyBranchIsCheckedOut(t *testing.T) {
 	work, bare := repoWithRemote(t)

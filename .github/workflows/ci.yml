@@ -93,6 +93,35 @@ jobs:
           --volume ${{ github.workspace }}:/app \
           --rm "${{ steps.ci.outputs.image_ref }}"
 
+      - name: Tag Only Commits Nothing
+        env:
+          TAG_NAME: tag-only-${{ github.run_id }}
+        # Compares local HEAD, not the remote: use-action.yml can push `test` meanwhile.
+        run: |
+          head_before="$(git rev-parse HEAD)"
+          echo "$RANDOM" > tag-only-untracked.txt
+          docker run \
+          --env INPUT_USER_EMAIL="actions@github.com" \
+          --env INPUT_USER_NAME="GitHub Actions" \
+          --env INPUT_BRANCH="test" \
+          --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
+          --env INPUT_TAG_MESSAGE="${{ env.TAG_NAME }}" \
+          --env GITHUB_TOKEN="${{ secrets.PAT_TOKEN }}" \
+          --volume ${{ github.workspace }}:/app \
+          --rm "${{ steps.ci.outputs.image_ref }}"
+          test "$(git rev-parse HEAD)" = "$head_before"
+          test "$(git rev-parse "${{ env.TAG_NAME }}^{commit}")" = "$head_before"
+          git status --porcelain | grep -q 'tag-only-untracked.txt'
+          git ls-remote --exit-code origin "refs/tags/${{ env.TAG_NAME }}"
+          docker run \
+          --env INPUT_USER_EMAIL="actions@github.com" \
+          --env INPUT_USER_NAME="GitHub Actions" \
+          --env INPUT_TAG_NAME="${{ env.TAG_NAME }}" \
+          --env INPUT_DELETE_TAG="true" \
+          --env GITHUB_TOKEN="${{ secrets.PAT_TOKEN }}" \
+          --volume ${{ github.workspace }}:/app \
+          --rm "${{ steps.ci.outputs.image_ref }}"
+
   test-action-auto-branch-false:
     name: Test Auto Branch False
     runs-on: ubuntu-latest

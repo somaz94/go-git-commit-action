@@ -120,6 +120,14 @@ type GitConfig struct {
 	RebaseOnReject bool
 }
 
+// TagOnly reports a step that asks for a tag and names nothing to commit. action.yml
+// supplies the defaults, so a value equal to its default reads as not asked for.
+// skip_if_empty and rebase_on_reject mean nothing except for a commit, so they ask for one.
+func (c *GitConfig) TagOnly() bool {
+	return c.TagName != "" && !c.DeleteTag && !c.CreatePR && !c.SkipIfEmpty && !c.RebaseOnReject &&
+		c.FilePattern == DefaultFilePattern && c.CommitMessage == DefaultCommitMessage
+}
+
 // IgnoredByDeleteTag names the inputs set here that a delete_tag run does not act on, so
 // a step that asked for a commit or a pull request is told it did not get one.
 func (c *GitConfig) IgnoredByDeleteTag() []string {

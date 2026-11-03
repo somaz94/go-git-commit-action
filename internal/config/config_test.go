@@ -434,3 +434,30 @@ func TestGitConfig_IgnoredByDeleteTag(t *testing.T) {
 		t.Errorf("got %q, want all three named", got)
 	}
 }
+
+func TestGitConfig_TagOnly(t *testing.T) {
+	base := GitConfig{TagName: "v1", FilePattern: DefaultFilePattern, CommitMessage: DefaultCommitMessage}
+	tests := []struct {
+		name string
+		over func(*GitConfig)
+		want bool
+	}{
+		{"a tag and nothing to commit", func(*GitConfig) {}, true},
+		{"no tag", func(c *GitConfig) { c.TagName = "" }, false},
+		{"deleting, which has its own path", func(c *GitConfig) { c.DeleteTag = true }, false},
+		{"a pull request needs its commit", func(c *GitConfig) { c.CreatePR = true }, false},
+		{"a file pattern asks for a commit", func(c *GitConfig) { c.FilePattern = "a.txt" }, false},
+		{"a commit message asks for a commit", func(c *GitConfig) { c.CommitMessage = "msg" }, false},
+		{"skip_if_empty only means something for a commit", func(c *GitConfig) { c.SkipIfEmpty = true }, false},
+		{"rebase_on_reject only means something for a commit", func(c *GitConfig) { c.RebaseOnReject = true }, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := base
+			tt.over(&c)
+			if got := c.TagOnly(); got != tt.want {
+				t.Errorf("TagOnly() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

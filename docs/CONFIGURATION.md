@@ -42,7 +42,7 @@ Complete reference for all available configuration options.
 **Notes:**
 - `file_pattern` supports multiple space-separated patterns: `"*.md *.txt"`
 - `repository_path` is relative to the workspace root
-- The action fails, rather than commit and push nothing, when changes are staged while `branch` names a local branch other than the one checked out, or while HEAD is detached. With nothing staged it carries on, so a tag step on another branch still works
+- The action fails, rather than commit and push nothing, when changes are staged while `branch` names a local branch other than the one checked out, or while HEAD is detached. With nothing staged it carries on. A tag-only step commits nothing, so this check does not apply to it
 - `rebase_on_reject` is for a job that can run while someone else pushes to the same branch. It acts only after a rejected push, and only when the remote has moved forward from the commit's parent, so a push that succeeds never rebases and an authentication failure is left alone. It applies to the `branch` input, not to the branch `auto_branch` creates, and needs `retry_count` of at least 2
 - With `rebase_on_reject`, the action fails as it does without the input, and never force-pushes, when: the rebase conflicts; a tracked file outside `file_pattern` has uncommitted changes (there is no autostash, because a stash that cannot be reapplied leaves conflict markers while git reports success); the remote's history was rewritten, so the commit's parent is gone from it; or the job holds other unpushed commits
 - The published commit sits on a remote state the workflow did not test, so leave `rebase_on_reject` off if later steps depend on the exact tree. If the remote already has the identical change, the rebase drops the commit, and `commit_sha` reports the remote's commit
@@ -60,6 +60,8 @@ Complete reference for all available configuration options.
 
 **Notes:**
 - Tag operations only execute when `tag_name` is provided
+- A tag step that sets none of `file_pattern`, `commit_message`, `create_pr`, `skip_if_empty` or `rebase_on_reject` commits nothing. Setting `file_pattern` or `commit_message` to its default value counts as not setting it. `skipped` stays `false`, `changed_files` is `0` and `commit_sha` is HEAD
+- Unless `tag_reference` is set, the tag lands on HEAD. A `branch` that exists only on the remote is checked out first, so its tip is tagged; a local `branch` is not switched to, and the action warns when HEAD is off it or holds unpushed commits. A `branch` that exists nowhere is created and pushed, so set `branch` on a repository whose default is not `main`
 - `delete_tag` with a `tag_name` commits and pushes nothing: `file_pattern`, `commit_message` and `create_pr` are ignored with a warning, `skipped` is `true`, `changed_files` is `0` and `commit_sha` is empty
 - `tag_reference` can be a commit SHA, tag name, or branch name
 - `tag_reference` cannot be used with `delete_tag`

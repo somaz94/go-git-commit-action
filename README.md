@@ -59,7 +59,7 @@ A GitHub Action that automates git commit, push, tag, and pull request operation
     github_token: ${{ secrets.PAT_TOKEN }}    
 ```
 
-Creating a tag runs the commit step first, so anything `file_pattern` matches (by default, every changed file) is committed and pushed before the tag. Run it on a clean tree to create only the tag. `delete_tag` commits nothing.
+A step that sets `tag_name` and none of `file_pattern`, `commit_message`, `create_pr`, `skip_if_empty` or `rebase_on_reject` creates the tag and commits nothing. Set one of them to commit first and tag that commit. `delete_tag` also commits nothing.
 
 <br/>
 
