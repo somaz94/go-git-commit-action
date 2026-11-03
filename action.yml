@@ -127,7 +127,7 @@ outputs:
   tag_name:
     description: 'The name of the created tag'
   skipped:
-    description: 'Whether the action was skipped due to no changes (true/false)'
+    description: 'Whether the commit was skipped, because there were no changes or delete_tag was set (true/false)'
   changed_files:
     description: 'The number of changed files detected'
 

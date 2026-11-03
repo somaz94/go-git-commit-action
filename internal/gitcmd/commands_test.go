@@ -344,7 +344,9 @@ func TestRebaseArgs(t *testing.T) {
 		want []string
 	}{
 		{"rebase", RebaseArgs(RefFetchHead), []string{SubCmdRebase, RefFetchHead}},
-		{"current branch", CurrentBranchArgs(), []string{SubCmdSymbolicRef, OptShort, OptQuiet, RefHead}},
+		{"full ref", FullRefArgs("main"), []string{SubCmdRevParse, OptSymbolicFullName, "main"}},
+		{"staged names", StagedNamesArgs(), []string{SubCmdDiff, OptCached, OptNameOnly}},
+		{"current branch", CurrentBranchArgs(), []string{SubCmdSymbolicRef, OptQuiet, RefHead}},
 		{"abort", RebaseAbortArgs(), []string{SubCmdRebase, OptAbort}},
 		{"is-ancestor", IsAncestorArgs(RefFetchHead, RefHead), []string{SubCmdMergeBase, OptIsAncestor, RefFetchHead, RefHead}},
 	}

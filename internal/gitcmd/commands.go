@@ -30,24 +30,25 @@ const (
 
 // Git global options
 const (
-	OptShowScope    = "--show-scope"
-	OptGetRegexp    = "--get-regexp"
-	OptGet          = "--get"
-	OptForce        = "-f"
-	OptShort        = "--short"
-	OptQuiet        = "-q"
-	OptAbort        = "--abort"
-	OptIsAncestor   = "--is-ancestor"
-	OptHard         = "--hard"
-	OptUpstream     = "-u"
-	OptPorcelain    = "--porcelain"
-	OptVerify       = "--verify"
-	OptHeads        = "--heads"
-	OptTags         = "--tags"
-	OptNameOnly     = "--name-only"
-	OptNameStatus   = "--name-status"
-	OptDeleteRemote = "--delete"
-	OptSetURL       = "set-url"
+	OptShowScope        = "--show-scope"
+	OptGetRegexp        = "--get-regexp"
+	OptGet              = "--get"
+	OptForce            = "-f"
+	OptQuiet            = "-q"
+	OptAbort            = "--abort"
+	OptIsAncestor       = "--is-ancestor"
+	OptHard             = "--hard"
+	OptUpstream         = "-u"
+	OptPorcelain        = "--porcelain"
+	OptVerify           = "--verify"
+	OptHeads            = "--heads"
+	OptTags             = "--tags"
+	OptNameOnly         = "--name-only"
+	OptCached           = "--cached"
+	OptSymbolicFullName = "--symbolic-full-name"
+	OptNameStatus       = "--name-status"
+	OptDeleteRemote     = "--delete"
+	OptSetURL           = "set-url"
 )
 
 // Git config specific options
@@ -82,6 +83,7 @@ const (
 	RefHead      = "HEAD"
 	RefFetchHead = "FETCH_HEAD"
 	RefTags      = "refs/tags/"
+	RefHeads     = "refs/heads/"
 )
 
 // ArgsBuilder constructs git command arguments through a fluent interface.
@@ -246,12 +248,32 @@ func RebaseArgs(ref string) []string {
 		Build()
 }
 
-// CurrentBranchArgs builds arguments for naming the branch HEAD is on. It exits
-// non-zero on a detached HEAD.
+// StagedNamesArgs builds arguments for listing the paths staged for the next commit.
+func StagedNamesArgs() []string {
+	return NewArgsBuilder().
+		Add(SubCmdDiff, OptCached, OptNameOnly).
+		Build()
+}
+
+// CurrentBranchArgs builds arguments for naming the ref HEAD is on, in full. It exits
+// non-zero on a detached HEAD. Not --short: with a tag of the same name that prints
+// heads/<branch>, so a comparison with the branch input would falsely fail.
 func CurrentBranchArgs() []string {
 	return NewArgsBuilder().
-		Add(SubCmdSymbolicRef, OptShort, OptQuiet, RefHead).
+		Add(SubCmdSymbolicRef, OptQuiet, RefHead).
 		Build()
+}
+
+// FullRefArgs builds arguments for resolving a name to its full ref, as a push would.
+func FullRefArgs(name string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdRevParse, OptSymbolicFullName, name).
+		Build()
+}
+
+// BranchRef returns the full ref CurrentBranchArgs prints for branch.
+func BranchRef(branch string) string {
+	return RefHeads + branch
 }
 
 // RebaseAbortArgs builds arguments for abandoning a rebase in progress.

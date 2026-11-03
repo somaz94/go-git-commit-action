@@ -110,22 +110,38 @@ func CommitAndPush(ctx context.Context, r gitcmd.Runner, commitMessage, branch s
 	return pushWithRetry(ctx, r, pushArgs, opts.PushAttempts, beforeRetry)
 }
 
+// HeadOnBranch reports the full ref HEAD is on and whether branch names it. err is
+// non-nil on a detached HEAD. branch is whatever a push accepts, so refs/heads/main,
+// heads/main and HEAD count as well as main.
+func HeadOnBranch(r gitcmd.Runner, branch string) (current string, onBranch bool, err error) {
+	head, err := r.Output(gitcmd.CmdGit, gitcmd.CurrentBranchArgs()...)
+	if err != nil {
+		return "", false, err
+	}
+	current = strings.TrimSpace(string(head))
+	// First, because a tag of the same name makes the resolution below print nothing.
+	if current == gitcmd.BranchRef(branch) {
+		return current, true, nil
+	}
+	target, err := r.Output(gitcmd.CmdGit, gitcmd.FullRefArgs(branch)...)
+	return current, err == nil && strings.TrimSpace(string(target)) == current, nil
+}
+
 // rebaseIfBehind replays the local commit onto the remote branch when the remote has
 // only moved forward from base, the commit's parent. Asking git about the histories,
 // rather than reading the push's error text, works in any locale and leaves an auth
 // failure alone. It returns an error only when a retry cannot help; when it cannot tell
 // whether the checkout is behind, the plain retry decides.
 func rebaseIfBehind(r gitcmd.Runner, branch, base string) error {
-	// The push sends refs/heads/<branch>, so rebasing any other HEAD cannot help it.
-	head, err := r.Output(gitcmd.CmdGit, gitcmd.CurrentBranchArgs()...)
-	if err != nil || strings.TrimSpace(string(head)) != branch {
+	// The push sends <branch>, so rebasing any other HEAD cannot help it.
+	if _, onBranch, err := HeadOnBranch(r, branch); err != nil || !onBranch {
 		return nil
 	}
 	// FETCH_HEAD, not origin/<branch>: a checkout's refspec may not track the branch.
 	if err := RunStep(r, "Fetching remote branch", gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, branch)...); err != nil {
 		return nil
 	}
-	_, err = r.Output(gitcmd.CmdGit, gitcmd.IsAncestorArgs(gitcmd.RefFetchHead, gitcmd.RefHead)...)
+	_, err := r.Output(gitcmd.CmdGit, gitcmd.IsAncestorArgs(gitcmd.RefFetchHead, gitcmd.RefHead)...)
 	if code, ok := gitcmd.ExitCodeOf(err); !ok || code != 1 || base == "" {
 		return nil
 	}

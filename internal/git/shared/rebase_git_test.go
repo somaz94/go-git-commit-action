@@ -173,6 +173,42 @@ func TestRebaseOnReject_RealGit_RewrittenRemoteIsNotUndone(t *testing.T) {
 	}
 }
 
+// A tag named like the branch must not make the checkout look like it is elsewhere.
+func TestRebaseOnReject_RealGit_SameNamedTagStillRebases(t *testing.T) {
+	work, _ := racedCheckout(t, "code.go")
+	git(t, work, "tag", "main")
+	base := git(t, work, "rev-parse", "HEAD")
+	writeFile(t, work, "data.json", "ours\n")
+	git(t, work, "add", "data.json")
+	git(t, work, "commit", "-qm", "ours")
+	t.Chdir(work)
+
+	if err := rebaseIfBehind(gitcmd.NewExecRunner(), "main", base); err != nil {
+		t.Fatalf("rebaseIfBehind() error = %v", err)
+	}
+	if got := git(t, work, "log", "-2", "--format=%s"); got != "ours\ntheirs" {
+		t.Errorf("history = %q, want ours rebased onto theirs", got)
+	}
+}
+
+// refs/heads/main is a valid branch input, so it has to reach the rebase too.
+func TestRebaseOnReject_RealGit_FullRefBranchInputRebases(t *testing.T) {
+	work, other := racedCheckout(t, "code.go")
+	writeFile(t, work, "data.json", "ours\n")
+	git(t, work, "add", "data.json")
+	noPushDelay(t)
+	t.Chdir(work)
+
+	err := CommitAndPush(context.Background(), gitcmd.NewExecRunner(), "ours", "refs/heads/main", CommitPushOptions{PushAttempts: 3, RebaseOnReject: true})
+	if err != nil {
+		t.Fatalf("CommitAndPush() error = %v", err)
+	}
+	git(t, other, "pull", "--ff-only", "origin", "main")
+	if got := git(t, other, "log", "-2", "--format=%s"); got != "ours\ntheirs" {
+		t.Errorf("remote history = %q, want ours on top of theirs", got)
+	}
+}
+
 // The push sends refs/heads/main, so rewriting whatever HEAD is on could not help it.
 func TestRebaseOnReject_RealGit_OtherBranchIsLeftAlone(t *testing.T) {
 	work, _ := racedCheckout(t, "code.go")

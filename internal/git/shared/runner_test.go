@@ -337,7 +337,7 @@ func behindRepo(rejections int, behind, baseGone error) *gitcmd.FakeRunner {
 		case gitcmd.SubCmdRevParse:
 			return "base123\n", nil
 		case gitcmd.SubCmdSymbolicRef:
-			return "main\n", nil
+			return gitcmd.BranchRef("main") + "\n", nil
 		case gitcmd.SubCmdMergeBase:
 			if args[2] == gitcmd.RefFetchHead {
 				return "", behind
@@ -430,7 +430,7 @@ func TestCommitAndPush_RebaseOnReject(t *testing.T) {
 	})
 
 	t.Run("HEAD on another branch is not rebased", func(t *testing.T) {
-		for _, answer := range []gitcmd.FakeResult{{Stdout: "feature\n"}, {Err: gitcmd.Fail(1)}} {
+		for _, answer := range []gitcmd.FakeResult{{Stdout: gitcmd.BranchRef("feature") + "\n"}, {Err: gitcmd.Fail(1)}} {
 			f := behindRepo(1, ahead, nil)
 			inner := f.Handler
 			f.Handler = func(name string, args []string) (string, error) {

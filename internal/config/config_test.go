@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -419,5 +420,17 @@ func TestNewGitConfig_RebaseOnRejectWarnsWithoutARetry(t *testing.T) {
 	}
 	if !cfg.RebaseOnReject || cfg.RetryCount != 1 {
 		t.Errorf("config = (%v, %d), want it kept as given: the warning does not change it", cfg.RebaseOnReject, cfg.RetryCount)
+	}
+}
+
+func TestGitConfig_IgnoredByDeleteTag(t *testing.T) {
+	plain := &GitConfig{FilePattern: DefaultFilePattern, CommitMessage: DefaultCommitMessage}
+	if got := plain.IgnoredByDeleteTag(); len(got) != 0 {
+		t.Errorf("defaults: got %v, want nothing to warn about", got)
+	}
+	asked := &GitConfig{CreatePR: true, FilePattern: "a.txt", CommitMessage: "msg"}
+	got := strings.Join(asked.IgnoredByDeleteTag(), ",")
+	if got != "create_pr,file_pattern,commit_message" {
+		t.Errorf("got %q, want all three named", got)
 	}
 }

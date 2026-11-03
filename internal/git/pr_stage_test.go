@@ -128,6 +128,8 @@ func prRepo(cfg *config.GitConfig, fail map[string]int) *gitcmd.FakeRunner {
 			}
 		}
 		switch {
+		case k == key(gitcmd.CurrentBranchArgs()):
+			return gitcmd.BranchRef(cfg.Branch) + "\n", nil
 		case strings.HasPrefix(k, key(gitcmd.StatusPorcelainArgs())):
 			if committed {
 				return "", nil

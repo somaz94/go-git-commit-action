@@ -34,7 +34,9 @@ jobs:
 
       - name: Create Test File
         run: |
-          echo "$(date +%s)-$RANDOM" > test/test1.txt
+          # Not test1.txt: a release runs this beside ci.yml, which writes that file on the
+          # same branch, and rebase_on_reject below cannot resolve a conflict.
+          echo "$(date +%s)-$RANDOM" > test/smoke-test1.txt
 
       - name: Commit to repository
         uses: somaz94/go-git-commit-action@v1
@@ -48,6 +50,7 @@ jobs:
           tag_name: test1-${{ github.run_id }}
           tag_message: test1 ${{ github.run_id }}
           tag_reference: v1.0.1
+          rebase_on_reject: true
           github_token: ${{ secrets.PAT_TOKEN }}
 
       - name: Confirm Tag Reference

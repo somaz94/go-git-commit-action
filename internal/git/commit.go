@@ -34,7 +34,7 @@ type FileBackup struct {
 // withRetry provides retry logic for operations that might fail transiently.
 // It executes the given operation until it succeeds or maxRetries attempts
 // (at least one) have failed, backing off linearly between attempts.
-// An ErrPushAfterCommit or errPRStage is returned at once, without a rerun.
+// An ErrPushAfterCommit, errPRStage or errHeadNotOnBranch is returned at once, without a rerun.
 func withRetry(ctx context.Context, maxRetries int, operation func() error) error {
 	attempts := max(maxRetries, 1)
 	var lastErr error
@@ -58,6 +58,10 @@ func withRetry(ctx context.Context, maxRetries int, operation func() error) erro
 		// Both were already retried in place, past a commit: a rerun
 		// finds a clean tree and skips, or cuts a second auto branch.
 		if stderrors.Is(err, shared.ErrPushAfterCommit) || stderrors.Is(err, errPRStage) {
+			return err
+		}
+		// A rerun finds HEAD on the same branch.
+		if stderrors.Is(err, errHeadNotOnBranch) {
 			return err
 		}
 		lastErr = err
@@ -111,6 +115,19 @@ func executeGitCommitWorkflow(ctx context.Context, r gitcmd.Runner, config *conf
 
 	if err := setupGitConfig(r, config); err != nil {
 		return err
+	}
+
+	// Decided 2026-11-03: deleting a tag used to stage file_pattern, whose default is
+	// everything, and push it to the branch, so a stray build file reached main.
+	// Credentials above are still needed: the tag delete pushes.
+	if config.DeleteTag && config.TagName != "" {
+		fmt.Println("\n[INFO] delete_tag is set: skipping the commit, nothing is staged or pushed.")
+		for _, input := range config.IgnoredByDeleteTag() {
+			fmt.Printf("[WARN] delete_tag is set: %s is ignored.\n", input)
+		}
+		result.Set(output.KeySkipped, "true")
+		result.Set(output.KeyChangedFiles, "0")
+		return nil
 	}
 
 	if err := handleBranch(r, config); err != nil {
@@ -493,9 +510,36 @@ func handlePullRequestFlow(ctx context.Context, r gitcmd.Runner, config *config.
 	return nil
 }
 
+// errHeadNotOnBranch reports a commit that would never reach the branch input.
+var errHeadNotOnBranch = stderrors.New("HEAD is not on the branch input")
+
+// ensureCommitReachesBranch fails when staged changes would commit to one branch while
+// the push sends another: the commit stays local and the action reports success. With
+// nothing staged there is nothing to lose, so a tag step on another branch keeps working.
+func ensureCommitReachesBranch(r gitcmd.Runner, branch string) error {
+	current, onBranch, err := shared.HeadOnBranch(r, branch)
+	if onBranch {
+		return nil
+	}
+	staged, stagedErr := r.Output(gitcmd.CmdGit, gitcmd.StagedNamesArgs()...)
+	if stagedErr != nil || len(strings.TrimSpace(string(staged))) == 0 {
+		return nil
+	}
+	current = strings.TrimPrefix(current, gitcmd.RefHeads)
+	if err != nil {
+		current = "a detached HEAD"
+	}
+	return fmt.Errorf("%w: checked out on %s, but branch is %q, so this commit would not be pushed; check out %q or set branch to match",
+		errHeadNotOnBranch, current, branch, branch)
+}
+
 // commitChanges stages, commits, and pushes the specified files.
 func commitChanges(ctx context.Context, r gitcmd.Runner, config *config.GitConfig, result *output.Result) error {
 	if err := StageFiles(r, config.FilePattern); err != nil {
+		return err
+	}
+
+	if err := ensureCommitReachesBranch(r, config.Branch); err != nil {
 		return err
 	}
 

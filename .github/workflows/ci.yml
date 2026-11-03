@@ -53,8 +53,10 @@ jobs:
           TAG_NAME: test1-${{ github.run_id }}
           TAG_MESSAGE: test1 ${{ github.run_id }}
           TAG_REFERENCE: v1.0.1
+        # rebase_on_reject: a release runs this beside use-action.yml on the same branch.
         run: |
           docker run \
+          --env INPUT_REBASE_ON_REJECT="true" \
           --env INPUT_USER_EMAIL="${{ env.USER_EMAIL }}" \
           --env INPUT_USER_NAME="${{ env.USER_NAME }}" \
           --env INPUT_COMMIT_MESSAGE="${{ env.COMMIT_MESSAGE }}" \

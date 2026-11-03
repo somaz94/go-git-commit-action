@@ -120,6 +120,22 @@ type GitConfig struct {
 	RebaseOnReject bool
 }
 
+// IgnoredByDeleteTag names the inputs set here that a delete_tag run does not act on, so
+// a step that asked for a commit or a pull request is told it did not get one.
+func (c *GitConfig) IgnoredByDeleteTag() []string {
+	var ignored []string
+	if c.CreatePR {
+		ignored = append(ignored, "create_pr")
+	}
+	if c.FilePattern != DefaultFilePattern {
+		ignored = append(ignored, "file_pattern")
+	}
+	if c.CommitMessage != DefaultCommitMessage {
+		ignored = append(ignored, "commit_message")
+	}
+	return ignored
+}
+
 // Validate checks that the configuration is valid for the requested operations.
 // It verifies that required fields are set based on the actions being performed.
 func (c *GitConfig) Validate() error {

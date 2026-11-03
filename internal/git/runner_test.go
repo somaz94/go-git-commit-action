@@ -600,6 +600,8 @@ func pushingRepo(cfg *config.GitConfig, pushFailures int) (*gitcmd.FakeRunner, *
 			}
 		case key(gitcmd.RevParseArgs("HEAD")):
 			return "abc1234\n", nil
+		case key(gitcmd.CurrentBranchArgs()):
+			return gitcmd.BranchRef(cfg.Branch) + "\n", nil
 		}
 		return "", nil
 	}
@@ -657,13 +659,13 @@ func TestCommitChanges_PassesRebaseOnReject(t *testing.T) {
 		if err := RunGitCommitWithRunner(context.Background(), f, cfg, output.NewResult()); err != nil {
 			t.Fatalf("RunGitCommitWithRunner() error = %v", err)
 		}
-		probed := false
-		probe := gitcmd.Call{Name: gitcmd.CmdGit, Args: gitcmd.CurrentBranchArgs()}.Key()
+		fetched := false
+		fetch := gitcmd.Call{Name: gitcmd.CmdGit, Args: gitcmd.FetchArgs(gitcmd.RefOrigin, cfg.Branch)}.Key()
 		for _, k := range f.Keys() {
-			probed = probed || k == probe
+			fetched = fetched || k == fetch
 		}
-		if probed != on {
-			t.Errorf("RebaseOnReject=%v: looked at the branch after a rejection = %v", on, probed)
+		if fetched != on {
+			t.Errorf("RebaseOnReject=%v: fetched after a rejection = %v", on, fetched)
 		}
 	}
 }
