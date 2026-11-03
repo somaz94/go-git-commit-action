@@ -63,6 +63,10 @@ type CommitPushOptions struct {
 	// PushAttempts is how many times the push is tried after a successful
 	// commit; values below 1 mean a single attempt.
 	PushAttempts int
+	// RebaseOnReject rebases the commit onto the remote branch before a retry
+	// when the remote has moved ahead of the commit's parent. It needs
+	// PushAttempts of at least 2.
+	RebaseOnReject bool
 }
 
 // isNothingToCommitExit reports whether err is a "git commit" exit-code-1
@@ -76,6 +80,12 @@ func isNothingToCommitExit(err error) bool {
 // Behavior is controlled by opts (upstream tracking, empty-commit tolerance and
 // push attempts). A push that never succeeds returns ErrPushAfterCommit.
 func CommitAndPush(ctx context.Context, r gitcmd.Runner, commitMessage, branch string, opts CommitPushOptions) error {
+	var base string
+	if opts.RebaseOnReject {
+		// An unborn HEAD leaves base empty, and no rebase runs.
+		base, _ = CurrentCommitSHA(r)
+	}
+
 	fmt.Printf("  - Committing changes... ")
 	if err := r.Run(gitcmd.CmdGit, gitcmd.CommitArgs(commitMessage)...); err != nil {
 		if opts.TolerateNothingToCommit && isNothingToCommitExit(err) {
@@ -93,12 +103,50 @@ func CommitAndPush(ctx context.Context, r gitcmd.Runner, commitMessage, branch s
 	if opts.SetUpstream {
 		pushArgs = gitcmd.PushUpstreamArgs(gitcmd.RefOrigin, branch)
 	}
-	return pushWithRetry(ctx, r, pushArgs, opts.PushAttempts)
+	var beforeRetry func() error
+	if opts.RebaseOnReject {
+		beforeRetry = func() error { return rebaseIfBehind(r, branch, base) }
+	}
+	return pushWithRetry(ctx, r, pushArgs, opts.PushAttempts, beforeRetry)
 }
 
-// pushWithRetry runs the push up to attempts times with linear backoff,
-// honoring ctx while it waits.
-func pushWithRetry(ctx context.Context, r gitcmd.Runner, pushArgs []string, attempts int) error {
+// rebaseIfBehind replays the local commit onto the remote branch when the remote has
+// only moved forward from base, the commit's parent. Asking git about the histories,
+// rather than reading the push's error text, works in any locale and leaves an auth
+// failure alone. It returns an error only when a retry cannot help; when it cannot tell
+// whether the checkout is behind, the plain retry decides.
+func rebaseIfBehind(r gitcmd.Runner, branch, base string) error {
+	// The push sends refs/heads/<branch>, so rebasing any other HEAD cannot help it.
+	head, err := r.Output(gitcmd.CmdGit, gitcmd.CurrentBranchArgs()...)
+	if err != nil || strings.TrimSpace(string(head)) != branch {
+		return nil
+	}
+	// FETCH_HEAD, not origin/<branch>: a checkout's refspec may not track the branch.
+	if err := RunStep(r, "Fetching remote branch", gitcmd.CmdGit, gitcmd.FetchArgs(gitcmd.RefOrigin, branch)...); err != nil {
+		return nil
+	}
+	_, err = r.Output(gitcmd.CmdGit, gitcmd.IsAncestorArgs(gitcmd.RefFetchHead, gitcmd.RefHead)...)
+	if code, ok := gitcmd.ExitCodeOf(err); !ok || code != 1 || base == "" {
+		return nil
+	}
+	// Decided 2026-11-03: exit 1 above also means the remote was rewritten, and rebasing
+	// then replays commits a force-push removed, without any force on our side.
+	if _, err := r.Output(gitcmd.CmdGit, gitcmd.IsAncestorArgs(base, gitcmd.RefFetchHead)...); err != nil {
+		return fmt.Errorf("remote %s no longer contains %s: its history was rewritten, or this job holds other unpushed commits; not rebasing", branch, base)
+	}
+	if err := RunStep(r, "Rebasing onto remote branch", gitcmd.CmdGit, gitcmd.RebaseArgs(gitcmd.RefFetchHead)...); err != nil {
+		// A dirty tree refuses before starting, which leaves nothing to abort.
+		if abortErr := RunStep(r, "Aborting rebase", gitcmd.CmdGit, gitcmd.RebaseAbortArgs()...); abortErr != nil {
+			return fmt.Errorf("rebase onto %s: %w (no rebase to abort, or abort failed: %v)", branch, err, abortErr)
+		}
+		return fmt.Errorf("rebase onto %s: %w", branch, err)
+	}
+	return nil
+}
+
+// pushWithRetry runs the push up to attempts times with linear backoff, honoring
+// ctx while it waits. beforeRetry, when set, runs before each retry.
+func pushWithRetry(ctx context.Context, r gitcmd.Runner, pushArgs []string, attempts int, beforeRetry func() error) error {
 	var err error
 	for i := range max(attempts, 1) {
 		if i > 0 {
@@ -106,6 +154,11 @@ func pushWithRetry(ctx context.Context, r gitcmd.Runner, pushArgs []string, atte
 			case <-ctx.Done():
 				return fmt.Errorf("%w: %w", ErrPushAfterCommit, ctx.Err())
 			case <-time.After(pushRetryDelay * time.Duration(i)):
+			}
+			if beforeRetry != nil {
+				if rebaseErr := beforeRetry(); rebaseErr != nil {
+					return fmt.Errorf("%w: %w", ErrPushAfterCommit, rebaseErr)
+				}
 			}
 		}
 		if err = RunStep(r, "Pushing changes", gitcmd.CmdGit, pushArgs...); err == nil {

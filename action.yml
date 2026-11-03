@@ -112,6 +112,10 @@ inputs:
     description: 'Total attempts for retried operations (0 runs once)'
     required: false
     default: '3'
+  rebase_on_reject:
+    description: 'On a direct commit, rebase onto the remote branch and retry when a push finds the remote ahead. Needs retry_count of at least 2. A conflict, a dirty tracked file or a rewritten remote fails the action; it never force-pushes'
+    required: false
+    default: 'false'
 
 outputs:
   commit_sha:
@@ -164,6 +168,7 @@ runs:
     DEBUG: ${{ inputs.debug }}
     TIMEOUT: ${{ inputs.timeout }}
     RETRY_COUNT: ${{ inputs.retry_count }}
+    REBASE_ON_REJECT: ${{ inputs.rebase_on_reject }}
 branding:
   icon: 'git-commit'
   color: 'blue'

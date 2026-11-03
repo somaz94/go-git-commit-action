@@ -645,6 +645,29 @@ func TestRunGitCommitWithRunner_TransientPushFailurePublishesCommit(t *testing.T
 	}
 }
 
+// The input has to reach the push: the rebase itself is covered in shared.
+func TestCommitChanges_PassesRebaseOnReject(t *testing.T) {
+	for _, on := range []bool{true, false} {
+		isolateGitConfigEnv(t)
+		cfg := baseConfig()
+		cfg.RetryCount = 2
+		cfg.RebaseOnReject = on
+		f, _ := pushingRepo(cfg, 1)
+
+		if err := RunGitCommitWithRunner(context.Background(), f, cfg, output.NewResult()); err != nil {
+			t.Fatalf("RunGitCommitWithRunner() error = %v", err)
+		}
+		probed := false
+		probe := gitcmd.Call{Name: gitcmd.CmdGit, Args: gitcmd.CurrentBranchArgs()}.Key()
+		for _, k := range f.Keys() {
+			probed = probed || k == probe
+		}
+		if probed != on {
+			t.Errorf("RebaseOnReject=%v: looked at the branch after a rejection = %v", on, probed)
+		}
+	}
+}
+
 // A push that keeps failing must fail the action without rerunning the workflow.
 func TestRunGitCommitWithRunner_PersistentPushFailureFails(t *testing.T) {
 	isolateGitConfigEnv(t)

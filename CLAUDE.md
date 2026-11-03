@@ -38,7 +38,7 @@ make clean           # Remove artifacts
 ## Key Inputs
 
 - **Required**: `user_email`, `user_name`
-- **Commit**: `commit_message`, `branch`, `repository_path`, `file_pattern`, `skip_if_empty`
+- **Commit**: `commit_message`, `branch`, `repository_path`, `file_pattern`, `skip_if_empty`, `rebase_on_reject`
 - **Tag**: `tag_name`, `tag_message`, `tag_reference`, `delete_tag`
 - **PR**: `create_pr`, `auto_branch`, `pr_title`, `pr_base`, `pr_branch`, `pr_body`, `pr_labels`, `pr_closed`, `pr_dry_run`, `delete_source_branch`
 - **Auth**: `github_token`

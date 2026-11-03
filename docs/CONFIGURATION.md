@@ -37,10 +37,14 @@ Complete reference for all available configuration options.
 | `repository_path` | Path to the repository | `.` |
 | `file_pattern` | File pattern to add | `.` |
 | `skip_if_empty` | Skip if no changes | `false` |
+| `rebase_on_reject` | Rebase onto the remote branch and retry when a push finds the remote ahead | `false` |
 
 **Notes:**
 - `file_pattern` supports multiple space-separated patterns: `"*.md *.txt"`
 - `repository_path` is relative to the workspace root
+- `rebase_on_reject` is for a job that can run while someone else pushes to the same branch. It acts only after a rejected push, and only when the remote has moved forward from the commit's parent, so a push that succeeds never rebases and an authentication failure is left alone. It applies to the `branch` input, not to the branch `auto_branch` creates, and needs `retry_count` of at least 2
+- With `rebase_on_reject`, the action fails as it does without the input, and never force-pushes, when: the rebase conflicts; a tracked file outside `file_pattern` has uncommitted changes (there is no autostash, because a stash that cannot be reapplied leaves conflict markers while git reports success); the remote's history was rewritten, so the commit's parent is gone from it; or the job holds other unpushed commits
+- The published commit sits on a remote state the workflow did not test, so leave `rebase_on_reject` off if later steps depend on the exact tree. If the remote already has the identical change, the rebase drops the commit, and `commit_sha` reports the remote's commit
 
 <br/>
 
@@ -94,6 +98,7 @@ branch: "main"
 repository_path: "."
 file_pattern: "."
 skip_if_empty: false
+rebase_on_reject: false
 delete_tag: false
 create_pr: false
 auto_branch: false

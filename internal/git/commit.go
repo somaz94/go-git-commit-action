@@ -503,6 +503,7 @@ func commitChanges(ctx context.Context, r gitcmd.Runner, config *config.GitConfi
 	if err := shared.CommitAndPush(ctx, r, config.CommitMessage, config.Branch, shared.CommitPushOptions{
 		TolerateNothingToCommit: true,
 		PushAttempts:            config.RetryCount,
+		RebaseOnReject:          config.RebaseOnReject,
 	}); err != nil {
 		return err
 	}

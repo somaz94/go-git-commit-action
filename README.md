@@ -108,6 +108,7 @@ A GitHub Action that automates git commit, push, tag, and pull request operation
 | `debug`             | No       | Enable debug logging           | false                             |
 | `timeout`           | No       | Operation timeout in seconds   | 30                                |
 | `retry_count`       | No       | Total attempts for retried operations (0 runs once) | 3          |
+| `rebase_on_reject`  | No       | On a direct commit, rebase onto the remote and retry when a push finds the remote ahead; needs `retry_count` of at least 2 | false |
 
 **See [Configuration](docs/CONFIGURATION.md) for detailed descriptions and validation rules.**
 

@@ -45,31 +45,33 @@ const (
 	EnvPRDryRun           = "INPUT_PR_DRY_RUN"
 
 	// Operational settings
-	EnvDebug      = "INPUT_DEBUG"
-	EnvTimeout    = "INPUT_TIMEOUT"
-	EnvRetryCount = "INPUT_RETRY_COUNT"
+	EnvDebug          = "INPUT_DEBUG"
+	EnvTimeout        = "INPUT_TIMEOUT"
+	EnvRetryCount     = "INPUT_RETRY_COUNT"
+	EnvRebaseOnReject = "INPUT_REBASE_ON_REJECT"
 )
 
 // Default values for configuration parameters
 const (
-	DefaultCommitMessage = "Auto commit by Go Git Commit Action"
-	DefaultBranch        = "main"
-	DefaultRepoPath      = "."
-	DefaultFilePattern   = "."
-	DefaultSkipIfEmpty   = false
-	DefaultDeleteTag     = false
-	DefaultCreatePR      = false
-	DefaultAutoBranch    = false
-	DefaultPRTitle       = ""
-	DefaultPRBase        = "main"
-	DefaultPRBranch      = ""
-	DefaultDeleteSource  = false
-	DefaultPRClosed      = false
-	DefaultPRDraft       = false
-	DefaultPRDryRun      = false
-	DefaultDebug         = false
-	DefaultTimeout       = 30
-	DefaultRetryCount    = 3
+	DefaultCommitMessage  = "Auto commit by Go Git Commit Action"
+	DefaultBranch         = "main"
+	DefaultRepoPath       = "."
+	DefaultFilePattern    = "."
+	DefaultSkipIfEmpty    = false
+	DefaultDeleteTag      = false
+	DefaultCreatePR       = false
+	DefaultAutoBranch     = false
+	DefaultPRTitle        = ""
+	DefaultPRBase         = "main"
+	DefaultPRBranch       = ""
+	DefaultDeleteSource   = false
+	DefaultPRClosed       = false
+	DefaultPRDraft        = false
+	DefaultPRDryRun       = false
+	DefaultDebug          = false
+	DefaultTimeout        = 30
+	DefaultRetryCount     = 3
+	DefaultRebaseOnReject = false
 )
 
 // GitConfig holds all configuration parameters for the Git commit action.
@@ -113,6 +115,9 @@ type GitConfig struct {
 	Debug      bool
 	Timeout    int
 	RetryCount int
+	// RebaseOnReject rebases a direct commit onto the remote branch when a
+	// push finds the remote ahead, instead of retrying the same rejected push.
+	RebaseOnReject bool
 }
 
 // Validate checks that the configuration is valid for the requested operations.
@@ -177,13 +182,18 @@ func NewGitConfig() (*GitConfig, error) {
 		PRDryRun:           getBoolEnv(EnvPRDryRun, DefaultPRDryRun),
 
 		// Operational settings
-		Debug:      getBoolEnv(EnvDebug, DefaultDebug),
-		Timeout:    getIntEnv(EnvTimeout, DefaultTimeout),
-		RetryCount: getIntEnv(EnvRetryCount, DefaultRetryCount),
+		Debug:          getBoolEnv(EnvDebug, DefaultDebug),
+		Timeout:        getIntEnv(EnvTimeout, DefaultTimeout),
+		RetryCount:     getIntEnv(EnvRetryCount, DefaultRetryCount),
+		RebaseOnReject: getBoolEnv(EnvRebaseOnReject, DefaultRebaseOnReject),
 	}
 
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid configuration: %w", err)
+	}
+
+	if cfg.RebaseOnReject && cfg.RetryCount < 2 {
+		fmt.Println("[WARN] rebase_on_reject needs retry_count of at least 2; with no retry it does nothing")
 	}
 
 	return cfg, nil

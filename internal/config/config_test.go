@@ -380,3 +380,44 @@ func TestGetEnvWithDefault(t *testing.T) {
 		})
 	}
 }
+
+func TestNewGitConfig_RebaseOnReject(t *testing.T) {
+	t.Setenv(EnvUserEmail, "test@example.com")
+	t.Setenv(EnvUserName, "Test User")
+	tests := []struct {
+		name  string
+		value string
+		want  bool
+	}{
+		{"off by default so @v1 users keep their behaviour", "", false},
+		{"on when asked", "true", true},
+		{"off when asked", "false", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(EnvRebaseOnReject, tt.value)
+			cfg, err := NewGitConfig()
+			if err != nil {
+				t.Fatalf("NewGitConfig() error = %v", err)
+			}
+			if cfg.RebaseOnReject != tt.want {
+				t.Errorf("RebaseOnReject = %v, want %v", cfg.RebaseOnReject, tt.want)
+			}
+		})
+	}
+}
+
+func TestNewGitConfig_RebaseOnRejectWarnsWithoutARetry(t *testing.T) {
+	t.Setenv(EnvUserEmail, "test@example.com")
+	t.Setenv(EnvUserName, "Test User")
+	t.Setenv(EnvRebaseOnReject, "true")
+	t.Setenv(EnvRetryCount, "1")
+
+	cfg, err := NewGitConfig()
+	if err != nil {
+		t.Fatalf("NewGitConfig() error = %v", err)
+	}
+	if !cfg.RebaseOnReject || cfg.RetryCount != 1 {
+		t.Errorf("config = (%v, %d), want it kept as given: the warning does not change it", cfg.RebaseOnReject, cfg.RetryCount)
+	}
+}

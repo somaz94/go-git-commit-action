@@ -336,3 +336,23 @@ func TestPushDeleteBranchArgs(t *testing.T) {
 		t.Errorf("PushDeleteBranchArgs() = %v, want %v", args, expected)
 	}
 }
+
+func TestRebaseArgs(t *testing.T) {
+	tests := []struct {
+		name string
+		got  []string
+		want []string
+	}{
+		{"rebase", RebaseArgs(RefFetchHead), []string{SubCmdRebase, RefFetchHead}},
+		{"current branch", CurrentBranchArgs(), []string{SubCmdSymbolicRef, OptShort, OptQuiet, RefHead}},
+		{"abort", RebaseAbortArgs(), []string{SubCmdRebase, OptAbort}},
+		{"is-ancestor", IsAncestorArgs(RefFetchHead, RefHead), []string{SubCmdMergeBase, OptIsAncestor, RefFetchHead, RefHead}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if !reflect.DeepEqual(tt.got, tt.want) {
+				t.Errorf("got %v, want %v", tt.got, tt.want)
+			}
+		})
+	}
+}

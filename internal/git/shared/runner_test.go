@@ -321,3 +321,213 @@ func TestIsNothingToCommitExit_FakeExitCodes(t *testing.T) {
 		t.Error("isNothingToCommitExit(exit 2) = true, want false")
 	}
 }
+
+// behindRepo fakes a checkout on main whose first pushes fail. rejections is how many,
+// behind answers "is the remote in HEAD?", and baseGone answers "is base in the remote?".
+func behindRepo(rejections int, behind, baseGone error) *gitcmd.FakeRunner {
+	pushes := 0
+	f := gitcmd.NewFakeRunner()
+	f.Handler = func(_ string, args []string) (string, error) {
+		switch args[0] {
+		case gitcmd.SubCmdPush:
+			pushes++
+			if pushes <= rejections {
+				return "", gitcmd.Fail(1)
+			}
+		case gitcmd.SubCmdRevParse:
+			return "base123\n", nil
+		case gitcmd.SubCmdSymbolicRef:
+			return "main\n", nil
+		case gitcmd.SubCmdMergeBase:
+			if args[2] == gitcmd.RefFetchHead {
+				return "", behind
+			}
+			return "", baseGone
+		}
+		return "", nil
+	}
+	return f
+}
+
+func TestCommitAndPush_RebaseOnReject(t *testing.T) {
+	noPushDelay(t)
+	rebase := key(gitcmd.RebaseArgs(gitcmd.RefFetchHead))
+	fetch := key(gitcmd.FetchArgs(gitcmd.RefOrigin, "main"))
+	push := key(gitcmd.PushArgs(gitcmd.RefOrigin, "main"))
+	opts := CommitPushOptions{PushAttempts: 3, RebaseOnReject: true}
+	ahead := gitcmd.Fail(1)
+
+	t.Run("a push that succeeds never fetches or rebases", func(t *testing.T) {
+		f := behindRepo(0, ahead, nil)
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, fetch) != 0 || countKey(f, rebase) != 0 {
+			t.Errorf("Keys() = %v, want no fetch and no rebase", f.Keys())
+		}
+	})
+
+	t.Run("a remote ahead is rebased onto and the retry publishes", func(t *testing.T) {
+		f := behindRepo(1, ahead, nil)
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 1 || countKey(f, push) != 2 {
+			t.Errorf("Keys() = %v, want one rebase and two pushes", f.Keys())
+		}
+		keys := f.Keys()
+		if keys[len(keys)-1] != push || keys[len(keys)-2] != rebase {
+			t.Errorf("Keys() = %v, want the retried push right after the rebase", keys)
+		}
+	})
+
+	t.Run("a rejection with the remote not ahead does not rebase", func(t *testing.T) {
+		f := behindRepo(1, nil, nil)
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 0 {
+			t.Errorf("Keys() = %v, want no rebase: an auth failure is not a stale checkout", f.Keys())
+		}
+	})
+
+	t.Run("a git error asking about the histories does not rebase", func(t *testing.T) {
+		f := behindRepo(1, gitcmd.Fail(128), nil)
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 0 {
+			t.Errorf("Keys() = %v, want no rebase on exit 128", f.Keys())
+		}
+	})
+
+	t.Run("a remote that no longer holds the parent is refused without retrying", func(t *testing.T) {
+		f := behindRepo(1, ahead, gitcmd.Fail(1))
+		err := CommitAndPush(context.Background(), f, "msg", "main", opts)
+		if !errors.Is(err, ErrPushAfterCommit) || !strings.Contains(err.Error(), "rewritten") {
+			t.Fatalf("error = %v, want ErrPushAfterCommit naming the rewrite", err)
+		}
+		if countKey(f, rebase) != 0 || countKey(f, push) != 1 {
+			t.Errorf("Keys() = %v, want no rebase and no further push", f.Keys())
+		}
+	})
+
+	t.Run("a failed fetch leaves the decision to the plain retry", func(t *testing.T) {
+		f := behindRepo(1, ahead, nil)
+		inner := f.Handler
+		f.Handler = func(name string, args []string) (string, error) {
+			if args[0] == gitcmd.SubCmdFetch {
+				return "", gitcmd.Fail(128)
+			}
+			return inner(name, args)
+		}
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 0 {
+			t.Errorf("Keys() = %v, want no rebase", f.Keys())
+		}
+	})
+
+	t.Run("HEAD on another branch is not rebased", func(t *testing.T) {
+		for _, answer := range []gitcmd.FakeResult{{Stdout: "feature\n"}, {Err: gitcmd.Fail(1)}} {
+			f := behindRepo(1, ahead, nil)
+			inner := f.Handler
+			f.Handler = func(name string, args []string) (string, error) {
+				if args[0] == gitcmd.SubCmdSymbolicRef {
+					return answer.Stdout, answer.Err
+				}
+				return inner(name, args)
+			}
+			if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+				t.Fatalf("error = %v", err)
+			}
+			if countKey(f, fetch) != 0 || countKey(f, rebase) != 0 {
+				t.Errorf("Keys() = %v, want no fetch and no rebase", f.Keys())
+			}
+		}
+	})
+
+	t.Run("an unborn HEAD has no parent to rebase from", func(t *testing.T) {
+		f := behindRepo(1, ahead, nil)
+		inner := f.Handler
+		f.Handler = func(name string, args []string) (string, error) {
+			if args[0] == gitcmd.SubCmdRevParse {
+				return "", gitcmd.Fail(128)
+			}
+			return inner(name, args)
+		}
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 0 {
+			t.Errorf("Keys() = %v, want no rebase", f.Keys())
+		}
+	})
+
+	t.Run("a second race is rebased onto again", func(t *testing.T) {
+		f := behindRepo(2, ahead, nil)
+		if err := CommitAndPush(context.Background(), f, "msg", "main", opts); err != nil {
+			t.Fatalf("error = %v", err)
+		}
+		if countKey(f, rebase) != 2 || countKey(f, push) != 3 {
+			t.Errorf("Keys() = %v, want two rebases and three pushes", f.Keys())
+		}
+	})
+
+	t.Run("a single attempt has no retry to rebase for", func(t *testing.T) {
+		f := behindRepo(1, ahead, nil)
+		err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{PushAttempts: 1, RebaseOnReject: true})
+		if !errors.Is(err, ErrPushAfterCommit) {
+			t.Fatalf("error = %v, want ErrPushAfterCommit", err)
+		}
+		if countKey(f, fetch) != 0 {
+			t.Errorf("Keys() = %v, want no fetch", f.Keys())
+		}
+	})
+
+	t.Run("off by default the rejected push just repeats and nothing else runs", func(t *testing.T) {
+		f := behindRepo(5, ahead, nil)
+		err := CommitAndPush(context.Background(), f, "msg", "main", CommitPushOptions{PushAttempts: 3})
+		if !errors.Is(err, ErrPushAfterCommit) {
+			t.Fatalf("error = %v, want ErrPushAfterCommit", err)
+		}
+		for _, k := range f.Keys() {
+			if k != key(gitcmd.CommitArgs("msg")) && k != push {
+				t.Errorf("unexpected call %q with the input off", k)
+			}
+		}
+	})
+}
+
+func TestCommitAndPush_RebaseFailureAbortsWithoutRetrying(t *testing.T) {
+	noPushDelay(t)
+	rebase := key(gitcmd.RebaseArgs(gitcmd.RefFetchHead))
+	abort := key(gitcmd.RebaseAbortArgs())
+	push := key(gitcmd.PushArgs(gitcmd.RefOrigin, "main"))
+	opts := CommitPushOptions{PushAttempts: 3, RebaseOnReject: true}
+
+	for _, abortErr := range []error{nil, gitcmd.Fail(128)} {
+		f := behindRepo(9, gitcmd.Fail(1), nil)
+		inner := f.Handler
+		f.Handler = func(name string, args []string) (string, error) {
+			if args[0] == gitcmd.SubCmdRebase {
+				if args[1] == gitcmd.OptAbort {
+					return "", abortErr
+				}
+				return "", gitcmd.Fail(1)
+			}
+			return inner(name, args)
+		}
+		err := CommitAndPush(context.Background(), f, "msg", "main", opts)
+		if !errors.Is(err, ErrPushAfterCommit) || !strings.Contains(err.Error(), "rebase") {
+			t.Fatalf("error = %v, want ErrPushAfterCommit naming the rebase", err)
+		}
+		if countKey(f, rebase) != 1 || countKey(f, abort) != 1 || countKey(f, push) != 1 {
+			t.Errorf("Keys() = %v, want one rebase, one abort and no further push", f.Keys())
+		}
+		if abortErr != nil && !strings.Contains(err.Error(), "no rebase to abort") {
+			t.Errorf("error = %v, want it to report the abort", err)
+		}
+	}
+}

@@ -8,21 +8,24 @@ const (
 
 // Git subcommands
 const (
-	SubCmdConfig   = "config"
-	SubCmdCommit   = "commit"
-	SubCmdPush     = "push"
-	SubCmdFetch    = "fetch"
-	SubCmdCheckout = "checkout"
-	SubCmdTag      = "tag"
-	SubCmdStatus   = "status"
-	SubCmdAdd      = "add"
-	SubCmdStash    = "stash"
-	SubCmdReset    = "reset"
-	SubCmdRevParse = "rev-parse"
-	SubCmdLsRemote = "ls-remote"
-	SubCmdDiff     = "diff"
-	SubCmdRevList  = "rev-list"
-	SubCmdRemote   = "remote"
+	SubCmdConfig      = "config"
+	SubCmdCommit      = "commit"
+	SubCmdPush        = "push"
+	SubCmdFetch       = "fetch"
+	SubCmdCheckout    = "checkout"
+	SubCmdTag         = "tag"
+	SubCmdStatus      = "status"
+	SubCmdAdd         = "add"
+	SubCmdStash       = "stash"
+	SubCmdReset       = "reset"
+	SubCmdRevParse    = "rev-parse"
+	SubCmdLsRemote    = "ls-remote"
+	SubCmdDiff        = "diff"
+	SubCmdRevList     = "rev-list"
+	SubCmdRemote      = "remote"
+	SubCmdRebase      = "rebase"
+	SubCmdMergeBase   = "merge-base"
+	SubCmdSymbolicRef = "symbolic-ref"
 )
 
 // Git global options
@@ -31,6 +34,10 @@ const (
 	OptGetRegexp    = "--get-regexp"
 	OptGet          = "--get"
 	OptForce        = "-f"
+	OptShort        = "--short"
+	OptQuiet        = "-q"
+	OptAbort        = "--abort"
+	OptIsAncestor   = "--is-ancestor"
 	OptHard         = "--hard"
 	OptUpstream     = "-u"
 	OptPorcelain    = "--porcelain"
@@ -71,8 +78,10 @@ const (
 
 // Git references
 const (
-	RefOrigin = "origin"
-	RefTags   = "refs/tags/"
+	RefOrigin    = "origin"
+	RefHead      = "HEAD"
+	RefFetchHead = "FETCH_HEAD"
+	RefTags      = "refs/tags/"
 )
 
 // ArgsBuilder constructs git command arguments through a fluent interface.
@@ -226,6 +235,37 @@ func RevParseArgs(ref string) []string {
 func LsRemoteHeadsArgs(remote, branch string) []string {
 	return NewArgsBuilder().
 		Add(SubCmdLsRemote, OptHeads, remote, branch).
+		Build()
+}
+
+// RebaseArgs builds arguments for rebasing onto ref. Deliberately no --autostash: when
+// the stash cannot be reapplied git still exits 0 and leaves conflict markers in the tree.
+func RebaseArgs(ref string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdRebase, ref).
+		Build()
+}
+
+// CurrentBranchArgs builds arguments for naming the branch HEAD is on. It exits
+// non-zero on a detached HEAD.
+func CurrentBranchArgs() []string {
+	return NewArgsBuilder().
+		Add(SubCmdSymbolicRef, OptShort, OptQuiet, RefHead).
+		Build()
+}
+
+// RebaseAbortArgs builds arguments for abandoning a rebase in progress.
+func RebaseAbortArgs() []string {
+	return NewArgsBuilder().
+		Add(SubCmdRebase, OptAbort).
+		Build()
+}
+
+// IsAncestorArgs builds arguments for testing whether ancestor is contained in
+// descendant: exit 0 if it is, exit 1 if it is not.
+func IsAncestorArgs(ancestor, descendant string) []string {
+	return NewArgsBuilder().
+		Add(SubCmdMergeBase, OptIsAncestor, ancestor, descendant).
 		Build()
 }
 
